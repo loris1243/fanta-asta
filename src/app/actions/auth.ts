@@ -7,12 +7,18 @@ import { revalidatePath } from 'next/cache'
 export async function loginWithUsername(username: string, password: string) {
   const supabase = await createServerSupabaseClient()
 
+  // Applica lo stesso padding usato in fase di creazione se la password è corta
+  let processedPassword = password.trim()
+  if (processedPassword.length < 6) {
+    processedPassword = processedPassword.padEnd(6, '0')
+  }
+
   // Genera l'email interna
   const internalEmail = `${username.toLowerCase().trim()}@fanta.local`
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email: internalEmail,
-    password: password.trim(),
+    password: processedPassword.trim(),
   })
 
   if (error) {

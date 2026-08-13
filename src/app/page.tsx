@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabaseClient'
 import { 
   LogOut, Shield, History, Wallet, ArrowUpRight, 
   LayoutDashboard, Target, ClipboardList, 
-  Inbox, Users, Settings, ScrollText, Building2 
+  Inbox, Users, Settings, ScrollText, Building2, Plus 
 } from 'lucide-react'
 
 interface UserProfile {
@@ -211,7 +211,7 @@ export default function DashboardPage() {
               {isSidebarOpen && <span className="truncate">La Mia Squadra</span>}
             </Link>
 
-            {/* I Miei Obiettivi (Corretto il link duplicato) */}
+            {/* I Miei Obiettivi */}
             <Link
               href="/obiettivi"
               className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition"
@@ -377,19 +377,33 @@ export default function DashboardPage() {
 
           {/* Storico Aste Recentissime */}
           <div className="lg:col-span-2 bg-slate-800/80 border border-slate-700 p-6 rounded-2xl shadow-xl flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <div className="flex items-center gap-2">
                 <History className="w-5 h-5 text-blue-400" />
                 <h3 className="text-sm uppercase tracking-wider text-slate-200 font-bold">
                   Storico Aste Recenti
                 </h3>
               </div>
-              <Link 
-                href="/rosa" 
-                className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1 transition"
-              >
-                Vedi tutti <ArrowUpRight className="w-3.5 h-3.5" />
-              </Link>
+
+              <div className="flex items-center gap-3">
+                {/* Tasto Nuova Asta visibile solo agli Admin */}
+                {user.role === 'admin' && (
+                  <Link
+                    href="/admin/auctions/new"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-blue-600/20 active:scale-[0.98]"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Nuova Asta
+                  </Link>
+                )}
+
+                <Link 
+                  href="/rosa" 
+                  className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1 transition"
+                >
+                  Vedi tutti <ArrowUpRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
             </div>
 
             {auctionHistory.length > 0 ? (
