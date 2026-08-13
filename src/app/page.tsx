@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { getCurrentUser, logout } from '../app/actions/auth'
+import { createAuction } from '../app/actions/auctions'
 import { supabase } from '../lib/supabaseClient'
 import { 
   LogOut, Shield, History, Wallet, ArrowUpRight, 
@@ -23,11 +24,9 @@ interface TeamData {
   logo_url?: string
 }
 
-interface AuctionHistoryItem {
+interface AuctionItem {
   id: string
-  player_name: string
-  role: string
-  price: number
+  status: string
   created_at: string
 }
 
@@ -36,21 +35,19 @@ export default function DashboardPage() {
   const [user, setUser] = useState<UserProfile | null>(null)
   const [team, setTeam] = useState<TeamData>({ name: 'Nessuna squadra associata' })
   const [remainingBudget, setRemainingBudget] = useState<number>(500)
-  const [auctionHistory, setAuctionHistory] = useState<AuctionHistoryItem[]>([])
+  const [auctions, setAuctions] = useState<AuctionItem[]>([])
   const [loading, setLoading] = useState(true)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [leagueName, setLeagueName] = useState('La mia Lega')
 
   useEffect(() => {
     async function loadData() {
-      // 1. Carica utente
       const u = await getCurrentUser()
       setUser(u)
 
       let currentTeamId = null
       let initialBudget = u?.budget ?? 500
 
-      // 2. Carica la squadra associata dell'utente
       if (u?.id) {
         try {
           const { data: teamData } = await supabase
@@ -72,7 +69,6 @@ export default function DashboardPage() {
         }
       }
 
-      // 3. Calcola il budget residuo sottraendo i costi dei giocatori acquistati
       if (currentTeamId) {
         try {
           const { data: boughtPlayers } = await supabase
@@ -86,27 +82,28 @@ export default function DashboardPage() {
           } else {
             setRemainingBudget(initialBudget)
           }
-
-          // 4. Carica lo storico delle aste recenti della squadra
-          const { data: historyData } = await supabase
-            .from('auctions')
-            .select('id, player_name, role, price, created_at')
-            .eq('team_id', currentTeamId)
-            .order('created_at', { ascending: false })
-            .limit(5)
-
-          if (historyData) {
-            setAuctionHistory(historyData)
-          }
         } catch (err) {
-          console.error("Errore calcolo budget o storico:", err)
+          console.error("Errore calcolo budget:", err)
           setRemainingBudget(initialBudget)
         }
       } else {
         setRemainingBudget(initialBudget)
       }
 
-      // 5. Carica le impostazioni della lega
+      try {
+        const { data: auctionData } = await supabase
+          .from('auctions')
+          .select('id, status, created_at')
+          .order('created_at', { ascending: false })
+          .limit(5)
+
+        if (auctionData) {
+          setAuctions(auctionData)
+        }
+      } catch (err) {
+        console.error("Errore caricamento aste:", err)
+      }
+
       try {
         const { data: settings } = await supabase
           .from('league_settings')
@@ -120,13 +117,36 @@ export default function DashboardPage() {
         console.error("Errore caricamento impostazioni:", err)
       }
 
-      // 6. Imposta la stagione
       const currentYear = new Date().getFullYear()
       setSeason(`${currentYear}/${currentYear + 1}`)
 
       setLoading(false)
     }
+
     loadData()
+
+    const channel = supabase
+      .channel('realtime-auctions')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'auctions' },
+        async () => {
+          const { data: updatedAuctions } = await supabase
+            .from('auctions')
+            .select('id, status, created_at')
+            .order('created_at', { ascending: false })
+            .limit(5)
+
+          if (updatedAuctions) {
+            setAuctions(updatedAuctions)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   const handleLogout = async () => {
@@ -136,6 +156,13 @@ export default function DashboardPage() {
   const formatUsername = (name: string) => {
     if (!name) return ''
     return name.charAt(0).toUpperCase() + name.slice(1)
+  }
+
+  const handleNewAuctionClick = async () => {
+    const res = await createAuction()
+    if (!res.success) {
+      alert(res.error || "Errore durante l'avvio della nuova asta.")
+    }
   }
 
   if (loading) {
@@ -193,7 +220,6 @@ export default function DashboardPage() {
           </div>
 
           <nav className="space-y-1.5">
-            {/* Dashboard Attiva */}
             <Link
               href="/"
               className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 shadow-md shadow-blue-600/20 transition"
@@ -202,7 +228,6 @@ export default function DashboardPage() {
               {isSidebarOpen && <span className="truncate">Dashboard</span>}
             </Link>
 
-            {/* La Mia Squadra */}
             <Link
               href="/rosa"
               className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition"
@@ -211,7 +236,6 @@ export default function DashboardPage() {
               {isSidebarOpen && <span className="truncate">La Mia Squadra</span>}
             </Link>
 
-            {/* I Miei Obiettivi */}
             <Link
               href="/obiettivi"
               className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition"
@@ -220,7 +244,6 @@ export default function DashboardPage() {
               {isSidebarOpen && <span className="truncate">I Miei Obiettivi</span>}
             </Link>
 
-            {/* Listone */}
             <Link
               href="/listone"
               className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition"
@@ -352,10 +375,10 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 💳 Budget Residuo Card & 📜 Storico Aste */}
+        {/* 💳 Budget Residuo Card & 📜 Stato Aste */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Card Budget Residuo Aggiornato */}
+          {/* Card Budget Residuo */}
           <div className="bg-slate-800/80 border border-slate-700 p-6 rounded-2xl shadow-xl flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -375,26 +398,26 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Storico Aste Recentissime */}
+          {/* Stato Aste Padre (In Corso / Monitoraggio) */}
           <div className="lg:col-span-2 bg-slate-800/80 border border-slate-700 p-6 rounded-2xl shadow-xl flex flex-col justify-between">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <div className="flex items-center gap-2">
                 <History className="w-5 h-5 text-blue-400" />
                 <h3 className="text-sm uppercase tracking-wider text-slate-200 font-bold">
-                  Storico Aste Recenti
+                  Stato Aste Live
                 </h3>
               </div>
 
               <div className="flex items-center gap-3">
-                {/* Tasto Nuova Asta visibile solo agli Admin */}
                 {user.role === 'admin' && (
-                  <Link
-                    href="/admin/auctions/new"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-blue-600/20 active:scale-[0.98]"
+                  <button
+                    onClick={handleNewAuctionClick}
+                    type="button"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-blue-600/20 active:scale-[0.98] cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     Nuova Asta
-                  </Link>
+                  </button>
                 )}
 
                 <Link 
@@ -406,25 +429,44 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {auctionHistory.length > 0 ? (
+            {auctions.length > 0 ? (
               <div className="space-y-2.5">
-                {auctionHistory.map((item) => (
-                  <div key={item.id} className="bg-slate-900/60 border border-slate-700/60 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs sm:text-sm">
-                    <div className="flex items-center gap-3">
-                      <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold text-[10px]">
-                        {item.role || 'CALCIATORE'}
-                      </span>
-                      <span className="font-bold text-white">{item.player_name}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-black text-emerald-400">{item.price} FM</span>
-                    </div>
-                  </div>
-                ))}
+                {auctions.map((item) => {
+                  const isInCorso = item.status === 'in_corso' || item.status === 'active'
+
+                  return (
+                    <Link 
+                      key={item.id} 
+                      href={`/asta/${item.id}`}
+                      className={`border rounded-xl px-4 py-3 flex items-center justify-between text-xs sm:text-sm transition-all hover:border-blue-500 hover:bg-slate-800/50 cursor-pointer ${
+                        isInCorso 
+                          ? 'bg-amber-500/10 border-amber-500/40 animate-pulse' 
+                          : 'bg-slate-900/60 border-slate-700/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="font-medium text-white">
+                          Asta ID: <span className="font-mono text-slate-400">{item.id.slice(0, 8)}...</span>
+                        </span>
+                        {isInCorso && (
+                          <span className="bg-amber-500 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider">
+                            In Corso 🔴
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`font-bold uppercase text-xs ${isInCorso ? 'text-amber-400' : 'text-slate-400'}`}>
+                          {item.status}
+                        </span>
+                        <ArrowUpRight className="w-4 h-4 text-slate-400" />
+                      </div>
+                    </Link>
+                  )
+                })}
               </div>
             ) : (
               <div className="py-8 text-center text-slate-400 text-xs italic bg-slate-900/40 rounded-xl border border-slate-800">
-                Nessuna asta completata di recente.
+                Nessuna asta attiva o recente.
               </div>
             )}
           </div>
