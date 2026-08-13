@@ -32,7 +32,7 @@ export default function ImportListonePage() {
         const processedIds: number[] = []
 
         // 1. Recupera i giocatori già esistenti per il confronto
-        const { data: existingPlayers } = await supabase.from('players').select('id, name, quotation, fvm, is_out')
+        const { data: existingPlayers } = await supabase.from('players').select('id, name, quotation, fvm, is_out, team')
         const existingMap = new Map(existingPlayers?.map(p => [p.id, p]) || [])
 
         for (const row of data) {
@@ -42,6 +42,7 @@ export default function ImportListonePage() {
           const role = row['R.']
           const roleMantra = row['R.MANTRA'] || ''
           const quotation = Number(row['QUOT.'] || 0)
+          const fantaMedia = Number(row['FM'] || 0)
           const fvm = Number(row['FVM/1000'] || 0)
           const isOut = row['Fuori lista'] === '*'
 
@@ -58,6 +59,7 @@ export default function ImportListonePage() {
               role,
               role_mantra: roleMantra,
               quotation,
+              fanta_media: fantaMedia,
               fvm,
               is_out: isOut
             }])
@@ -70,6 +72,7 @@ export default function ImportListonePage() {
               role,
               role_mantra: roleMantra,
               quotation,
+              fanta_media: fantaMedia,
               fvm,
               is_out: isOut,
               updated_at: new Date()
@@ -77,7 +80,7 @@ export default function ImportListonePage() {
 
             if (!error) {
               // Controlliamo se ci sono variazioni significative per contare l'aggiornamento
-              if (existing.quotation !== quotation || existing.fvm !== fvm || existing.is_out !== isOut) {
+              if (existing.quotation !== quotation || existing.fvm !== fvm || existing.is_out !== isOut ||existing.team !== team) {
                 updatedCount++
               }
             }

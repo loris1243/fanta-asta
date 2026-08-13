@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '../../lib/supabaseClient'
-import { Search, Loader2, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
+import { getCurrentUser } from '../actions/auth'
+import { Search, Loader2, ChevronLeft, ChevronRight, RotateCcw, Target } from 'lucide-react'
 
 interface Player {
   id: string
@@ -11,6 +12,7 @@ interface Player {
   role: string
   team: string
   quotation: number
+  fanta_media: number
   fvm: number
   is_out: boolean
 }
@@ -18,6 +20,10 @@ interface Player {
 export default function ListonePage() {
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // Stato per gli obiettivi
+  const [targetIds, setTargetIds] = useState<string[]>([])
+  const [userId, setUserId] = useState<string | null>(null)
   
   // Filtri
   const [searchTerm, setSearchTerm] = useState('')
@@ -30,8 +36,24 @@ export default function ListonePage() {
   const [itemsPerPage, setItemsPerPage] = useState(20)
 
   useEffect(() => {
-    // 1. Funzione per caricare i dati
-    async function fetchPlayers() {
+    async function fetchData() {
+      // 1. Recupera l'utente con il sistema personalizzato
+      const user = await getCurrentUser()
+      if (user) {
+        setUserId(user.id)
+        
+        // Carica gli obiettivi dell'utente
+        const { data: targets } = await supabase
+          .from('user_targets')
+          .select('player_id')
+          .eq('user_id', user.id)
+
+        if (targets) {
+          setTargetIds(targets.map((t: any) => t.player_id))
+        }
+      }
+
+      // 2. Carica i giocatori
       const { data, error } = await supabase
         .from('players')
         .select('*')
@@ -47,16 +69,16 @@ export default function ListonePage() {
       setLoading(false)
     }
 
-    fetchPlayers()
+    fetchData()
 
-    // 2. Realtime Subscription: aggiorna la pagina se cambia qualcosa nel DB
+    // 3. Realtime Subscription: aggiorna la pagina se cambia qualcosa nel DB
     const channel = supabase
       .channel('schema-db-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'players' },
         () => {
-          fetchPlayers()
+          fetchData()
         }
       )
       .subscribe()
@@ -65,6 +87,40 @@ export default function ListonePage() {
       supabase.removeChannel(channel)
     }
   }, [])
+
+  // Funzione per aggiungere o rimuovere l'obiettivo
+  const toggleTarget = async (playerId: string) => {
+    if (!userId) {
+      console.warn("Impossibile salvare l'obiettivo: utente non identificato.")
+      return
+    }
+
+    const isAlreadyTarget = targetIds.includes(playerId)
+
+    if (isAlreadyTarget) {
+      const { error } = await supabase
+        .from('user_targets')
+        .delete()
+        .eq('user_id', userId)
+        .eq('player_id', playerId)
+
+      if (!error) {
+        setTargetIds(targetIds.filter(id => id !== playerId))
+      } else {
+        console.error("Errore rimozione obiettivo:", error)
+      }
+    } else {
+      const { error } = await supabase
+        .from('user_targets')
+        .insert({ user_id: userId, player_id: playerId })
+
+      if (!error) {
+        setTargetIds([...targetIds, playerId])
+      } else {
+        console.error("Errore inserimento obiettivo:", error)
+      }
+    }
+  }
 
   // Logica di filtro
   const filteredPlayers = players.filter((player) => {
@@ -117,7 +173,7 @@ export default function ListonePage() {
                 <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
                 <input
                   type="text"
-                  placeholder="es. Lautaro"
+                  placeholder="es. Zapata"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full bg-[#0b0f19] border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:border-blue-600 outline-none transition"
@@ -185,34 +241,51 @@ export default function ListonePage() {
                     <th className="px-6 py-4">Nome</th>
                     <th className="px-6 py-4">Ruolo</th>
                     <th className="px-6 py-4">Squadra</th>
-                    <th className="px-6 py-4 text-right">Fanta-valore di mercato</th>
+                    <th className="px-6 py-4 text-right">FantaMedia</th>
+                    <th className="px-6 py-4 text-center">Obiettivo</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 text-sm">
                   {currentPlayers.length > 0 ? (
-                    currentPlayers.map((player) => (
-                      <tr 
-                        key={player.id} 
-                        className={`transition ${player.is_out ? 'opacity-60 bg-red-950/10 hover:bg-red-950/20' : 'hover:bg-slate-800/30'}`}
-                      >
-                        <td className="px-6 py-4 font-bold text-white flex items-center gap-3">
-                          <span className={player.is_out ? 'line-through text-slate-400' : ''}>{player.name}</span>
-                          {player.is_out && (
-                            <span className="px-2 py-0.5 rounded bg-red-500/10 border border-red-500/30 text-[10px] font-black text-red-400 uppercase tracking-wider">
-                              Fuori Listone
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="px-2.5 py-1 rounded-md bg-[#0b0f19] border border-slate-800 text-[11px] font-black text-blue-400">{player.role}</span>
-                        </td>
-                        <td className="px-6 py-4 text-slate-300 font-medium">{player.team}</td>
-                        <td className="px-6 py-4 text-right font-black text-emerald-400">{player.fvm} FM</td>
-                      </tr>
-                    ))
+                    currentPlayers.map((player) => {
+                      const isTarget = targetIds.includes(player.id)
+                      return (
+                        <tr 
+                          key={player.id} 
+                          className={`transition ${player.is_out ? 'opacity-60 bg-red-950/10 hover:bg-red-950/20' : 'hover:bg-slate-800/30'}`}
+                        >
+                          <td className="px-6 py-4 font-bold text-white flex items-center gap-3">
+                            <span className={player.is_out ? 'line-through text-slate-400' : ''}>{player.name}</span>
+                            {player.is_out && (
+                              <span className="px-2 py-0.5 rounded bg-red-500/10 border border-red-500/30 text-[10px] font-black text-red-400 uppercase tracking-wider">
+                                Fuori Listone
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="px-2.5 py-1 rounded-md bg-[#0b0f19] border border-slate-800 text-[11px] font-black text-blue-400">{player.role}</span>
+                          </td>
+                          <td className="px-6 py-4 text-slate-300 font-medium">{player.team}</td>
+                          <td className="px-6 py-4 text-right font-black text-emerald-400">{player.fanta_media}</td>
+                          <td className="px-6 py-4 text-center">
+                            <button
+                              onClick={() => toggleTarget(player.id)}
+                              title={isTarget ? "Rimuovi dagli obiettivi" : "Imposta come obiettivo"}
+                              className={`p-2 rounded-xl transition cursor-pointer inline-flex items-center justify-center ${
+                                isTarget 
+                                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' 
+                                  : 'bg-[#0b0f19] text-slate-500 border border-slate-800 hover:text-white hover:bg-slate-800'
+                              }`}
+                            >
+                              <Target className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })
                   ) : (
                     <tr>
-                      <td colSpan={4} className="py-12 text-center text-slate-400 text-sm italic">Nessun calciatore trovato con i filtri selezionati.</td>
+                      <td colSpan={5} className="py-12 text-center text-slate-400 text-sm italic">Nessun calciatore trovato con i filtri selezionati.</td>
                     </tr>
                   )}
                 </tbody>
