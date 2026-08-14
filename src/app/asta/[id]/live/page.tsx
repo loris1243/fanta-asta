@@ -117,7 +117,6 @@ export default function LiveAuctionPage() {
     }
   }, [id, router])
 
-  // Timer di attesa (Pending)
   useEffect(() => {
     if (pendingTimer > 0) {
       const interval = setInterval(() => setPendingTimer(prev => prev - 1), 1000)
@@ -155,6 +154,40 @@ export default function LiveAuctionPage() {
     setCurrentBid(nomination?.current_bid || nomination?.base_price || 1)
     setHighestTeamId(nomination?.highest_bidder_team_id || null)
   }
+
+  const fetchAvailablePlayers = async () => {
+    let baseQuery = supabase.from('players').select('*').eq('role', requiredRole).order('name', { ascending: true })
+    const { data } = await baseQuery
+
+    if (data) {
+      const uniqueTeams = Array.from(new Set(data.map((p: any) => p.team).filter(Boolean))) as string[]
+      setAvailableTeamsList(uniqueTeams.sort())
+
+      let filtered = data
+      if (searchQuery.trim()) {
+        filtered = filtered.filter((p: any) => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      }
+      if (selectedTeamFilter) {
+        filtered = filtered.filter((p: any) => p.team === selectedTeamFilter)
+      }
+
+      setAvailablePlayers(filtered)
+    }
+  }
+
+  useEffect(() => {
+    if (isNominateModalOpen) {
+      setSelectedTeamFilter('')
+      setSearchQuery('')
+      fetchAvailablePlayers()
+    }
+  }, [isNominateModalOpen, requiredRole])
+
+  useEffect(() => {
+    if (isNominateModalOpen) {
+      fetchAvailablePlayers()
+    }
+  }, [searchQuery, selectedTeamFilter])
 
   const handleNominatePlayer = async (playerId: number, playerName: string) => {
     if (isSubmitting) return
@@ -250,18 +283,62 @@ export default function LiveAuctionPage() {
 
       {isNominateModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl p-6 space-y-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl p-6 space-y-4 relative">
+            
+            {isSubmitting && (
+              <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs z-10 flex flex-col items-center justify-center gap-3 rounded-2xl">
+                <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-200">Chiamata in corso...</span>
+              </div>
+            )}
+
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-black uppercase">Chiama {roleDisplay}</h3>
-              <button onClick={() => setIsNominateModalOpen(false)}><X className="w-5 h-5" /></button>
+              <h3 className="text-sm font-black uppercase text-white">Chiama {roleDisplay}</h3>
+              <button disabled={isSubmitting} onClick={() => setIsNominateModalOpen(false)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
-            <div className="max-h-80 overflow-y-auto space-y-2">
-              {availablePlayers.map(p => (
-                <div key={p.id} className="flex justify-between items-center p-3 bg-slate-800 rounded-xl">
-                  <span className="font-bold text-sm">{p.name}</span>
-                  <button onClick={() => handleNominatePlayer(p.id, p.name)} className="px-4 py-2 bg-emerald-600 rounded-lg text-xs font-black uppercase">Chiama</button>
-                </div>
-              ))}
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input 
+                type="text" 
+                placeholder="Cerca per nome giocatore..." 
+                value={searchQuery} 
+                disabled={isSubmitting}
+                onChange={(e) => setSearchQuery(e.target.value)} 
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500" 
+              />
+              <select 
+                value={selectedTeamFilter} 
+                disabled={isSubmitting}
+                onChange={(e) => setSelectedTeamFilter(e.target.value)} 
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="">Tutte le squadre reali</option>
+                {availableTeamsList.map((teamName) => (
+                  <option key={teamName} value={teamName}>{teamName}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
+              {availablePlayers.length === 0 ? (
+                <p className="text-center text-xs text-slate-500 py-6 uppercase font-semibold">Nessun giocatore trovato</p>
+              ) : (
+                availablePlayers.map(p => (
+                  <div key={p.id} className="flex justify-between items-center p-3 bg-slate-800/80 border border-slate-700/60 rounded-xl">
+                    <div>
+                      <span className="font-bold text-sm text-white block">{p.name}</span>
+                      <span className="text-xs text-slate-400">{p.team}</span>
+                    </div>
+                    <button 
+                      disabled={isSubmitting}
+                      onClick={() => handleNominatePlayer(p.id, p.name)} 
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg text-xs font-black uppercase transition flex items-center gap-1"
+                    >
+                      CHIAMA
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
