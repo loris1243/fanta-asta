@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '../../../../lib/supabaseClient'
-import { Gavel, Users, Shield, ArrowLeft, Timer, Search, Plus, Sparkles, X } from 'lucide-react'
+import { Gavel, Users, Shield, ArrowLeft, Timer, Search, Plus, Sparkles, X, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
 const ROLE_NAMES: Record<string, string> = {
@@ -34,6 +34,9 @@ export default function LiveAuctionPage() {
   const [selectedTeamFilter, setSelectedTeamFilter] = useState('')
   const [availablePlayers, setAvailablePlayers] = useState<any[]>([])
   const [availableTeamsList, setAvailableTeamsList] = useState<string[]>([])
+  
+  // Stato per bloccare la UI durante l'invio della chiamata
+  const [isSubmitting, setIsSubmitting] = useState(false)
   
   const auctionChannelRef = useRef<any>(null)
 
@@ -125,16 +128,13 @@ export default function LiveAuctionPage() {
   }
 
   const fetchAvailablePlayers = async () => {
-    // 1. Carica tutti i giocatori del ruolo richiesto per popolare la tendina delle squadre e filtrare
     let baseQuery = supabase.from('players').select('*').eq('role', requiredRole).order('name', { ascending: true })
     const { data } = await baseQuery
 
     if (data) {
-      // Estrae le squadre uniche per la dropdown
       const uniqueTeams = Array.from(new Set(data.map((p: any) => p.team).filter(Boolean))) as string[]
       setAvailableTeamsList(uniqueTeams.sort())
 
-      // Applica i filtri
       let filtered = data
       if (searchQuery.trim()) {
         filtered = filtered.filter((p: any) => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -149,7 +149,7 @@ export default function LiveAuctionPage() {
 
   useEffect(() => {
     if (isNominateModalOpen) {
-      setSelectedTeamFilter('') // Reset filtro squadra alla apertura
+      setSelectedTeamFilter('')
       setSearchQuery('')
       fetchAvailablePlayers()
     }
@@ -162,7 +162,27 @@ export default function LiveAuctionPage() {
   }, [searchQuery, selectedTeamFilter])
 
   const handleNominatePlayer = async (playerId: number) => {
-    await supabase.from('auction_nominations').insert({ auction_id: id, player_id: playerId, base_price: 1, current_bid: 1, status: 'in_corso' })
+    if (isSubmitting) return
+    setIsSubmitting(true)
+    
+    const { error } = await supabase
+      .from('auction_nominations')
+      .insert({ 
+        auction_id: id, 
+        player_id: playerId, 
+        base_price: 1, 
+        current_bid: 1, 
+        highest_bidder_team_id: myTeamId, 
+        status: 'in_corso' 
+      })
+
+    if (error) {
+      console.error("Errore durante la chiamata:", error)
+      setIsSubmitting(false)
+      return
+    }
+
+    setIsSubmitting(false)
     setIsNominateModalOpen(false)
   }
 
@@ -229,10 +249,19 @@ export default function LiveAuctionPage() {
 
       {isNominateModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl p-6 space-y-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl p-6 space-y-4 relative">
+            
+            {/* Overlay di caricamento quando si invia la nomina */}
+            {isSubmitting && (
+              <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs z-10 flex flex-col items-center justify-center gap-3 rounded-2xl">
+                <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-200">Chiamata in corso...</span>
+              </div>
+            )}
+
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-black uppercase text-white">Chiama {roleDisplay}</h3>
-              <button onClick={() => setIsNominateModalOpen(false)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+              <button disabled={isSubmitting} onClick={() => setIsNominateModalOpen(false)} className="text-slate-400 hover:text-white disabled:opacity-50"><X className="w-5 h-5" /></button>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -240,13 +269,15 @@ export default function LiveAuctionPage() {
                 type="text" 
                 placeholder="Cerca per nome giocatore..." 
                 value={searchQuery} 
+                disabled={isSubmitting}
                 onChange={(e) => setSearchQuery(e.target.value)} 
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500" 
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 disabled:opacity-50" 
               />
               <select 
                 value={selectedTeamFilter} 
+                disabled={isSubmitting}
                 onChange={(e) => setSelectedTeamFilter(e.target.value)} 
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-blue-500 disabled:opacity-50"
               >
                 <option value="">Tutte le squadre reali</option>
                 {availableTeamsList.map((teamName) => (
@@ -265,7 +296,13 @@ export default function LiveAuctionPage() {
                       <span className="font-bold text-sm text-white block">{p.name}</span>
                       <span className="text-xs text-slate-400">{p.team}</span>
                     </div>
-                    <button onClick={() => handleNominatePlayer(p.id)} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-black uppercase transition">CHIAMA</button>
+                    <button 
+                      disabled={isSubmitting}
+                      onClick={() => handleNominatePlayer(p.id)} 
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg text-xs font-black uppercase transition flex items-center gap-1"
+                    >
+                      CHIAMA
+                    </button>
                   </div>
                 ))
               )}
