@@ -9,7 +9,6 @@ import { Target, Trash2, Settings, Percent, DollarSign, AlertTriangle } from 'lu
 interface TargetPlayer {
   id: string
   player_id: number
-  // Gestisce sia il caso in cui Supabase restituisca un oggetto singolo sia un array
   player: {
     id: number
     name: string
@@ -41,12 +40,14 @@ export default function ObiettiviPage() {
 
   // Budget e impostazioni lega
   const [maxBudget, setMaxBudget] = useState<number>(500)
+  
+  // Impostiamo i valori iniziali esplicitamente a 0
   const [roleBudget, setRoleBudget] = useState<RoleBudget>({
     mode: 'percentage',
-    P: 10,
-    D: 20,
-    C: 30,
-    A: 40
+    P: 0,
+    D: 0,
+    C: 0,
+    A: 0
   })
 
   // Caricamento iniziale dei dati
@@ -68,7 +69,6 @@ export default function ObiettiviPage() {
       if (targetsError) {
         console.error('Errore nel caricamento obiettivi:', targetsError)
       } else if (targetsData) {
-        // Normalizziamo il campo player nel caso in cui arrivi come array dalla join di Supabase
         const formattedTargets = targetsData
           .filter((item: any) => item.player)
           .map((item: any) => ({
@@ -87,13 +87,14 @@ export default function ObiettiviPage() {
         .eq('user_id', user.id)
         .single()
 
+      // Se l'utente ha preferenze salvate le usa, altrimenti restano a 0
       if (userBudgetPref) {
         setRoleBudget({
           mode: userBudgetPref.mode || 'percentage',
-          P: userBudgetPref.p_val ?? 10,
-          D: userBudgetPref.d_val ?? 20,
-          C: userBudgetPref.c_val ?? 30,
-          A: userBudgetPref.a_val ?? 40,
+          P: userBudgetPref.p_val ?? 0,
+          D: userBudgetPref.d_val ?? 0,
+          C: userBudgetPref.c_val ?? 0,
+          A: userBudgetPref.a_val ?? 0,
         })
       }
       setLoading(false)
@@ -134,7 +135,7 @@ export default function ObiettiviPage() {
     return () => clearTimeout(timer)
   }, [roleBudget, userId])
 
-  const updateBudget = (roleKey: 'P' | 'D' | 'C' | 'A', value: number) => setRoleBudget(prev => ({ ...prev, [roleKey]: value }))
+  const updateBudget = (roleKey: 'P' | 'D' | 'C' | 'A', value: number) => setRoleBudget(prev => ({ ...prev, [roleKey]: isNaN(value) ? 0 : value }))
   const toggleMode = (mode: 'percentage' | 'fixed') => setRoleBudget(prev => ({ ...prev, mode }))
   const removeTarget = async (targetId: string) => {
     const { error } = await supabase.from('user_targets').delete().eq('id', targetId)

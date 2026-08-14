@@ -105,14 +105,32 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [leagueName, setLeagueName] = useState('La mia Lega')
+  const [initialBudget, setInitialBudget] = useState<number>(500)
 
   useEffect(() => {
     async function loadData() {
       const u = await getCurrentUser()
       setUser(u)
 
+            try {
+        const { data: settings } = await supabase
+          .from('league_settings')
+          .select('*')
+          .maybeSingle()
+
+        if (settings?.league_name) {
+          setLeagueName(settings.league_name)
+        }
+
+                if (settings?.initial_budget) {
+          setInitialBudget(settings.initial_budget)
+        }
+
+      } catch (err) {
+        console.error("Errore caricamento impostazioni:", err)
+      }
+
       let currentTeamId = null
-      let initialBudget = u?.budget ?? 500
 
       if (u?.id) {
         try {
@@ -138,7 +156,7 @@ export default function DashboardPage() {
       if (currentTeamId) {
         try {
           const { data: boughtPlayers } = await supabase
-            .from('rosters')
+            .from('league_team_players')
             .select('price')
             .eq('team_id', currentTeamId)
 
@@ -168,19 +186,6 @@ export default function DashboardPage() {
         }
       } catch (err) {
         console.error("Errore caricamento aste:", err)
-      }
-
-      try {
-        const { data: settings } = await supabase
-          .from('league_settings')
-          .select('league_name')
-          .maybeSingle()
-
-        if (settings?.league_name) {
-          setLeagueName(settings.league_name)
-        }
-      } catch (err) {
-        console.error("Errore caricamento impostazioni:", err)
       }
 
       const currentYear = new Date().getFullYear()
