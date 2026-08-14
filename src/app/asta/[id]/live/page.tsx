@@ -39,9 +39,7 @@ type WithdrawalRow = {
     id: number
     team_id: string
     created_at: string
-    league_teams?: {
-        name: string
-    }[] | null
+    teamName?: string
 }
 
 export default function LiveAuctionPage() {
@@ -54,74 +52,66 @@ export default function LiveAuctionPage() {
     const [auction, setAuction] = useState<any>(null)
     const [currentNomination, setCurrentNomination] = useState<any>(null)
 
-    /*
-     * teamsData mantiene l'ordine dei partecipanti all'asta.
-     * Questo ordine viene utilizzato per la rotazione:
-     *
-     * A -> B -> C -> A
-     */
     const [teamsData, setTeamsData] = useState<any[]>([])
     const [realTeamsData, setRealTeamsData] = useState<any[]>([])
 
     const [myTeamId, setMyTeamId] = useState<string | null>(null)
     const [myBudget, setMyBudget] = useState<number>(0)
 
-    const [myRoleBudget, setMyRoleBudget] = useState<number | null>(null)
+    const [myRoleBudget, setMyRoleBudget] =
+        useState<number | null>(null)
     const [myRoleSpent, setMyRoleSpent] = useState<number>(0)
 
     const [currentBid, setCurrentBid] = useState<number>(0)
-    const [highestTeamId, setHighestTeamId] = useState<string | null>(null)
+    const [highestTeamId, setHighestTeamId] =
+        useState<string | null>(null)
 
-    const [currentTurnTeamId, setCurrentTurnTeamId] = useState<string | null>(null)
+    const [currentTurnTeamId, setCurrentTurnTeamId] =
+        useState<string | null>(null)
+
     const [requiredRole, setRequiredRole] = useState<string>('P')
 
     const [bids, setBids] = useState<BidRow[]>([])
 
-    const [withdrawnTeamIds, setWithdrawnTeamIds] = useState<Set<string>>(
-        new Set()
-    )
+    const [withdrawnTeamIds, setWithdrawnTeamIds] =
+        useState<Set<string>>(new Set())
 
-    const [withdrawalMessages, setWithdrawalMessages] = useState<
-        WithdrawalRow[]
-    >([])
+    const [withdrawalMessages, setWithdrawalMessages] =
+        useState<WithdrawalRow[]>([])
 
-    const [isNominateModalOpen, setIsNominateModalOpen] = useState(false)
+    const [isNominateModalOpen, setIsNominateModalOpen] =
+        useState(false)
 
     const [searchQuery, setSearchQuery] = useState('')
-    const [selectedTeamFilter, setSelectedTeamFilter] = useState('')
+    const [selectedTeamFilter, setSelectedTeamFilter] =
+        useState('')
     const [onlyTargets, setOnlyTargets] = useState(false)
 
-    const [targetPlayerIds, setTargetPlayerIds] = useState<Set<number>>(
-        new Set()
-    )
+    const [targetPlayerIds, setTargetPlayerIds] =
+        useState<Set<number>>(new Set())
 
-    const [availablePlayers, setAvailablePlayers] = useState<any[]>([])
-    const [availableTeamsList, setAvailableTeamsList] = useState<string[]>([])
+    const [availablePlayers, setAvailablePlayers] =
+        useState<any[]>([])
+
+    const [availableTeamsList, setAvailableTeamsList] =
+        useState<string[]>([])
 
     const [customBidValue, setCustomBidValue] = useState('')
     const [basePriceValue, setBasePriceValue] = useState('1')
 
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isWithdrawing, setIsWithdrawing] = useState(false)
-    const [isClosingAuction, setIsClosingAuction] = useState(false)
+    const [isClosingAuction, setIsClosingAuction] =
+        useState(false)
 
     const [isCongratulationModalOpen, setIsCongratulationModalOpen] =
         useState(false)
 
-    const [congratulatedPlayer, setCongratulatedPlayer] = useState<any>(null)
+    const [congratulatedPlayer, setCongratulatedPlayer] =
+        useState<any>(null)
 
     const auctionChannelRef = useRef<any>(null)
-
-    /*
-     * Protegge finalizeAuctionItem da doppie esecuzioni
-     * nello stesso client.
-     */
     const finalizingRef = useRef(false)
-
-    /*
-     * Protegge l'inizializzazione da race condition
-     * durante cambi pagina / remount.
-     */
     const initSequenceRef = useRef(0)
 
     // ============================================================
@@ -150,37 +140,24 @@ export default function LiveAuctionPage() {
             return []
         }
 
-        const { data: teams, error: teamsError } = await supabase
-            .from('league_teams')
-            .select('id, name, budget, user_id')
-            .in('id', teamIds)
+        const { data: teams, error: teamsError } =
+            await supabase
+                .from('league_teams')
+                .select('id, name, budget, user_id')
+                .in('id', teamIds)
 
         if (teamsError) {
             console.error('Errore squadre:', teamsError)
             return []
         }
 
-        /*
-         * Supabase non garantisce necessariamente l'ordine della query
-         * .in(). Ricostruiamo quindi l'ordine originale di participants.
-         *
-         * Questo è fondamentale per la rotazione del turno.
-         */
-        const teamMap = new Map(
-            (teams || []).map((team: any) => [team.id, team])
-        )
+        setTeamsData(teams || [])
 
-        const orderedTeams = teamIds
-            .map((teamId: string) => teamMap.get(teamId))
-            .filter(Boolean)
-
-        setTeamsData(orderedTeams)
-
-        return orderedTeams
+        return teams || []
     }
 
     // ============================================================
-    // AGGIORNAMENTO DATI MIA SQUADRA
+    // AGGIORNAMENTO MIA SQUADRA
     // ============================================================
 
     const refreshMyTeamData = async (
@@ -195,7 +172,10 @@ export default function LiveAuctionPage() {
             .maybeSingle()
 
         if (error) {
-            console.error('Errore aggiornamento squadra:', error)
+            console.error(
+                'Errore aggiornamento squadra:',
+                error
+            )
             return
         }
 
@@ -206,9 +186,9 @@ export default function LiveAuctionPage() {
                 prev.map((team) =>
                     team.id === data.id
                         ? {
-                            ...team,
-                            budget: data.budget
-                        }
+                              ...team,
+                              budget: data.budget
+                          }
                         : team
                 )
             )
@@ -266,13 +246,15 @@ export default function LiveAuctionPage() {
             roleBudgetRow[colName] !== null
         ) {
             const rawVal = roleBudgetRow[colName]
-            const mode = roleBudgetRow.mode || 'percentage'
+            const mode =
+                roleBudgetRow.mode || 'percentage'
 
             const calculatedBudget =
                 mode === 'percentage'
                     ? Math.round(
-                        (maxBudgetTotal * rawVal) / 100
-                    )
+                          (maxBudgetTotal * rawVal) /
+                              100
+                      )
                     : rawVal
 
             setMyRoleBudget(calculatedBudget)
@@ -375,7 +357,7 @@ export default function LiveAuctionPage() {
             await supabase
                 .from('auction_withdrawals')
                 .select(
-                    'id, team_id, created_at, league_teams(name)'
+                    'id, team_id, created_at'
                 )
                 .eq(
                     'nomination_id',
@@ -399,16 +381,45 @@ export default function LiveAuctionPage() {
         const rows =
             (data || []) as WithdrawalRow[]
 
-        setWithdrawnTeamIds(
-            new Set(
-                rows.map(
-                    (row) =>
-                        row.team_id
-                )
-            )
+        const teamIds = rows.map(
+            (row) => row.team_id
         )
 
-        setWithdrawalMessages(rows)
+        let teamNames: Record<string, string> = {}
+
+        if (teamIds.length > 0) {
+            const { data: teams } =
+                await supabase
+                    .from('league_teams')
+                    .select('id, name')
+                    .in('id', teamIds)
+
+            teams?.forEach((team: any) => {
+                teamNames[team.id] = team.name
+            })
+        }
+
+        const enrichedRows = rows.map(
+            (row) => ({
+                ...row,
+                teamName:
+                    teamNames[row.team_id] ||
+                    teamsData.find(
+                        (team) =>
+                            team.id ===
+                            row.team_id
+                    )?.name ||
+                    'Squadra'
+            })
+        )
+
+        setWithdrawnTeamIds(
+            new Set(teamIds)
+        )
+
+        setWithdrawalMessages(
+            enrichedRows
+        )
     }
 
     // ============================================================
@@ -466,11 +477,13 @@ export default function LiveAuctionPage() {
 
         setHighestTeamId(
             nomination.highest_bidder_team_id ||
-            null
+                null
         )
 
         await Promise.all([
-            fetchBids(nomination.id),
+            fetchBids(
+                nomination.id
+            ),
             fetchWithdrawals(
                 nomination.id
             )
@@ -545,99 +558,85 @@ export default function LiveAuctionPage() {
     }
 
     // ============================================================
-    // PROSSIMO TURNO
+    // MOSTRA RISULTATO ASTA
     // ============================================================
 
-    const getNextTurnTeamId = (
-        currentTeamId: string | null
+    const showAuctionResult = async (
+        nomination: any
     ) => {
-        if (!currentTeamId) {
-            return teamsData[0]?.id || null
-        }
+        if (!nomination) return
 
-        if (teamsData.length === 0) {
-            return null
-        }
+        const playerData =
+            nomination.players
 
-        const currentIndex =
-            teamsData.findIndex(
+        const winningTeamId =
+            nomination.highest_bidder_team_id
+
+        const winningAmount =
+            nomination.current_bid ??
+            nomination.base_price ??
+            1
+
+        if (!winningTeamId) return
+
+        let winningTeamName =
+            teamsData.find(
                 (team) =>
-                    team.id === currentTeamId
-            )
+                    team.id ===
+                    winningTeamId
+            )?.name
 
-        if (currentIndex === -1) {
-            return teamsData[0]?.id || null
+        if (!winningTeamName) {
+            const { data: team } =
+                await supabase
+                    .from('league_teams')
+                    .select('id, name')
+                    .eq(
+                        'id',
+                        winningTeamId
+                    )
+                    .maybeSingle()
+
+            winningTeamName =
+                team?.name ||
+                'Squadra'
         }
 
-        /*
-         * Rotazione circolare:
-         *
-         * 0 -> 1
-         * 1 -> 2
-         * 2 -> 0
-         */
-        const nextIndex =
-            (currentIndex + 1) %
-            teamsData.length
+        setCongratulatedPlayer({
+            name:
+                playerData?.name ||
+                'Giocatore',
+            role:
+                playerData?.role ||
+                '',
+            price:
+                winningAmount,
+            teamName:
+                winningTeamName,
+            isMyTeam:
+                winningTeamId ===
+                myTeamId
+        })
 
-        return teamsData[nextIndex]?.id || null
-    }
+        setIsCongratulationModalOpen(
+            true
+        )
 
-    // ============================================================
-    // AGGIORNAMENTO TURNO
-    // ============================================================
-
-    const advanceTurn = async (
-        currentTeamId: string | null
-    ) => {
-        const nextTeamId =
-            getNextTurnTeamId(
-                currentTeamId
+        if (
+            winningTeamId ===
+            myTeamId
+        ) {
+            await refreshMyTeamData(
+                myTeamId
             )
 
-        if (!nextTeamId) {
-            console.error(
-                'Impossibile determinare il prossimo turno.'
-            )
-            return null
-        }
-
-        const { error } =
-            await supabase
-                .from('auctions')
-                .update({
-                    current_turn_team_id:
-                        nextTeamId
-                })
-                .eq(
-                    'id',
-                    id
+            if (playerData?.role) {
+                await fetchRoleBudgetInfo(
+                    myTeamId!,
+                    playerData.role
                 )
-
-        if (error) {
-            console.error(
-                'Errore aggiornamento turno:',
-                error
-            )
-            throw error
+            }
         }
-
-        setCurrentTurnTeamId(
-            nextTeamId
-        )
-
-        setAuction(
-            (prev: any) =>
-                prev
-                    ? {
-                        ...prev,
-                        current_turn_team_id:
-                            nextTeamId
-                    }
-                    : prev
-        )
-
-        return nextTeamId
     }
 
     // ============================================================
@@ -656,12 +655,9 @@ export default function LiveAuctionPage() {
                 true
 
             try {
-                /*
-                 * Recuperiamo nuovamente la nomination dal database.
-                 * Non ci fidiamo soltanto dello stato React.
-                 */
                 const {
-                    data: freshNomination,
+                    data:
+                        freshNomination,
                     error
                 } =
                     await supabase
@@ -689,18 +685,11 @@ export default function LiveAuctionPage() {
                     return
                 }
 
-                if (!freshNomination) {
+                if (
+                    !freshNomination
+                ) {
                     return
                 }
-
-                /*
-                 * Memorizziamo subito il turno attuale.
-                 * È quello della squadra che ha chiamato il giocatore.
-                 */
-                const finishingTurnTeamId =
-                    auction?.current_turn_team_id ||
-                    currentTurnTeamId ||
-                    null
 
                 const [
                     {
@@ -769,9 +758,6 @@ export default function LiveAuctionPage() {
                 let finalWinningAmount =
                     winningAmount
 
-                /*
-                 * Squadre ancora in gara.
-                 */
                 const activeTeams =
                     teamsData.filter(
                         (team) =>
@@ -780,14 +766,6 @@ export default function LiveAuctionPage() {
                             )
                     )
 
-                /*
-                 * Se non esiste un'offerta valida:
-                 *
-                 * - se rimane una sola squadra,
-                 *   quella squadra vince al prezzo base;
-                 *
-                 * - altrimenti non possiamo chiudere.
-                 */
                 if (
                     !finalWinningTeamId
                 ) {
@@ -821,14 +799,11 @@ export default function LiveAuctionPage() {
                         1
                 }
 
-                /*
-                 * Chiudiamo la nomination.
-                 *
-                 * Il controllo sullo status impedisce ad una seconda
-                 * chiamata di modificare una nomination già chiusa.
-                 */
+                // ====================================================
+                // CHIUSURA NOMINATION
+                // ====================================================
+
                 const {
-                    data: closedNomination,
                     error:
                         closeError
                 } =
@@ -852,21 +827,14 @@ export default function LiveAuctionPage() {
                             'status',
                             'in_corso'
                         )
-                        .select('id')
-                        .maybeSingle()
 
                 if (closeError) {
                     throw closeError
                 }
 
-                /*
-                 * Se non è stata modificata nessuna riga,
-                 * significa che qualcun altro ha già chiuso
-                 * questa nomination.
-                 */
-                if (!closedNomination) {
-                    return
-                }
+                // ====================================================
+                // TRANSAZIONE
+                // ====================================================
 
                 const playerId =
                     freshNomination.player_id
@@ -880,12 +848,9 @@ export default function LiveAuctionPage() {
                 const playerRole =
                     playerData?.role
 
-                // ====================================================
-                // TRANSAZIONE
-                // ====================================================
-
                 const {
-                    data: existingTx
+                    data:
+                        existingTx
                 } =
                     await supabase
                         .from(
@@ -955,52 +920,28 @@ export default function LiveAuctionPage() {
                                     finalWinningAmount
                             })
 
-                    if (playerError) {
+                    if (
+                        playerError
+                    ) {
                         throw playerError
                     }
 
-                    /*
-                     * Recuperiamo il budget direttamente dal database.
-                     * Non utilizziamo soltanto teamsData, che potrebbe
-                     * essere leggermente indietro rispetto al realtime.
-                     */
-                    const {
-                        data:
-                            winningTeamData,
-                        error:
-                            winningTeamError
-                    } =
-                        await supabase
-                            .from(
-                                'league_teams'
-                            )
-                            .select(
-                                'id, budget'
-                            )
-                            .eq(
-                                'id',
+                    const targetTeam =
+                        teamsData.find(
+                            (team) =>
+                                team.id ===
                                 finalWinningTeamId
-                            )
-                            .maybeSingle()
-
-                    if (winningTeamError) {
-                        console.error(
-                            'Errore recupero budget vincitore:',
-                            winningTeamError
                         )
-                    }
 
-                    if (
-                        winningTeamData
-                    ) {
+                    if (targetTeam) {
                         const newBudget =
                             Math.max(
                                 0,
                                 (
-                                    winningTeamData.budget ||
+                                    targetTeam.budget ||
                                     0
                                 ) -
-                                finalWinningAmount
+                                    finalWinningAmount
                             )
 
                         const {
@@ -1020,7 +961,9 @@ export default function LiveAuctionPage() {
                                     finalWinningTeamId
                                 )
 
-                        if (budgetError) {
+                        if (
+                            budgetError
+                        ) {
                             console.error(
                                 'Errore aggiornamento budget:',
                                 budgetError
@@ -1030,137 +973,23 @@ export default function LiveAuctionPage() {
                 }
 
                 // ====================================================
-                // CAMBIO TURNO
+                // IMPORTANTE:
+                // NON APRIAMO QUI IL MODALE.
+                //
+                // La modifica della nomination viene ricevuta
+                // tramite Realtime da TUTTI i client.
                 // ====================================================
 
-                /*
-                 * Il turno viene cambiato DOPO la chiusura del giocatore.
-                 *
-                 * Esempio:
-                 *
-                 * A chiama Tizio
-                 * Tizio viene assegnato
-                 * -> turno B
-                 *
-                 * B chiama Caio
-                 * Caio viene assegnato
-                 * -> turno C
-                 *
-                 * C chiama Sempronio
-                 * -> turno A
-                 */
-                const nextTurnTeamId =
-                    await advanceTurn(
-                        finishingTurnTeamId
-                    )
-
-                // ====================================================
-                // AGGIORNAMENTO STATO LOCALE
-                // ====================================================
-
-                const winnerTeamName =
-                    teamsData.find(
-                        (team) =>
-                            team.id ===
-                            finalWinningTeamId
-                    )?.name ||
-                    'Nessuna squadra'
-
-                /*
-                 * Prepariamo il modal PRIMA di fare ulteriori
-                 * chiamate realtime.
-                 *
-                 * In questo modo il modal non dipende da
-                 * fetchCurrentNomination().
-                 */
-                setCongratulatedPlayer({
-                    name:
-                        playerName,
-                    role:
-                        playerRole,
-                    price:
-                        finalWinningAmount,
-                    teamName:
-                        winnerTeamName,
-                    isMyTeam:
-                        finalWinningTeamId ===
-                        myTeamId
-                })
-
-                setIsCongratulationModalOpen(
-                    true
-                )
-
-                /*
-                 * La nomination è definitivamente chiusa.
-                 */
-                setCurrentNomination(
-                    null
-                )
-
+                setCurrentNomination(null)
                 setCurrentBid(0)
                 setHighestTeamId(null)
                 setBids([])
-
                 setWithdrawnTeamIds(
                     new Set()
                 )
+                setWithdrawalMessages([])
 
-                setWithdrawalMessages(
-                    []
-                )
-
-                /*
-                 * Aggiorniamo le squadre.
-                 */
-                const refreshedTeams =
-                    await fetchParticipantsAndTeams()
-
-                /*
-                 * Se per qualche motivo il realtime ha restituito
-                 * un array diverso, manteniamo comunque il turno
-                 * appena salvato.
-                 */
-                if (
-                    nextTurnTeamId
-                ) {
-                    setCurrentTurnTeamId(
-                        nextTurnTeamId
-                    )
-                }
-
-                /*
-                 * Aggiornamento esplicito del budget del vincitore
-                 * se siamo noi.
-                 */
-                if (
-                    finalWinningTeamId ===
-                    myTeamId
-                ) {
-                    await refreshMyTeamData(
-                        myTeamId
-                    )
-                }
-
-                /*
-                 * Aggiornamento budget ruolo.
-                 */
-                if (
-                    myTeamId
-                ) {
-                    await fetchRoleBudgetInfo(
-                        myTeamId,
-                        requiredRole
-                    )
-                }
-
-                /*
-                 * Evitiamo che refreshedTeams non utilizzato
-                 * generi problemi di lint/build in configurazioni
-                 * particolarmente rigide.
-                 */
-                void refreshedTeams
-
+                await fetchParticipantsAndTeams()
             } catch (error) {
                 console.error(
                     'Errore chiusura asta:',
@@ -1237,6 +1066,14 @@ export default function LiveAuctionPage() {
                     throw error
                 }
 
+                const myTeamName =
+                    teamsData.find(
+                        (team) =>
+                            team.id ===
+                            myTeamId
+                    )?.name ||
+                    'Squadra'
+
                 const nextWithdrawn =
                     new Set(
                         withdrawnTeamIds
@@ -1250,14 +1087,6 @@ export default function LiveAuctionPage() {
                     nextWithdrawn
                 )
 
-                const myTeamName =
-                    teamsData.find(
-                        (team) =>
-                            team.id ===
-                            myTeamId
-                    )?.name ||
-                    'Una squadra'
-
                 setWithdrawalMessages(
                     (prev) => [
                         ...prev,
@@ -1268,12 +1097,8 @@ export default function LiveAuctionPage() {
                                 myTeamId,
                             created_at:
                                 new Date().toISOString(),
-                            league_teams: [
-                                {
-                                    name:
-                                        myTeamName
-                                }
-                            ]
+                            teamName:
+                                myTeamName
                         }
                     ]
                 )
@@ -1286,10 +1111,6 @@ export default function LiveAuctionPage() {
                             )
                     )
 
-                /*
-                 * Se rimane una sola squadra,
-                 * l'asta può essere chiusa automaticamente.
-                 */
                 if (
                     activeTeams.length ===
                     1
@@ -1326,14 +1147,10 @@ export default function LiveAuctionPage() {
                 return
             }
 
-            /*
-             * CONTROLLO FONDAMENTALE:
-             * solo la squadra il cui turno è attivo può chiamare.
-             */
             if (
                 !myTeamId ||
                 currentTurnTeamId !==
-                myTeamId
+                    myTeamId
             ) {
                 alert(
                     'Non è il tuo turno di chiamata.'
@@ -1368,27 +1185,23 @@ export default function LiveAuctionPage() {
                 return
             }
 
-            setIsSubmitting(true)
+            setIsSubmitting(
+                true
+            )
 
             try {
-                /*
-                 * Salviamo il team che sta effettuando la chiamata.
-                 * Questo è anche il primo offerente al prezzo base.
-                 */
-                const callingTeamId =
-                    myTeamId
-
                 const {
                     error
-                } = await supabase.rpc(
-                    'nominate_player',
-                    {
-                        p_auction_id:
-                            id,
-                        p_player_id:
-                            playerId
-                    }
-                )
+                } =
+                    await supabase.rpc(
+                        'nominate_player',
+                        {
+                            p_auction_id:
+                                id,
+                            p_player_id:
+                                playerId
+                        }
+                    )
 
                 if (error) {
                     throw error
@@ -1433,10 +1246,6 @@ export default function LiveAuctionPage() {
                     )
                 }
 
-                /*
-                 * Impostiamo il prezzo base e il chiamante
-                 * come primo offerente.
-                 */
                 const {
                     error:
                         priceError
@@ -1451,7 +1260,7 @@ export default function LiveAuctionPage() {
                             current_bid:
                                 basePrice,
                             highest_bidder_team_id:
-                                callingTeamId
+                                myTeamId
                         })
                         .eq(
                             'id',
@@ -1462,10 +1271,6 @@ export default function LiveAuctionPage() {
                     throw priceError
                 }
 
-                /*
-                 * La chiamata iniziale viene registrata come
-                 * offerta al prezzo base.
-                 */
                 const {
                     error:
                         bidError
@@ -1480,7 +1285,7 @@ export default function LiveAuctionPage() {
                             nomination_id:
                                 newNomination.id,
                             team_id:
-                                callingTeamId,
+                                myTeamId,
                             amount:
                                 basePrice
                         })
@@ -1490,11 +1295,9 @@ export default function LiveAuctionPage() {
                 }
 
                 setBids([])
-
                 setWithdrawnTeamIds(
                     new Set()
                 )
-
                 setWithdrawalMessages(
                     []
                 )
@@ -1603,7 +1406,7 @@ export default function LiveAuctionPage() {
                 if (
                     effectiveCostDelta >
                     myRoleBudget -
-                    myRoleSpent
+                        myRoleSpent
                 ) {
                     alert(
                         `L'offerta supera il budget residuo per il ruolo ${ROLE_NAMES[requiredRole]} (${myRoleBudget - myRoleSpent} CR disponibili)!`
@@ -1759,19 +1562,18 @@ export default function LiveAuctionPage() {
             if (
                 !isMounted ||
                 initId !==
-                initSequenceRef.current
+                    initSequenceRef.current
             ) {
                 return
             }
 
-            if (
+            const admin =
                 profile?.role ===
                 'admin'
-            ) {
-                setIsAdmin(
-                    true
-                )
-            }
+
+            setIsAdmin(
+                admin
+            )
 
             await loadUserTargets()
 
@@ -1814,7 +1616,7 @@ export default function LiveAuctionPage() {
 
             setCurrentTurnTeamId(
                 auctionData.current_turn_team_id ||
-                null
+                    null
             )
 
             const {
@@ -1863,7 +1665,7 @@ export default function LiveAuctionPage() {
 
                 setMyBudget(
                     teamData.budget ||
-                    0
+                        0
                 )
 
                 await fetchRoleBudgetInfo(
@@ -1875,17 +1677,13 @@ export default function LiveAuctionPage() {
             const fetchedTeams =
                 await fetchParticipantsAndTeams()
 
-            /*
-             * Se l'asta non ha ancora un turno,
-             * il primo partecipante diventa il primo chiamante.
-             */
             let activeTurnId =
                 auctionData.current_turn_team_id
 
             if (
                 !activeTurnId &&
                 fetchedTeams.length >
-                0
+                    0
             ) {
                 activeTurnId =
                     fetchedTeams[0].id
@@ -1906,20 +1704,14 @@ export default function LiveAuctionPage() {
 
             setCurrentTurnTeamId(
                 activeTurnId ||
-                null
+                    null
             )
 
             await fetchCurrentNomination()
 
-            if (
-                !isMounted ||
-                initId !==
-                initSequenceRef.current
-            ) {
-                return
-            }
-
-            setLoading(false)
+            setLoading(
+                false
+            )
 
             const existingChannel =
                 supabase
@@ -1941,7 +1733,7 @@ export default function LiveAuctionPage() {
             if (
                 !isMounted ||
                 initId !==
-                initSequenceRef.current
+                    initSequenceRef.current
             ) {
                 return
             }
@@ -1985,7 +1777,7 @@ export default function LiveAuctionPage() {
                             setCurrentTurnTeamId(
                                 payload.new
                                     .current_turn_team_id ||
-                                null
+                                    null
                             )
 
                             const newRole =
@@ -2024,16 +1816,98 @@ export default function LiveAuctionPage() {
                             filter:
                                 `auction_id=eq.${id}`
                         },
-                        async () => {
+                        async (
+                            payload: any
+                        ) => {
                             if (
-                                isMounted
+                                !isMounted
                             ) {
-                                /*
-                                 * Non tocchiamo il modal di congratulazioni.
-                                 * Il modal è uno stato locale del client che
-                                 * ha effettuato la finalizzazione.
-                                 */
+                                return
+                            }
+
+                            /*
+                             * NOMINATION APERTA
+                             */
+                            if (
+                                payload.new?.status ===
+                                'in_corso'
+                            ) {
                                 await fetchCurrentNomination()
+                                return
+                            }
+
+                            /*
+                             * NOMINATION CHIUSA
+                             *
+                             * Questo evento arriva a TUTTI
+                             * i client.
+                             *
+                             * Recuperiamo i dati aggiornati
+                             * e mostriamo il modale a tutti.
+                             */
+                            if (
+                                payload.new?.status ===
+                                'chiusa'
+                            ) {
+                                const {
+                                    data:
+                                        closedNomination
+                                } =
+                                    await supabase
+                                        .from(
+                                            'auction_nominations'
+                                        )
+                                        .select(
+                                            'id, player_id, current_bid, base_price, highest_bidder_team_id, status, players(*)'
+                                        )
+                                        .eq(
+                                            'id',
+                                            payload.new.id
+                                        )
+                                        .maybeSingle()
+
+                                if (
+                                    closedNomination &&
+                                    closedNomination.highest_bidder_team_id
+                                ) {
+                                    await showAuctionResult(
+                                        closedNomination
+                                    )
+                                }
+
+                                setCurrentNomination(
+                                    null
+                                )
+
+                                setCurrentBid(
+                                    0
+                                )
+
+                                setHighestTeamId(
+                                    null
+                                )
+
+                                setBids(
+                                    []
+                                )
+
+                                setWithdrawnTeamIds(
+                                    new Set()
+                                )
+
+                                setWithdrawalMessages(
+                                    []
+                                )
+
+                                await fetchParticipantsAndTeams()
+
+                                if (
+                                    teamData?.id
+                                ) {
+                                    await refreshMyTeamData(
+                                        teamData.id
+                                    )
+                                }
                             }
                         }
                     )
@@ -2175,32 +2049,55 @@ export default function LiveAuctionPage() {
                                 payload.new
                             ) {
                                 setTeamsData(
-                                    (prev) =>
-                                        prev.map(
-                                            (
-                                                team
-                                            ) =>
-                                                team.id ===
-                                                    payload.new.id
-                                                    ? {
-                                                        ...team,
-                                                        ...payload.new
-                                                    }
-                                                    : team
-                                        )
+                                    (prev) => {
+                                        const exists =
+                                            prev.some(
+                                                (
+                                                    team
+                                                ) =>
+                                                    team.id ===
+                                                    payload
+                                                        .new
+                                                        .id
+                                            )
+
+                                        if (
+                                            exists
+                                        ) {
+                                            return prev.map(
+                                                (
+                                                    team
+                                                ) =>
+                                                    team.id ===
+                                                        payload
+                                                            .new
+                                                            .id
+                                                        ? {
+                                                              ...team,
+                                                              ...payload.new
+                                                          }
+                                                        : team
+                                            )
+                                        }
+
+                                        return prev
+                                    }
                                 )
 
                                 if (
-                                    payload.new.id ===
+                                    payload.new
+                                        .id ===
                                     teamData?.id
                                 ) {
                                     setMyBudget(
-                                        payload.new.budget ||
-                                        0
+                                        payload.new
+                                            .budget ||
+                                            0
                                     )
 
                                     await fetchRoleBudgetInfo(
-                                        payload.new.id,
+                                        payload.new
+                                            .id,
                                         requiredRole
                                     )
                                 }
@@ -2400,8 +2297,7 @@ export default function LiveAuctionPage() {
         searchQuery,
         selectedTeamFilter,
         onlyTargets,
-        id,
-        targetPlayerIds
+        id
     ])
 
     // ============================================================
@@ -2430,14 +2326,14 @@ export default function LiveAuctionPage() {
         ] || requiredRole
 
     // ============================================================
-    // SOLO LA SQUADRA DI TURNO PUÒ CHIAMARE
+    // TURNO
     // ============================================================
 
     const canNominate =
         !!myTeamId &&
         !!currentTurnTeamId &&
         currentTurnTeamId ===
-        myTeamId &&
+            myTeamId &&
         !currentNomination
 
     const hasWithdrawn =
@@ -2540,10 +2436,10 @@ export default function LiveAuctionPage() {
                                                 .players
                                                 ?.id
                                         ) && (
-                                                <span className="px-2.5 py-1 bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-extrabold rounded-full uppercase tracking-wider">
-                                                    ⭐ Obiettivo
-                                                </span>
-                                            )}
+                                            <span className="px-2.5 py-1 bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-extrabold rounded-full uppercase tracking-wider">
+                                                ⭐ Obiettivo
+                                            </span>
+                                        )}
 
                                     </div>
 
@@ -2607,113 +2503,110 @@ export default function LiveAuctionPage() {
 
                             {withdrawalMessages.length >
                                 0 && (
-                                    <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+                                <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
 
-                                        <div className="flex items-center gap-2 text-xs font-black uppercase text-red-300 mb-3">
-                                            <LogOut className="w-4 h-4" />
-                                            Ritiri
-                                        </div>
+                                    <div className="flex items-center gap-2 text-xs font-black uppercase text-red-300 mb-3">
+                                        <LogOut className="w-4 h-4" />
+                                        Ritiri
+                                    </div>
 
-                                        <div className="space-y-2">
+                                    <div className="space-y-2">
 
-                                            {withdrawalMessages.map(
-                                                (
-                                                    message
-                                                ) => (
-                                                    <div
-                                                        key={
-                                                            message.id
+                                        {withdrawalMessages.map(
+                                            (
+                                                message
+                                            ) => (
+                                                <div
+                                                    key={
+                                                        message.id
+                                                    }
+                                                    className="text-sm text-slate-300"
+                                                >
+                                                    🔥{' '}
+                                                    <span className="font-black text-white">
+                                                        {
+                                                            message.teamName
                                                         }
-                                                        className="text-sm text-slate-300"
-                                                    >
-                                                        🔥{' '}
-                                                        <span className="font-black text-white">
-                                                            {
-                                                                message
-                                                                    .league_teams
-                                                                    ?.[0]
-                                                                    ?.name ||
-                                                                'Squadra'
-                                                            }
-                                                        </span>{' '}
-                                                        si è ritirata
-                                                        dall'asta
-                                                    </div>
-                                                )
-                                            )}
-
-                                        </div>
+                                                    </span>{' '}
+                                                    si è ritirata
+                                                    dall'asta
+                                                </div>
+                                            )
+                                        )}
 
                                     </div>
-                                )}
+
+                                </div>
+                            )}
 
                             {/* OFFERTE */}
 
                             {bids.length >
                                 0 && (
-                                    <div className="bg-slate-900/60 border border-slate-700/50 rounded-xl p-4">
+                                <div className="bg-slate-900/60 border border-slate-700/50 rounded-xl p-4">
 
-                                        <h3 className="text-xs font-black uppercase text-slate-400 mb-3">
-                                            Ultime offerte
-                                        </h3>
+                                    <h3 className="text-xs font-black uppercase text-slate-400 mb-3">
+                                        Ultime offerte
+                                    </h3>
 
-                                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                                    <div className="space-y-2 max-h-40 overflow-y-auto">
 
-                                            {bids
-                                                .slice()
-                                                .reverse()
-                                                .map(
-                                                    (
-                                                        bid
-                                                    ) => {
-                                                        const team =
-                                                            teamsData.find(
-                                                                (
-                                                                    t
-                                                                ) =>
-                                                                    t.id ===
-                                                                    bid.team_id
-                                                            )
-
-                                                        const withdrawn =
-                                                            withdrawnTeamIds.has(
+                                        {bids
+                                            .slice()
+                                            .reverse()
+                                            .map(
+                                                (
+                                                    bid
+                                                ) => {
+                                                    const team =
+                                                        teamsData.find(
+                                                            (
+                                                                t
+                                                            ) =>
+                                                                t.id ===
                                                                 bid.team_id
-                                                            )
+                                                        )
 
-                                                        return (
-                                                            <div
-                                                                key={
-                                                                    bid.id
-                                                                }
-                                                                className={`flex justify-between items-center text-xs ${withdrawn
+                                                    const withdrawn =
+                                                        withdrawnTeamIds.has(
+                                                            bid.team_id
+                                                        )
+
+                                                    return (
+                                                        <div
+                                                            key={
+                                                                bid.id
+                                                            }
+                                                            className={`flex justify-between items-center text-xs ${
+                                                                withdrawn
                                                                     ? 'opacity-40 line-through'
                                                                     : ''
-                                                                    }`}
-                                                            >
+                                                            }`}
+                                                        >
 
-                                                                <span className="font-bold">
-                                                                    {
-                                                                        team?.name ||
-                                                                        'Squadra'
-                                                                    }
-                                                                </span>
+                                                            <span className="font-bold">
+                                                                {
+                                                                    team?.name ||
+                                                                    'Squadra'
+                                                                }
+                                                            </span>
 
-                                                                <span className="font-black text-amber-400">
-                                                                    {
-                                                                        bid.amount
-                                                                    }{' '}
-                                                                    CR
-                                                                </span>
+                                                            <span className="font-black text-amber-400">
+                                                                {
+                                                                    bid.amount
+                                                                }{' '}
+                                                                CR
+                                                            </span>
 
-                                                            </div>
-                                                        )
-                                                    }
-                                                )}
-
-                                        </div>
+                                                        </div>
+                                                    )
+                                                }
+                                            )}
 
                                     </div>
-                                )}
+
+                                </div>
+                            )}
 
                             {/* BOTTONI ASTA */}
 
@@ -2726,7 +2619,7 @@ export default function LiveAuctionPage() {
                                             onClick={() =>
                                                 handlePlaceBid(
                                                     currentBid +
-                                                    1
+                                                        1
                                                 )
                                             }
                                             className="py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold uppercase text-sm transition"
@@ -2738,7 +2631,7 @@ export default function LiveAuctionPage() {
                                             onClick={() =>
                                                 handlePlaceBid(
                                                     currentBid +
-                                                    5
+                                                        5
                                                 )
                                             }
                                             className="py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold uppercase text-sm transition"
@@ -2750,7 +2643,7 @@ export default function LiveAuctionPage() {
                                             onClick={() =>
                                                 handlePlaceBid(
                                                     currentBid +
-                                                    10
+                                                        10
                                                 )
                                             }
                                             className="py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold uppercase text-sm transition"
@@ -2792,7 +2685,7 @@ export default function LiveAuctionPage() {
                                                         value
                                                     ) ||
                                                     value <=
-                                                    currentBid
+                                                        currentBid
                                                 ) {
                                                     alert(
                                                         "L'offerta deve essere superiore all'offerta corrente!"
@@ -2963,13 +2856,14 @@ export default function LiveAuctionPage() {
                                     key={
                                         team.id
                                     }
-                                    className={`p-3 rounded-xl border flex justify-between items-center ${withdrawn
-                                        ? 'bg-red-500/5 border-red-500/20 opacity-60'
-                                        : team.id ===
-                                            currentTurnTeamId
+                                    className={`p-3 rounded-xl border flex justify-between items-center ${
+                                        withdrawn
+                                            ? 'bg-red-500/5 border-red-500/20 opacity-60'
+                                            : team.id ===
+                                              currentTurnTeamId
                                             ? 'bg-amber-500/10 border-amber-500/50'
                                             : 'bg-slate-800/80 border-slate-700'
-                                        }`}
+                                    }`}
                                 >
 
                                     <div>
@@ -2988,10 +2882,10 @@ export default function LiveAuctionPage() {
 
                                         {team.id ===
                                             currentTurnTeamId && (
-                                                <span className="text-[10px] uppercase font-black text-amber-400 block mt-1">
-                                                    Turno di chiamata
-                                                </span>
-                                            )}
+                                            <span className="text-[10px] uppercase font-black text-amber-400 block mt-1">
+                                                Turno di chiamata
+                                            </span>
+                                        )}
 
                                     </div>
 
@@ -3012,7 +2906,8 @@ export default function LiveAuctionPage() {
             </main>
 
             {/* ===================================================
-                MODAL ASSEGNAZIONE
+                MODALE ASSEGNAZIONE
+                VISIBILE A TUTTI I CLIENT
             =================================================== */}
 
             {isCongratulationModalOpen &&
@@ -3043,15 +2938,6 @@ export default function LiveAuctionPage() {
                                     }
                                 </div>
 
-                                <div className="text-xs text-slate-400 uppercase">
-                                    {
-                                        ROLE_NAMES[
-                                            congratulatedPlayer.role
-                                        ] ||
-                                        congratulatedPlayer.role
-                                    }
-                                </div>
-
                                 <div className="flex justify-between items-center pt-2 border-t border-slate-700/50 text-sm">
 
                                     <span className="text-slate-400">
@@ -3067,29 +2953,56 @@ export default function LiveAuctionPage() {
 
                                 </div>
 
+                                <div className="flex justify-between items-center pt-2 border-t border-slate-700/50 text-sm">
+
+                                    <span className="text-slate-400">
+                                        Squadra vincitrice
+                                    </span>
+
+                                    <span className="font-black text-white">
+                                        {
+                                            congratulatedPlayer.teamName
+                                        }
+                                    </span>
+
+                                </div>
+
                             </div>
 
-                            <button
-                                onClick={() => {
-                                    /*
-                                     * Il nuovo turno è già stato scritto
-                                     * nel database prima dell'apertura del modal.
-                                     *
-                                     * Non richiamiamo finalize e non
-                                     * ricreiamo la nomination.
-                                     */
-                                    setIsCongratulationModalOpen(
-                                        false
-                                    )
+                            {/* SOLO ADMIN */}
 
-                                    setCongratulatedPlayer(
-                                        null
-                                    )
-                                }}
-                                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition"
-                            >
-                                Continua l'Asta
-                            </button>
+                            {isAdmin ? (
+                                <button
+                                    onClick={async () => {
+                                        setIsCongratulationModalOpen(
+                                            false
+                                        )
+
+                                        setCongratulatedPlayer(
+                                            null
+                                        )
+
+                                        await fetchCurrentNomination()
+                                    }}
+                                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition"
+                                >
+                                    Continua l'Asta
+                                </button>
+                            ) : (
+                                <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-3">
+
+                                    <p className="text-xs font-black uppercase text-slate-400">
+                                        In attesa dell'amministratore
+                                    </p>
+
+                                    <p className="text-[10px] text-slate-500 mt-1">
+                                        L'asta continuerà quando
+                                        l'amministratore
+                                        procederà.
+                                    </p>
+
+                                </div>
+                            )}
 
                         </div>
 
@@ -3122,7 +3035,8 @@ export default function LiveAuctionPage() {
                         <div className="flex justify-between items-center">
 
                             <h3 className="text-sm font-black uppercase text-white">
-                                Chiama {roleDisplay}
+                                Chiama{' '}
+                                {roleDisplay}
                             </h3>
 
                             <button
@@ -3266,17 +3180,19 @@ export default function LiveAuctionPage() {
                                         !onlyTargets
                                     )
                                 }
-                                className={`px-4 py-3 rounded-lg text-xs font-black uppercase transition flex items-center gap-1.5 border ${onlyTargets
-                                    ? 'bg-amber-500 text-slate-950 border-amber-400'
-                                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-600'
-                                    }`}
+                                className={`px-4 py-3 rounded-lg text-xs font-black uppercase transition flex items-center gap-1.5 border ${
+                                    onlyTargets
+                                        ? 'bg-amber-500 text-slate-950 border-amber-400'
+                                        : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-600'
+                                }`}
                             >
 
                                 <Star
-                                    className={`w-4 h-4 ${onlyTargets
-                                        ? 'fill-slate-950'
-                                        : ''
-                                        }`}
+                                    className={`w-4 h-4 ${
+                                        onlyTargets
+                                            ? 'fill-slate-950'
+                                            : ''
+                                    }`}
                                 />
 
                                 Obiettivi
@@ -3290,7 +3206,7 @@ export default function LiveAuctionPage() {
                         <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
 
                             {availablePlayers.length ===
-                                0 ? (
+                            0 ? (
                                 <p className="text-center text-xs text-slate-500 py-6 uppercase font-semibold">
                                     Nessun giocatore trovato
                                 </p>
@@ -3311,8 +3227,8 @@ export default function LiveAuctionPage() {
                                                 {targetPlayerIds.has(
                                                     p.id
                                                 ) && (
-                                                        <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
-                                                    )}
+                                                    <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
+                                                )}
 
                                                 <div>
 
