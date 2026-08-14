@@ -38,6 +38,10 @@ export default function WaitingRoomPage() {
       const { data: auctionData } = await supabase.from('auctions').select('status, countdown_started_at').eq('id', id).maybeSingle()
       if (auctionData) {
         setAuctionStatus(auctionData.status || 'attesa')
+        if (auctionData.status === 'in_corso') {
+          router.push(`/asta/${id}/live`)
+          return
+        }
         if (auctionData.status === 'countdown' && auctionData.countdown_started_at) {
           calculateCountdown(auctionData.countdown_started_at)
         }
@@ -57,9 +61,6 @@ export default function WaitingRoomPage() {
             is_online: participants?.find(p => p.team_id === t.id)?.is_online || false 
           }))
           setTeamsData(updatedTeams)
-
-          // Controllo automatico: se tutte le squadre sono online e siamo in 'attesa', l'admin fa partire il countdown in automatico
-          // (Lo facciamo fare solo a un client per evitare conflitti, es. il primo team o l'admin)
         }
       }
 
@@ -68,7 +69,7 @@ export default function WaitingRoomPage() {
       if (profile?.role === 'admin') setIsAdmin(true)
 
       // 4. Recupera la squadra associata all'utente loggato
-      const { data: teamData, error: teamError } = await supabase.from('league_teams').select('id').eq('user_id', user.id).maybeSingle()
+      const { data: teamData } = await supabase.from('league_teams').select('id').eq('user_id', user.id).maybeSingle()
 
       if (teamData) {
         currentTeamIdRef.current = teamData.id
@@ -102,7 +103,9 @@ export default function WaitingRoomPage() {
           const newTimestamp = payload.new.countdown_started_at
           
           setAuctionStatus(newStatus)
-          if (newStatus === 'countdown' && newTimestamp) {
+          if (newStatus === 'in_corso') {
+            router.push(`/asta/${id}/live`)
+          } else if (newStatus === 'countdown' && newTimestamp) {
             calculateCountdown(newTimestamp)
           }
         })
@@ -126,49 +129,45 @@ export default function WaitingRoomPage() {
           .eq('auction_id', id).eq('team_id', currentTeamIdRef.current).then()
       }
     }
-  }, [id])
+  }, [id, router])
 
   // Funzione di calcolo del countdown
-const calculateCountdown = (startedAtString: string) => {
-  const startTime = new Date(startedAtString).getTime()
-  
-  const interval = setInterval(async () => {
-    const now = new Date().getTime()
-    const elapsedSeconds = Math.floor((now - startTime) / 1000)
-    const remaining = 3 - elapsedSeconds
+  const calculateCountdown = (startedAtString: string) => {
+    const startTime = new Date(startedAtString).getTime()
+    
+    const interval = setInterval(async () => {
+      const now = new Date().getTime()
+      const elapsedSeconds = Math.floor((now - startTime) / 1000)
+      const remaining = 3 - elapsedSeconds
 
-    if (remaining <= 0) {
-      clearInterval(interval)
-      setCountdownSeconds(0)
-      
-      // LOGICA DI SICUREZZA:
-      // Anche se sei admin, aggiungiamo un controllo di sicurezza per 
-      // verificare che non sia già stato aggiornato (evita spam di chiamate)
-      if (isAdmin) {
-        try {
-          const { error } = await supabase
-            .from('auctions')
-            .update({ status: 'in_corso' })
-            .eq('id', id)
-            .neq('status', 'in_corso') // Aggiorna solo se non è già in_corso
-          
-          if (error) console.error("Errore aggiornamento stato:", error)
-        } catch (e) {
-          console.error("Errore critico:", e)
+      if (remaining <= 0) {
+        clearInterval(interval)
+        setCountdownSeconds(0)
+        
+        if (isAdmin) {
+          try {
+            await supabase
+              .from('auctions')
+              .update({ status: 'in_corso' })
+              .eq('id', id)
+              .neq('status', 'in_corso')
+          } catch (e) {
+            console.error("Errore critico:", e)
+          }
         }
+        setAuctionStatus('in_corso')
+        
+        // Reindirizzamento al termine del countdown
+        router.push(`/asta/${id}/live`)
+      } else {
+        setCountdownSeconds(remaining)
       }
-      setAuctionStatus('in_corso')
-    } else {
-      setCountdownSeconds(remaining)
-    }
-  }, 200)
-}
+    }, 200)
+  }
 
-const handleForceStart = async () => {
-    // Aggiorniamo subito lo stato locale a 'countdown' per partire istantaneamente
+  const handleForceStart = async () => {
     setAuctionStatus('countdown')
     
-    // Salviamo l'orario sul DB (può servire per chi entra dopo)
     const nowIso = new Date().toISOString()
     const { error } = await supabase
       .from('auctions')
@@ -180,7 +179,6 @@ const handleForceStart = async () => {
       return
     }
 
-    // Facciamo partire il conto alla rovescia locale in modo sicuro (es. 3 secondi netti)
     let secondsLeft = 3
     setCountdownSeconds(secondsLeft)
 
@@ -190,29 +188,22 @@ const handleForceStart = async () => {
         clearInterval(timer)
         setCountdownSeconds(0)
 
-        // Aggiorniamo lo stato finale a 'in_corso' sul database
         await supabase
           .from('auctions')
           .update({ status: 'in_corso' })
           .eq('id', id)
 
         setAuctionStatus('in_corso')
+        
+        // Reindirizzamento al termine del countdown
+        router.push(`/asta/${id}/live`)
       } else {
         setCountdownSeconds(secondsLeft)
       }
-    }, 1000) // Intervallo esatto di 1 secondo
+    }, 1000)
   }
 
-  // Controlliamo se tutte le squadre sono online
   const allTeamsOnline = teamsData.length > 0 && teamsData.every(t => t.is_online)
-
-  // Effetto opzionale: se tutte le squadre sono online e siamo in stato 'attesa', l'admin può far partire in automatico o notificare
-  useEffect(() => {
-    if (allTeamsOnline && isAdmin && auctionStatus === 'attesa') {
-      // Opzionale: potremmo far partire il countdown in automatico qui se desiderato,
-      // oppure lasciarlo fare manualmente tramite il pulsante che ora rimane ben visibile.
-    }
-  }, [allTeamsOnline, isAdmin, auctionStatus])
 
   if (loading) {
     return (
@@ -278,12 +269,11 @@ const handleForceStart = async () => {
           ))}
         </div>
 
-        {/* Il pulsante di avvio ora compare finché l'asta non è ufficialmente in corso o nel countdown */}
         {isAdmin && auctionStatus !== 'in_corso' && auctionStatus !== 'countdown' && (
           <div className="pt-4 flex flex-col items-center gap-2">
             <button 
               onClick={handleForceStart} 
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase rounded-xl transition-all shadow-lg hover:shadow-blue-600/20"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase rounded-xl transition-all shadow-lg hover:shadow-blue-600/25 cursor-pointer"
             >
               <Play className="w-4 h-4" /> {allTeamsOnline ? "Avvia Asta (Tutti Connessi)" : "Forza Avvio Asta"}
             </button>
@@ -296,7 +286,7 @@ const handleForceStart = async () => {
         {auctionStatus === 'in_corso' && (
           <div className="pt-4 text-center">
             <div className="inline-block px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-xs font-black uppercase tracking-wider animate-pulse">
-              Asta in corso - Reindirizzamento o schermata successiva attiva
+              Asta in corso - Reindirizzamento in corso...
             </div>
           </div>
         )}

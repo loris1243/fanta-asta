@@ -13,22 +13,34 @@ export default function AddLegaTeamPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [initialBudget, setInitialBudget] = useState<number>(500) // Valore di fallback predefinito
 
-  // Carica gli utenti per il menu a tendina
-useEffect(() => {
-  const fetchUsers = async () => {
-    // Aggiungi questo log
-    const { data, error } = await supabase.from('profiles').select('id, username');
-    
-    if (error) {
-      console.error("DEBUG: Errore caricamento utenti:", error.message);
-    } else {
-      console.log("DEBUG: Risultato query utenti:", data);
-      setUsers(data || []);
-    }
-  };
-  fetchUsers();
-}, []);
+  // Carica gli utenti per il menu a tendina e il budget iniziale dalle impostazioni di lega
+  useEffect(() => {
+    const fetchData = async () => {
+      // 1. Caricamento utenti
+      const { data: profilesData, error: profilesError } = await supabase.from('profiles').select('id, username');
+      
+      if (profilesError) {
+        console.error("DEBUG: Errore caricamento utenti:", profilesError.message);
+      } else {
+        setUsers(profilesData || []);
+      }
+
+      // 2. Caricamento budget iniziale da league_settings
+      const { data: settingsData, error: settingsError } = await supabase
+        .from('league_settings')
+        .select('initial_budget')
+        .maybeSingle();
+
+      if (settingsError) {
+        console.error("DEBUG: Errore caricamento impostazioni lega:", settingsError.message);
+      } else if (settingsData && settingsData.initial_budget !== undefined) {
+        setInitialBudget(settingsData.initial_budget);
+      }
+    };
+    fetchData();
+  }, []);
 
   // Gestione anteprima logo
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,13 +83,14 @@ useEffect(() => {
         logoUrl = publicURLData.publicUrl
       }
 
-      // Salvataggio nel database con user_id e logo_url
+      // Salvataggio nel database con user_id, logo_url e il budget iniziale preso da league_settings
       const { error: dbError } = await supabase
         .from('league_teams')
         .insert([{ 
           name, 
           user_id: userId, 
-          logo_url: logoUrl 
+          logo_url: logoUrl,
+          budget: initialBudget // Inserimento del budget configurato
         }])
 
       if (dbError) throw new Error('Errore salvataggio database: ' + dbError.message)
@@ -105,7 +118,7 @@ useEffect(() => {
             ← Torna a Squadre Lega
           </Link>
           <h1 className="text-3xl font-extrabold text-white tracking-tight">Aggiungi Squadra Fantacalcio</h1>
-          <p className="text-slate-400 text-sm mt-1">Registra la squadra, associa l'allenatore e carica il logo</p>
+          <p className="text-slate-400 text-sm mt-1">Registra la squadra, associa l'allenatore e carica il logo (Budget iniziale: <span className="text-amber-400 font-bold">{initialBudget} CR</span>)</p>
         </div>
 
         {/* Form */}
