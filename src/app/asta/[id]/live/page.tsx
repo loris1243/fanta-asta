@@ -31,8 +31,9 @@ export default function LiveAuctionPage() {
 
   const [isNominateModalOpen, setIsNominateModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [teamSearchQuery, setTeamSearchQuery] = useState('')
+  const [selectedTeamFilter, setSelectedTeamFilter] = useState('')
   const [availablePlayers, setAvailablePlayers] = useState<any[]>([])
+  const [availableTeamsList, setAvailableTeamsList] = useState<string[]>([])
   
   const auctionChannelRef = useRef<any>(null)
 
@@ -46,11 +47,9 @@ export default function LiveAuctionPage() {
         return
       }
 
-      // 1. Controllo permessi
       const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle()
       if (profile?.role === 'admin') setIsAdmin(true)
 
-      // 2. Fetch Asta
       const { data: auctionData } = await supabase
         .from('auctions')
         .select('*')
@@ -66,7 +65,6 @@ export default function LiveAuctionPage() {
       setCurrentTurnTeamId(auctionData.current_turn_team_id || null)
       setRequiredRole(auctionData.required_role || 'P')
 
-      // 3. Squadra Utente
       const { data: teamData } = await supabase
         .from('league_teams')
         .select('id')
@@ -79,7 +77,6 @@ export default function LiveAuctionPage() {
 
       if (isMounted) setLoading(false)
 
-      // 4. Realtime Sincronizzato
       auctionChannelRef.current = supabase.channel(`auction-room-${id}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'auctions', filter: `id=eq.${id}` }, (payload: any) => {
           if (payload.new) {
@@ -128,16 +125,41 @@ export default function LiveAuctionPage() {
   }
 
   const fetchAvailablePlayers = async () => {
-    let query = supabase.from('players').select('*').eq('role', requiredRole).order('name', { ascending: true })
-    if (searchQuery.trim()) query = query.ilike('name', `%${searchQuery}%`)
-    if (teamSearchQuery.trim()) query = query.ilike('team', `%${teamSearchQuery}%`) // Modifica 'team' con il nome della colonna reale se è diverso (es. 'club')
-    const { data } = await query
-    if (data) setAvailablePlayers(data)
+    // 1. Carica tutti i giocatori del ruolo richiesto per popolare la tendina delle squadre e filtrare
+    let baseQuery = supabase.from('players').select('*').eq('role', requiredRole).order('name', { ascending: true })
+    const { data } = await baseQuery
+
+    if (data) {
+      // Estrae le squadre uniche per la dropdown
+      const uniqueTeams = Array.from(new Set(data.map((p: any) => p.team).filter(Boolean))) as string[]
+      setAvailableTeamsList(uniqueTeams.sort())
+
+      // Applica i filtri
+      let filtered = data
+      if (searchQuery.trim()) {
+        filtered = filtered.filter((p: any) => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      }
+      if (selectedTeamFilter) {
+        filtered = filtered.filter((p: any) => p.team === selectedTeamFilter)
+      }
+
+      setAvailablePlayers(filtered)
+    }
   }
 
   useEffect(() => {
-    if (isNominateModalOpen) fetchAvailablePlayers()
-  }, [isNominateModalOpen, searchQuery, teamSearchQuery, requiredRole])
+    if (isNominateModalOpen) {
+      setSelectedTeamFilter('') // Reset filtro squadra alla apertura
+      setSearchQuery('')
+      fetchAvailablePlayers()
+    }
+  }, [isNominateModalOpen, requiredRole])
+
+  useEffect(() => {
+    if (isNominateModalOpen) {
+      fetchAvailablePlayers()
+    }
+  }, [searchQuery, selectedTeamFilter])
 
   const handleNominatePlayer = async (playerId: number) => {
     await supabase.from('auction_nominations').insert({ auction_id: id, player_id: playerId, base_price: 1, current_bid: 1, status: 'in_corso' })
@@ -214,8 +236,23 @@ export default function LiveAuctionPage() {
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <input type="text" placeholder="Cerca per nome giocatore..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500" />
-              <input type="text" placeholder="Cerca per squadra reale..." value={teamSearchQuery} onChange={(e) => setTeamSearchQuery(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500" />
+              <input 
+                type="text" 
+                placeholder="Cerca per nome giocatore..." 
+                value={searchQuery} 
+                onChange={(e) => setSearchQuery(e.target.value)} 
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500" 
+              />
+              <select 
+                value={selectedTeamFilter} 
+                onChange={(e) => setSelectedTeamFilter(e.target.value)} 
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="">Tutte le squadre reali</option>
+                {availableTeamsList.map((teamName) => (
+                  <option key={teamName} value={teamName}>{teamName}</option>
+                ))}
+              </select>
             </div>
 
             <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
