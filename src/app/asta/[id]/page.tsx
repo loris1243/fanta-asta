@@ -1,296 +1,1144 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { supabase } from '../../../lib/supabaseClient'
-import { Play, Shield, Users, ArrowLeft, Clock } from 'lucide-react'
 import Link from 'next/link'
+import {
+  ArrowLeft,
+  Building2,
+  LayoutDashboard,
+  Shield,
+  Target,
+  ClipboardList,
+  Inbox,
+  Users,
+  Settings,
+  ScrollText,
+  LogOut,
+  Play,
+  Loader2,
+} from 'lucide-react'
+
+import { supabase } from '../../../lib/supabaseClient'
+
+interface LeagueTeam {
+  id: string
+  name: string
+  logo_url: string | null
+}
+
+interface TeamData extends LeagueTeam {
+  is_online: boolean
+}
+
+interface CurrentUser {
+  id: string
+  username: string
+  role: string
+}
 
 export default function WaitingRoomPage() {
   const { id } = useParams()
   const router = useRouter()
-  const [teamsData, setTeamsData] = useState<any[]>([])
+
+  const auctionId = Array.isArray(id) ? id[0] : id
+
+  const [teamsData, setTeamsData] = useState<TeamData[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
-  
-  // Stati per il countdown e gestione asta
-  const [auctionStatus, setAuctionStatus] = useState<string>('attesa')
-  const [countdownSeconds, setCountdownSeconds] = useState<number | null>(null)
+  const [starting, setStarting] = useState(false)
+  const [auctionStatus, setAuctionStatus] = useState('attesa')
+  const [currentUser, setCurrentUser] =
+    useState<CurrentUser | null>(null)
 
   const currentTeamIdRef = useRef<string | null>(null)
-  const channelRef = useRef<any>(null)
-  const auctionChannelRef = useRef<any>(null)
+
+  const participantsChannelRef =
+    useRef<ReturnType<typeof supabase.channel> | null>(null)
+
+  const auctionChannelRef =
+    useRef<ReturnType<typeof supabase.channel> | null>(null)
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
   useEffect(() => {
+    if (!auctionId) return
+
     let isMounted = true
 
-    async function init() {
-      const { data: { session } } = await supabase.auth.getSession()
-      const user = session?.user
-      
-      if (!user) {
-        console.log("Nessun utente loggato trovato.")
-        setLoading(false)
+    /*
+     * ============================================================
+     * RECUPERO SQUADRE
+     * ============================================================
+     *
+     * Mostriamo tutte le squadre della lega.
+     *
+     * Una squadra viene considerata partecipante/online solo se
+     * esiste il relativo record in auction_participants.
+     */
+    const fetchTeams = async () => {
+      const {
+        data: teams,
+        error: teamsError,
+      } = await supabase
+        .from('league_teams')
+        .select('id, name, logo_url')
+        .order('name', {
+          ascending: true,
+        })
+
+      if (teamsError) {
+        console.error(
+          'Errore recupero squadre:',
+          teamsError.message
+        )
         return
       }
 
-      // 1. Fetch stato asta iniziale
-      const { data: auctionData } = await supabase.from('auctions').select('status, countdown_started_at').eq('id', id).maybeSingle()
-      if (auctionData) {
-        setAuctionStatus(auctionData.status || 'attesa')
-        if (auctionData.status === 'in_corso') {
-          router.push(`/asta/${id}/live`)
+      const {
+        data: participants,
+        error: participantsError,
+      } = await supabase
+        .from('auction_participants')
+        .select('team_id, is_online')
+        .eq('auction_id', auctionId)
+
+      if (participantsError) {
+        console.error(
+          'Errore recupero partecipanti:',
+          participantsError.message
+        )
+        return
+      }
+
+      const updatedTeams: TeamData[] =
+        (teams || []).map((team) => {
+          const participant =
+            participants?.find(
+              (item) =>
+                item.team_id === team.id
+            )
+
+          return {
+            ...team,
+
+            /*
+             * Una squadra è online solamente se esiste
+             * come partecipante all'asta ed è_online=true.
+             */
+            is_online:
+              participant?.is_online === true,
+          }
+        })
+
+      if (isMounted) {
+        setTeamsData(updatedTeams)
+      }
+    }
+
+    /*
+     * ============================================================
+     * INIT
+     * ============================================================
+     */
+    const init = async () => {
+      setLoading(true)
+
+      /*
+       * ----------------------------------------------------------
+       * SESSIONE
+       * ----------------------------------------------------------
+       */
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      const user = session?.user
+
+      if (!user) {
+        router.push('/login')
+        return
+      }
+
+      /*
+       * ----------------------------------------------------------
+       * RECUPERO ASTA
+       * ----------------------------------------------------------
+       */
+      const {
+        data: auctionData,
+        error: auctionError,
+      } = await supabase
+        .from('auctions')
+        .select('status')
+        .eq('id', auctionId)
+        .maybeSingle()
+
+      if (auctionError) {
+        console.error(
+          'Errore recupero asta:',
+          auctionError.message
+        )
+      }
+
+      if (auctionData?.status) {
+        setAuctionStatus(auctionData.status)
+
+        /*
+         * Se l'asta è già iniziata, non ha senso rimanere
+         * nella Waiting Room.
+         */
+        if (
+          auctionData.status === 'in_corso'
+        ) {
+          router.push(
+            `/asta/${auctionId}/live`
+          )
           return
         }
-        if (auctionData.status === 'countdown' && auctionData.countdown_started_at) {
-          calculateCountdown(auctionData.countdown_started_at)
-        }
       }
 
-      // 2. Setup Fetch delle squadre e dello stato online
-      const fetchTeams = async () => {
-        const { data: teams, error: teamsError } = await supabase.from('league_teams').select('id, name, logo_url')
-        const { data: participants, error: partsError } = await supabase.from('auction_participants').select('team_id, is_online').eq('auction_id', id)
-        
-        if (teamsError) console.error("Errore fetch league_teams:", teamsError)
-        if (partsError) console.error("Errore fetch auction_participants:", partsError)
+      /*
+       * ----------------------------------------------------------
+       * PROFILO UTENTE
+       * ----------------------------------------------------------
+       */
+      const {
+        data: profile,
+        error: profileError,
+      } = await supabase
+        .from('profiles')
+        .select(
+          'id, username, role'
+        )
+        .eq('id', user.id)
+        .maybeSingle()
 
-        if (teams && isMounted) {
-          const updatedTeams = teams.map(t => ({ 
-            ...t, 
-            is_online: participants?.find(p => p.team_id === t.id)?.is_online || false 
-          }))
-          setTeamsData(updatedTeams)
-        }
+      if (profileError) {
+        console.error(
+          'Errore recupero profilo:',
+          profileError.message
+        )
       }
 
-      // 3. Controllo ruolo Admin
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
-      if (profile?.role === 'admin') setIsAdmin(true)
+      if (profile && isMounted) {
+        setCurrentUser(profile)
+        setIsAdmin(
+          profile.role === 'admin'
+        )
+      }
 
-      // 4. Recupera la squadra associata all'utente loggato
-      const { data: teamData } = await supabase.from('league_teams').select('id').eq('user_id', user.id).maybeSingle()
+      /*
+       * ----------------------------------------------------------
+       * RECUPERO SQUADRA DELL'UTENTE
+       * ----------------------------------------------------------
+       */
+      const {
+        data: teamData,
+        error: teamError,
+      } = await supabase
+        .from('league_teams')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle()
 
+      if (teamError) {
+        console.error(
+          'Errore recupero squadra:',
+          teamError.message
+        )
+      }
+
+      /*
+       * ----------------------------------------------------------
+       * REGISTRAZIONE PARTECIPANTE
+       * ----------------------------------------------------------
+       *
+       * Questo è il punto fondamentale:
+       *
+       * quando l'utente entra nella Waiting Room viene creato
+       * (o aggiornato) il record in auction_participants.
+       *
+       * Quindi solo le squadre che entrano realmente nella sala
+       * partecipano all'asta.
+       */
       if (teamData) {
-        currentTeamIdRef.current = teamData.id
-        
-        const { error: upsertError } = await supabase
+        currentTeamIdRef.current =
+          teamData.id
+
+        const {
+          error: upsertError,
+        } = await supabase
           .from('auction_participants')
           .upsert(
-            { auction_id: id, team_id: teamData.id, is_online: true },
-            { onConflict: 'auction_id,team_id' }
+            {
+              auction_id: auctionId,
+              team_id: teamData.id,
+              is_online: true,
+            },
+            {
+              onConflict:
+                'auction_id,team_id',
+            }
           )
 
         if (upsertError) {
-          console.error("Errore durante l'upsert del partecipante:", upsertError)
+          console.error(
+            'Errore registrazione partecipante:',
+            upsertError.message
+          )
         }
       }
 
+      /*
+       * ----------------------------------------------------------
+       * CARICAMENTO SQUADRE
+       * ----------------------------------------------------------
+       */
       await fetchTeams()
-      if (isMounted) setLoading(false)
 
-      // 5. Realtime: Sottoscrizione ai cambiamenti dei partecipanti
-      if (channelRef.current) supabase.removeChannel(channelRef.current)
-      channelRef.current = supabase.channel(`room-changes-${id}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'auction_participants' }, () => fetchTeams())
-        .subscribe()
+      if (!isMounted) return
 
-      // 6. Realtime: Sottoscrizione ai cambiamenti dell'asta
-      if (auctionChannelRef.current) supabase.removeChannel(auctionChannelRef.current)
-      auctionChannelRef.current = supabase.channel(`auction-status-${id}`)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'auctions', filter: `id=eq.${id}` }, (payload) => {
-          const newStatus = payload.new.status
-          const newTimestamp = payload.new.countdown_started_at
-          
-          setAuctionStatus(newStatus)
-          if (newStatus === 'in_corso') {
-            router.push(`/asta/${id}/live`)
-          } else if (newStatus === 'countdown' && newTimestamp) {
-            calculateCountdown(newTimestamp)
-          }
-        })
-        .subscribe()
+      setLoading(false)
+
+      /*
+       * ----------------------------------------------------------
+       * REALTIME PARTECIPANTI
+       * ----------------------------------------------------------
+       */
+      if (
+        participantsChannelRef.current
+      ) {
+        await supabase.removeChannel(
+          participantsChannelRef.current
+        )
+
+        participantsChannelRef.current =
+          null
+      }
+
+      participantsChannelRef.current =
+        supabase
+          .channel(
+            `auction-participants-${auctionId}`
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'auction_participants',
+              filter: `auction_id=eq.${auctionId}`,
+            },
+            () => {
+              fetchTeams()
+            }
+          )
+          .subscribe()
+
+      /*
+       * ----------------------------------------------------------
+       * REALTIME STATO ASTA
+       * ----------------------------------------------------------
+       */
+      if (
+        auctionChannelRef.current
+      ) {
+        await supabase.removeChannel(
+          auctionChannelRef.current
+        )
+
+        auctionChannelRef.current = null
+      }
+
+      auctionChannelRef.current =
+        supabase
+          .channel(
+            `auction-status-${auctionId}`
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'auctions',
+              filter: `id=eq.${auctionId}`,
+            },
+            (payload) => {
+              const newStatus =
+                payload.new.status
+
+              setAuctionStatus(
+                newStatus
+              )
+
+              if (
+                newStatus === 'in_corso'
+              ) {
+                router.push(
+                  `/asta/${auctionId}/live`
+                )
+              }
+            }
+          )
+          .subscribe()
     }
 
     init()
 
+    /*
+     * ============================================================
+     * CLEANUP
+     * ============================================================
+     *
+     * IMPORTANTE:
+     *
+     * NON impostiamo più is_online=false qui.
+     *
+     * Il cleanup viene eseguito anche quando React smonta la
+     * Waiting Room perché l'utente passa alla pagina /live.
+     *
+     * Se facessimo:
+     *
+     *   is_online: false
+     *
+     * qui, il normale passaggio Waiting Room -> Live
+     * renderebbe immediatamente offline la squadra.
+     *
+     * Inoltre il record in auction_participants deve rimanere
+     * intatto perché determina chi partecipa all'asta.
+     */
     return () => {
       isMounted = false
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current)
-        channelRef.current = null
+
+      if (
+        participantsChannelRef.current
+      ) {
+        supabase.removeChannel(
+          participantsChannelRef.current
+        )
+
+        participantsChannelRef.current =
+          null
       }
-      if (auctionChannelRef.current) {
-        supabase.removeChannel(auctionChannelRef.current)
-        auctionChannelRef.current = null
+
+      if (
+        auctionChannelRef.current
+      ) {
+        supabase.removeChannel(
+          auctionChannelRef.current
+        )
+
+        auctionChannelRef.current =
+          null
       }
-      if (currentTeamIdRef.current) {
-        supabase.from('auction_participants').update({ is_online: false })
-          .eq('auction_id', id).eq('team_id', currentTeamIdRef.current).then()
-      }
+
+      /*
+       * NON modificare auction_participants qui.
+       *
+       * La squadra rimane partecipante anche passando alla Live.
+       */
     }
-  }, [id, router])
+  }, [auctionId, router])
 
-  // Funzione di calcolo del countdown
-  const calculateCountdown = (startedAtString: string) => {
-    const startTime = new Date(startedAtString).getTime()
-    
-    const interval = setInterval(async () => {
-      const now = new Date().getTime()
-      const elapsedSeconds = Math.floor((now - startTime) / 1000)
-      const remaining = 3 - elapsedSeconds
-
-      if (remaining <= 0) {
-        clearInterval(interval)
-        setCountdownSeconds(0)
-        
-        if (isAdmin) {
-          try {
-            await supabase
-              .from('auctions')
-              .update({ status: 'in_corso' })
-              .eq('id', id)
-              .neq('status', 'in_corso')
-          } catch (e) {
-            console.error("Errore critico:", e)
-          }
-        }
-        setAuctionStatus('in_corso')
-        
-        // Reindirizzamento al termine del countdown
-        router.push(`/asta/${id}/live`)
-      } else {
-        setCountdownSeconds(remaining)
-      }
-    }, 200)
-  }
-
+  /*
+   * ============================================================
+   * AVVIO ASTA
+   * ============================================================
+   */
   const handleForceStart = async () => {
-    setAuctionStatus('countdown')
-    
-    const nowIso = new Date().toISOString()
-    const { error } = await supabase
+    if (!auctionId || starting) return
+
+    setStarting(true)
+
+    const {
+      error,
+    } = await supabase
       .from('auctions')
-      .update({ status: 'countdown', countdown_started_at: nowIso })
-      .eq('id', id)
-      
+      .update({
+        status: 'in_corso',
+      })
+      .eq('id', auctionId)
+      .neq('status', 'in_corso')
+
     if (error) {
-      alert("Errore durante l'avvio.")
+      console.error(
+        "Errore durante l'avvio:",
+        error.message
+      )
+
+      setStarting(false)
       return
     }
 
-    let secondsLeft = 3
-    setCountdownSeconds(secondsLeft)
+    setAuctionStatus('in_corso')
 
-    const timer = setInterval(async () => {
-      secondsLeft -= 1
-      if (secondsLeft <= 0) {
-        clearInterval(timer)
-        setCountdownSeconds(0)
-
-        await supabase
-          .from('auctions')
-          .update({ status: 'in_corso' })
-          .eq('id', id)
-
-        setAuctionStatus('in_corso')
-        
-        // Reindirizzamento al termine del countdown
-        router.push(`/asta/${id}/live`)
-      } else {
-        setCountdownSeconds(secondsLeft)
-      }
-    }, 1000)
+    router.push(
+      `/asta/${auctionId}/live`
+    )
   }
 
-  const allTeamsOnline = teamsData.length > 0 && teamsData.every(t => t.is_online)
+  /*
+   * ============================================================
+   * STATISTICHE ONLINE
+   * ============================================================
+   */
+  const allTeamsOnline =
+    teamsData.length > 0 &&
+    teamsData.every(
+      (team) => team.is_online
+    )
 
+  const onlineTeams =
+    teamsData.filter(
+      (team) => team.is_online
+    ).length
+
+  /*
+   * ============================================================
+   * LOGOUT
+   * ============================================================
+   */
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
+  /*
+   * ============================================================
+   * LOADING
+   * ============================================================
+   */
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center font-sans">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="flex flex-col items-center gap-3">
+
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+
+          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+            Caricamento sala...
+          </span>
+
+        </div>
       </div>
     )
   }
 
+  /*
+   * ============================================================
+   * PAGINA
+   * ============================================================
+   */
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans p-6 md:p-12 flex flex-col justify-between relative overflow-hidden">
-      
-      {/* OVERFLOW COUNTDOWN (DA 3 A 0) */}
-      {auctionStatus === 'countdown' && (
-        <div className="absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center space-y-6 animate-fadeIn">
-          <div className="w-20 h-20 rounded-3xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 animate-pulse">
-            <Clock className="w-10 h-10" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tight text-white">L'asta inizierà tra</h2>
-            <p className="text-7xl md:text-9xl font-black text-amber-400 tracking-tighter drop-shadow-lg">
-              {countdownSeconds !== null ? countdownSeconds : 3}
-            </p>
-          </div>
-          <p className="text-sm text-slate-400 font-medium">Preparati a chiamare i tuoi giocatori!</p>
-        </div>
-      )}
+    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col md:flex-row">
 
-      {/* SALA D'ATTESA NORMALE */}
-      <div className="max-w-2xl mx-auto w-full space-y-6">
-        <div className="space-y-4">
-          <Link href="/" className="inline-flex items-center gap-1.5 text-xs font-bold tracking-wider text-slate-400 hover:text-white uppercase transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Dashboard
-          </Link>
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
-              <Users className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black uppercase tracking-tight text-white">Sala d'Attesa</h1>
-              <p className="text-xs text-slate-400 font-medium">
-                {auctionStatus === 'in_corso' ? "L'asta è in corso!" : allTeamsOnline ? "Tutte le squadre sono connesse!" : "In attesa che i partecipanti entrino..."}
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="space-y-2.5">
-          {teamsData.map((team) => (
-            <div key={team.id} className="bg-slate-800/80 border border-slate-700/80 rounded-xl px-4 py-3 flex items-center justify-between shadow-md">
-              <div className="flex items-center gap-3">
-                {team.logo_url ? (
-                  <img src={team.logo_url} alt="" className="w-8 h-8 object-contain rounded-lg bg-slate-900/60 p-1 border border-slate-700" />
-                ) : (
-                  <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
-                    <Shield className="w-4 h-4" />
-                  </div>
-                )}
-                <span className="font-bold text-sm uppercase tracking-wide text-white">{team.name}</span>
-              </div>
-              <div className={`w-3 h-3 rounded-full ${team.is_online ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-            </div>
-          ))}
-        </div>
+      {/* =======================================================
+          SIDEBAR
+      ======================================================= */}
 
-        {isAdmin && auctionStatus !== 'in_corso' && auctionStatus !== 'countdown' && (
-          <div className="pt-4 flex flex-col items-center gap-2">
-            <button 
-              onClick={handleForceStart} 
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase rounded-xl transition-all shadow-lg hover:shadow-blue-600/25 cursor-pointer"
+      <aside
+        className={`
+          relative shrink-0
+          bg-slate-900/95
+          border-r border-slate-800
+          shadow-xl
+          transition-[width]
+          duration-300
+          ease-in-out
+          flex flex-col
+          ${
+            isSidebarOpen
+              ? 'w-full md:w-64'
+              : 'w-full md:w-[76px]'
+          }
+        `}
+      >
+
+        <div className="relative p-3 md:p-4">
+
+          <div
+            className={`
+              relative flex items-center
+              ${
+                isSidebarOpen
+                  ? 'justify-between'
+                  : 'justify-center'
+              }
+              min-h-10
+            `}
+          >
+
+            <div
+              className={`
+                flex items-center
+                ${
+                  isSidebarOpen
+                    ? 'gap-3'
+                    : 'justify-center'
+                }
+              `}
             >
-              <Play className="w-4 h-4" /> {allTeamsOnline ? "Avvia Asta (Tutti Connessi)" : "Forza Avvio Asta"}
-            </button>
-            {allTeamsOnline && (
-              <span className="text-[11px] text-emerald-400 font-medium">Tutti i partecipanti sono online! Puoi procedere all'avvio.</span>
-            )}
-          </div>
-        )}
 
-        {auctionStatus === 'in_corso' && (
-          <div className="pt-4 text-center">
-            <div className="inline-block px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-xs font-black uppercase tracking-wider animate-pulse">
-              Asta in corso - Reindirizzamento in corso...
+              <div className="w-10 h-10 shrink-0 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/20">
+                <Building2 className="w-5 h-5" />
+              </div>
+
+              {isSidebarOpen && (
+                <div>
+
+                  <h1 className="font-extrabold text-base tracking-tight text-white leading-tight">
+                    FantAsta
+                  </h1>
+
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                    Aste Live
+                  </p>
+
+                </div>
+              )}
+
             </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setIsSidebarOpen(
+                  (prev) => !prev
+                )
+              }
+              className={`
+                hidden md:flex
+                items-center justify-center
+                w-7 h-7
+                rounded-lg
+                text-slate-500
+                hover:text-white
+                hover:bg-slate-800
+                transition-all
+                ${
+                  !isSidebarOpen
+                    ? 'absolute -right-2 top-1/2 -translate-y-1/2 z-20 bg-slate-900 border border-slate-700 shadow-lg'
+                    : ''
+                }
+              `}
+              aria-label={
+                isSidebarOpen
+                  ? 'Comprimi sidebar'
+                  : 'Espandi sidebar'
+              }
+            >
+              <span className="text-[10px] font-black">
+                {isSidebarOpen
+                  ? '◀'
+                  : '▶'}
+              </span>
+            </button>
+
           </div>
-        )}
-      </div>
+
+        </div>
+
+        <div
+          className={`
+            mx-3 md:mx-4 mb-5
+            bg-slate-950/70
+            border border-slate-800
+            rounded-xl
+            ${
+              isSidebarOpen
+                ? 'p-3'
+                : 'p-2'
+            }
+          `}
+        >
+
+          <div
+            className={`
+              flex items-center
+              ${
+                isSidebarOpen
+                  ? 'gap-3'
+                  : 'justify-center'
+              }
+            `}
+          >
+
+            <div className="w-10 h-10 shrink-0 rounded-lg bg-blue-500/10 text-blue-300 border border-blue-500/30 flex items-center justify-center font-black text-xs">
+              {currentUser?.username
+                ?.slice(0, 2)
+                .toUpperCase() || 'U'}
+            </div>
+
+            {isSidebarOpen && (
+              <div className="min-w-0">
+
+                <p className="text-sm font-bold text-white truncate">
+                  {currentUser?.username ||
+                    'Utente'}
+                </p>
+
+                <p className="text-[10px] text-blue-400 font-bold uppercase tracking-wider">
+                  {isAdmin
+                    ? 'Amministratore'
+                    : 'Partecipante'}
+                </p>
+
+              </div>
+            )}
+
+          </div>
+
+        </div>
+
+        <nav className="flex-1 px-3 md:px-4 overflow-y-auto">
+
+          <div className="space-y-1.5">
+
+            <Link
+              href="/"
+              className="flex items-center h-11 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
+            >
+              <LayoutDashboard className="w-4 h-4 shrink-0" />
+
+              {isSidebarOpen && (
+                <span>
+                  Dashboard
+                </span>
+              )}
+            </Link>
+
+            <Link
+              href="/rosa"
+              className="flex items-center h-11 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
+            >
+              <Shield className="w-4 h-4 shrink-0 text-emerald-400" />
+
+              {isSidebarOpen && (
+                <span>
+                  La Mia Squadra
+                </span>
+              )}
+            </Link>
+
+            <Link
+              href="/obiettivi"
+              className="flex items-center h-11 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
+            >
+              <Target className="w-4 h-4 shrink-0 text-amber-400" />
+
+              {isSidebarOpen && (
+                <span>
+                  I Miei Obiettivi
+                </span>
+              )}
+            </Link>
+
+            <Link
+              href="/listone"
+              className="flex items-center h-11 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
+            >
+              <ClipboardList className="w-4 h-4 shrink-0" />
+
+              {isSidebarOpen && (
+                <span>
+                  Listone
+                </span>
+              )}
+            </Link>
+
+            {isAdmin && (
+              <div className="pt-4 mt-4 border-t border-slate-800">
+
+                {isSidebarOpen && (
+                  <span className="px-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                    Pannello Admin
+                  </span>
+                )}
+
+                <Link
+                  href="/admin/import-listone"
+                  className="flex items-center h-10 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
+                >
+                  <Inbox className="w-4 h-4 shrink-0" />
+
+                  {isSidebarOpen && (
+                    <span>
+                      Importa Listone
+                    </span>
+                  )}
+                </Link>
+
+                <Link
+                  href="/admin/users"
+                  className="flex items-center h-10 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
+                >
+                  <Users className="w-4 h-4 shrink-0" />
+
+                  {isSidebarOpen && (
+                    <span>
+                      Gestione Partecipanti
+                    </span>
+                  )}
+                </Link>
+
+                <Link
+                  href="/admin/settings"
+                  className="flex items-center h-10 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
+                >
+                  <Settings className="w-4 h-4 shrink-0" />
+
+                  {isSidebarOpen && (
+                    <span>
+                      Configurazione Lega
+                    </span>
+                  )}
+                </Link>
+
+                {isSidebarOpen && (
+                  <span className="px-2 pt-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                    Anagrafiche
+                  </span>
+                )}
+
+                <Link
+                  href="/admin/anagrafiche/serie-a"
+                  className="flex items-center h-9 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
+                >
+                  <ScrollText className="w-4 h-4 shrink-0" />
+
+                  {isSidebarOpen && (
+                    <span>
+                      Squadre Serie A
+                    </span>
+                  )}
+                </Link>
+
+                <Link
+                  href="/admin/anagrafiche/squadre_lega"
+                  className="flex items-center h-9 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
+                >
+                  <Building2 className="w-4 h-4 shrink-0" />
+
+                  {isSidebarOpen && (
+                    <span>
+                      Squadre Lega
+                    </span>
+                  )}
+                </Link>
+
+              </div>
+            )}
+
+          </div>
+
+        </nav>
+
+        <div className="mt-auto p-3 md:p-4 border-t border-slate-800">
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full flex items-center h-11 rounded-xl text-sm font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all gap-3 px-3.5"
+          >
+            <LogOut className="w-4 h-4 shrink-0" />
+
+            {isSidebarOpen && (
+              <span>
+                Esci
+              </span>
+            )}
+          </button>
+
+        </div>
+
+      </aside>
+
+      {/* =======================================================
+          MAIN
+      ======================================================= */}
+
+      <main className="flex-1 min-w-0 p-5 md:p-8 xl:p-10 overflow-y-auto">
+
+        <div className="max-w-4xl mx-auto">
+
+          {/* HEADER */}
+
+          <div className="mb-8">
+
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-xs font-bold tracking-wider text-slate-400 hover:text-white uppercase transition-colors mb-5"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Dashboard
+            </Link>
+
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+              <div className="flex items-center gap-4">
+
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                  <Users className="w-6 h-6" />
+                </div>
+
+                <div>
+
+                  <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+                    Sala d'Attesa
+                  </h1>
+
+                  <p className="text-sm text-slate-400 mt-1">
+                    {allTeamsOnline
+                      ? 'Tutte le squadre sono connesse.'
+                      : 'In attesa che i partecipanti entrino...'}
+                  </p>
+
+                </div>
+
+              </div>
+
+              <div className="inline-flex items-center gap-2 self-start sm:self-auto px-3 py-2 rounded-xl bg-slate-800 border border-slate-700">
+
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    onlineTeams > 0
+                      ? 'bg-emerald-500'
+                      : 'bg-slate-600'
+                  }`}
+                />
+
+                <span className="text-xs font-bold text-slate-300">
+                  {onlineTeams}/
+                  {teamsData.length}{' '}
+                  online
+                </span>
+
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* TEAMS */}
+
+          <div className="bg-slate-800/80 border border-slate-700 rounded-2xl shadow-xl overflow-hidden">
+
+            <div className="px-5 py-4 border-b border-slate-700 flex items-center justify-between">
+
+              <div>
+
+                <h2 className="text-sm font-black text-white uppercase tracking-wider">
+                  Partecipanti
+                </h2>
+
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Squadre presenti nella sessione d'asta
+                </p>
+
+              </div>
+
+              <span className="text-xs font-bold text-slate-500">
+                {teamsData.length}
+              </span>
+
+            </div>
+
+            {teamsData.length === 0 ? (
+
+              <div className="px-5 py-12 text-center">
+
+                <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-700 mx-auto mb-3 flex items-center justify-center">
+                  <Users className="w-5 h-5 text-slate-600" />
+                </div>
+
+                <p className="text-sm font-bold text-slate-400">
+                  Nessun partecipante ancora presente
+                </p>
+
+                <p className="text-xs text-slate-600 mt-1">
+                  Le squadre appariranno qui quando entreranno nella sala.
+                </p>
+
+              </div>
+
+            ) : (
+
+              <div className="divide-y divide-slate-700/70">
+
+                {teamsData.map((team) => (
+
+                  <div
+                    key={team.id}
+                    className="px-5 py-4 flex items-center justify-between gap-4 hover:bg-slate-800/80 transition-colors"
+                  >
+
+                    <div className="flex items-center gap-3 min-w-0">
+
+                      {team.logo_url ? (
+
+                        <img
+                          src={team.logo_url}
+                          alt=""
+                          className="w-10 h-10 object-contain rounded-xl bg-slate-900/70 p-1 border border-slate-700 shrink-0"
+                        />
+
+                      ) : (
+
+                        <div className="w-10 h-10 rounded-xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+                          <Shield className="w-5 h-5" />
+                        </div>
+
+                      )}
+
+                      <div className="min-w-0">
+
+                        <p className="font-bold text-sm text-white truncate">
+                          {team.name}
+                        </p>
+
+                        <p
+                          className={`text-[10px] font-bold uppercase tracking-wider mt-0.5 ${
+                            team.is_online
+                              ? 'text-emerald-400'
+                              : 'text-slate-500'
+                          }`}
+                        >
+                          {team.is_online
+                            ? 'Online'
+                            : 'Offline'}
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                    <div
+                      className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                        team.is_online
+                          ? 'bg-emerald-500 shadow-lg shadow-emerald-500/30'
+                          : 'bg-slate-600'
+                      }`}
+                    />
+
+                  </div>
+
+                ))}
+
+              </div>
+
+            )}
+
+          </div>
+
+          {/* ADMIN ACTION */}
+
+          {isAdmin &&
+            auctionStatus !== 'in_corso' && (
+
+            <div className="mt-6 bg-slate-800/80 border border-slate-700 rounded-2xl p-5 md:p-6">
+
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+                <div>
+
+                  <p className="text-sm font-black text-white">
+                    Controllo asta
+                  </p>
+
+                  <p className="text-xs text-slate-500 mt-1">
+                    {allTeamsOnline
+                      ? 'Tutti i partecipanti sono online.'
+                      : 'Puoi avviare comunque l’asta.'}
+                  </p>
+
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleForceStart}
+                  disabled={starting}
+                  className="
+                    inline-flex
+                    items-center
+                    justify-center
+                    gap-2
+                    h-11
+                    px-5
+                    rounded-xl
+                    bg-blue-600
+                    hover:bg-blue-500
+                    disabled:bg-slate-700
+                    disabled:text-slate-500
+                    text-white
+                    text-xs
+                    font-black
+                    uppercase
+                    tracking-wide
+                    shadow-lg
+                    shadow-blue-600/20
+                    transition-all
+                    shrink-0
+                  "
+                >
+
+                  {starting ? (
+
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Avvio...
+                    </>
+
+                  ) : (
+
+                    <>
+                      <Play className="w-4 h-4" />
+
+                      {allTeamsOnline
+                        ? 'Avvia Asta'
+                        : 'Forza Avvio'}
+                    </>
+
+                  )}
+
+                </button>
+
+              </div>
+
+            </div>
+
+          )}
+
+          {/* STATUS */}
+
+          {auctionStatus === 'in_corso' && (
+
+            <div className="mt-6 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
+
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+                <Play className="w-4 h-4 text-emerald-400" />
+              </div>
+
+              <div>
+
+                <p className="text-xs font-black text-emerald-300 uppercase tracking-wider">
+                  Asta in corso
+                </p>
+
+                <p className="text-[11px] text-emerald-400/70 mt-0.5">
+                  Apertura della sala d'asta...
+                </p>
+
+              </div>
+
+            </div>
+
+          )}
+
+        </div>
+
+      </main>
+
     </div>
   )
 }
