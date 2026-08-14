@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '../../../../lib/supabaseClient'
-import { Gavel, Users, Shield, ArrowLeft, Timer, Search, Plus, Sparkles } from 'lucide-react'
+import { Gavel, Users, Shield, ArrowLeft, Timer, Search, Plus, Sparkles, X } from 'lucide-react'
 import Link from 'next/link'
 
 const ROLE_NAMES: Record<string, string> = {
@@ -31,6 +31,7 @@ export default function LiveAuctionPage() {
 
   const [isNominateModalOpen, setIsNominateModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [teamSearchQuery, setTeamSearchQuery] = useState('')
   const [availablePlayers, setAvailablePlayers] = useState<any[]>([])
   
   const auctionChannelRef = useRef<any>(null)
@@ -129,13 +130,14 @@ export default function LiveAuctionPage() {
   const fetchAvailablePlayers = async () => {
     let query = supabase.from('players').select('*').eq('role', requiredRole).order('name', { ascending: true })
     if (searchQuery.trim()) query = query.ilike('name', `%${searchQuery}%`)
+    if (teamSearchQuery.trim()) query = query.ilike('team', `%${teamSearchQuery}%`) // Modifica 'team' con il nome della colonna reale se è diverso (es. 'club')
     const { data } = await query
     if (data) setAvailablePlayers(data)
   }
 
   useEffect(() => {
     if (isNominateModalOpen) fetchAvailablePlayers()
-  }, [isNominateModalOpen, searchQuery, requiredRole])
+  }, [isNominateModalOpen, searchQuery, teamSearchQuery, requiredRole])
 
   const handleNominatePlayer = async (playerId: number) => {
     await supabase.from('auction_nominations').insert({ auction_id: id, player_id: playerId, base_price: 1, current_bid: 1, status: 'in_corso' })
@@ -168,6 +170,7 @@ export default function LiveAuctionPage() {
                 <div>
                   <span className="text-xs font-bold uppercase px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg">{ROLE_NAMES[currentNomination.players?.role] || currentNomination.players?.role}</span>
                   <h2 className="text-3xl font-black uppercase text-white mt-3">{currentNomination.players?.name}</h2>
+                  <p className="text-sm text-slate-400 mt-1">{currentNomination.players?.team}</p>
                 </div>
                 <div className="text-right">
                   <span className="text-xs text-slate-400 uppercase font-semibold">Offerta</span>
@@ -204,15 +207,31 @@ export default function LiveAuctionPage() {
 
       {isNominateModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6">
-            <input type="text" placeholder="Cerca..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-800 rounded-lg p-3 text-sm mb-4 text-white" />
-            <div className="max-h-60 overflow-y-auto space-y-2">
-              {availablePlayers.map(p => (
-                <div key={p.id} className="flex justify-between items-center p-2 bg-slate-800 rounded-lg">
-                  <span className="text-sm">{p.name}</span>
-                  <button onClick={() => handleNominatePlayer(p.id)} className="px-3 py-1 bg-emerald-600 rounded text-xs font-bold">CHIAMA</button>
-                </div>
-              ))}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl p-6 space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-black uppercase text-white">Chiama {roleDisplay}</h3>
+              <button onClick={() => setIsNominateModalOpen(false)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input type="text" placeholder="Cerca per nome giocatore..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500" />
+              <input type="text" placeholder="Cerca per squadra reale..." value={teamSearchQuery} onChange={(e) => setTeamSearchQuery(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500" />
+            </div>
+
+            <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
+              {availablePlayers.length === 0 ? (
+                <p className="text-center text-xs text-slate-500 py-6 uppercase font-semibold">Nessun giocatore trovato</p>
+              ) : (
+                availablePlayers.map(p => (
+                  <div key={p.id} className="flex justify-between items-center p-3 bg-slate-800/80 border border-slate-700/60 rounded-xl">
+                    <div>
+                      <span className="font-bold text-sm text-white block">{p.name}</span>
+                      <span className="text-xs text-slate-400">{p.team}</span>
+                    </div>
+                    <button onClick={() => handleNominatePlayer(p.id)} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-black uppercase transition">CHIAMA</button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
