@@ -11,6 +11,43 @@ export type LeagueSettings = {
   call_timeout_seconds: number
 }
 
+export async function resetLeagueAction() {
+  try {
+    // 1. Leggi il budget iniziale dalle impostazioni
+    const { data: settings, error: settingsError } = await supabase
+      .from('league_settings')
+      .select('initial_budget')
+      .single()
+
+    if (settingsError) throw settingsError
+    const initialBudget = settings?.initial_budget || 500
+
+    // 2. Svuota la tabella delle rose (senza passare "0")
+    const { error: clearPlayersError } = await supabase
+      .from('league_team_players')
+      .delete()
+      .not('id', 'is', null)
+
+    if (clearPlayersError) throw clearPlayersError
+
+    // 3. Ripristina il budget di tutte le squadre
+    const { error: resetBudgetError } = await supabase
+      .from('league_teams')
+      .update({ budget: initialBudget })
+      .not('id', 'is', null)
+
+    if (resetBudgetError) throw resetBudgetError
+
+    // 4. Pulisci lo storico transazioni e le aste/chiamate in corso
+    await supabase.from('auction_transactions').delete().not('id', 'is', null)
+    await supabase.from('auction_nominations').delete().not('id', 'is', null)
+
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}
+
 // 1. Funzione per leggere le impostazioni dal DB
 export async function getLeagueSettings(): Promise<LeagueSettings> {
   const supabaseClient = supabase

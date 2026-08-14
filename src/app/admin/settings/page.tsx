@@ -2,14 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { getLeagueSettings, updateLeagueSettings, LeagueSettings } from '../../../app/actions/settings'
-
-// Assicurati che l'interfaccia LeagueSettings (o il tipo usato) includa league_name
-// es: league_name?: string
+import { getLeagueSettings, updateLeagueSettings, resetLeagueAction, LeagueSettings } from '../../../app/actions/settings'
 
 export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [resetting, setResetting] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const [settings, setSettings] = useState<LeagueSettings & { league_name?: string }>({
@@ -17,7 +15,7 @@ export default function AdminSettingsPage() {
     initial_budget: 500,
     auction_timeout_seconds: 30,
     call_timeout_seconds: 10,
-    league_name: '', // 🏆 Aggiunto di default
+    league_name: '',
   })
 
   useEffect(() => {
@@ -45,8 +43,24 @@ export default function AdminSettingsPage() {
     setSaving(false)
   }
 
-  const handleResetClick = () => {
-    alert('Funzionalità "Reset Lega" selezionata: la implementeremo al prossimo step!')
+  const handleResetClick = async () => {
+    const confirmed = window.confirm(
+      'ATTENZIONE: Questa azione azzererà tutte le rose assegnate, cancellerà lo storico delle aste e ripristinerà i crediti iniziali per tutte le squadre. Vuoi procedere?'
+    )
+
+    if (!confirmed) return
+
+    setResetting(true)
+    setMessage(null)
+
+    const res = await resetLeagueAction()
+
+    if (res.success) {
+      setMessage({ type: 'success', text: 'Lega resettata con successo!' })
+    } else {
+      setMessage({ type: 'error', text: res.error || 'Errore durante il reset della lega.' })
+    }
+    setResetting(false)
   }
 
   if (loading) {
@@ -86,7 +100,7 @@ export default function AdminSettingsPage() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* 🏆 Nome della Lega (Aggiunto a tutta larghezza) */}
+            {/* Nome della Lega */}
             <div className="col-span-1 md:col-span-2">
               <label className="text-xs uppercase tracking-wider text-slate-300 font-bold block mb-1.5">
                 🏆 Nome della Lega
@@ -205,10 +219,11 @@ export default function AdminSettingsPage() {
 
           <button
             type="button"
+            disabled={resetting}
             onClick={handleResetClick}
-            className="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-xl transition-all shadow-md active:scale-[0.98] shrink-0"
+            className="px-4 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-md active:scale-[0.98] shrink-0"
           >
-            🔄 Reset Lega
+            {resetting ? 'Reset in corso...' : '🔄 Reset Lega'}
           </button>
         </div>
 
