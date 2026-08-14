@@ -56,14 +56,14 @@ export default function LiveAuctionPage() {
         .eq('id', id)
         .maybeSingle()
 
-      if (!auctionData || auctionData.status !== 'in_corso') {
+      if (!auctionData) {
         router.push('/')
         return
       }
 
       setAuction(auctionData)
-      setCurrentTurnTeamId(auctionData.current_turn_team_id)
-      setRequiredRole(auctionData.required_role)
+      setCurrentTurnTeamId(auctionData.current_turn_team_id || null)
+      setRequiredRole(auctionData.required_role || 'P')
 
       // 3. Squadra Utente
       const { data: teamData } = await supabase
@@ -83,9 +83,9 @@ export default function LiveAuctionPage() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'auctions', filter: `id=eq.${id}` }, (payload: any) => {
           if (payload.new) {
             setAuction(payload.new)
-            setCurrentTurnTeamId(payload.new.current_turn_team_id)
-            setRequiredRole(payload.new.required_role)
-            if (payload.new.status !== 'in_corso') router.push(`/asta/${id}`)
+            setCurrentTurnTeamId(payload.new.current_turn_team_id || null)
+            setRequiredRole(payload.new.required_role || 'P')
+            if (payload.new.status && payload.new.status !== 'in_corso') router.push(`/asta/${id}`)
           }
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'auction_nominations', filter: `auction_id=eq.${id}` }, () => {
@@ -147,7 +147,8 @@ export default function LiveAuctionPage() {
     await supabase.from('auction_nominations').update({ current_bid: currentBid + increment, highest_bidder_team_id: myTeamId }).eq('id', currentNomination.id)
   }
 
-  const currentTurnTeamName = teamsData.find(t => t.id === currentTurnTeamId)?.name || '...'
+  const currentTurnTeamName = teamsData.find(t => t.id === currentTurnTeamId)?.name || 'Nessuna squadra'
+  const roleDisplay = ROLE_NAMES[requiredRole] || requiredRole || 'Giocatore'
   const canNominate = isAdmin || (currentTurnTeamId === myTeamId)
 
   if (loading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
@@ -165,7 +166,7 @@ export default function LiveAuctionPage() {
             <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-6 md:p-8 space-y-6">
               <div className="flex justify-between">
                 <div>
-                  <span className="text-xs font-bold uppercase px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg">{ROLE_NAMES[currentNomination.players?.role]}</span>
+                  <span className="text-xs font-bold uppercase px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg">{ROLE_NAMES[currentNomination.players?.role] || currentNomination.players?.role}</span>
                   <h2 className="text-3xl font-black uppercase text-white mt-3">{currentNomination.players?.name}</h2>
                 </div>
                 <div className="text-right">
@@ -182,8 +183,8 @@ export default function LiveAuctionPage() {
           ) : (
             <div className="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-12 text-center space-y-4">
               <h3 className="text-xl font-black uppercase">In attesa della chiamata</h3>
-              <p className="text-xs text-slate-400">È il turno di <span className="text-amber-400 font-bold">{currentTurnTeamName}</span> di chiamare un <span className="text-white font-bold">{ROLE_NAMES[requiredRole]}</span>.</p>
-              {canNominate && <button onClick={() => setIsNominateModalOpen(true)} className="mt-4 px-6 py-3 bg-blue-600 rounded-xl font-black text-xs uppercase hover:bg-blue-500 transition">Chiama {ROLE_NAMES[requiredRole]}</button>}
+              <p className="text-xs text-slate-400">È il turno di <span className="text-amber-400 font-bold">{currentTurnTeamName}</span> di chiamare un <span className="text-white font-bold">{roleDisplay}</span>.</p>
+              {canNominate && <button onClick={() => setIsNominateModalOpen(true)} className="mt-4 px-6 py-3 bg-blue-600 rounded-xl font-black text-xs uppercase hover:bg-blue-500 transition">Chiama {roleDisplay}</button>}
             </div>
           )}
         </div>
@@ -204,7 +205,7 @@ export default function LiveAuctionPage() {
       {isNominateModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6">
-            <input type="text" placeholder="Cerca..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-800 rounded-lg p-3 text-sm mb-4" />
+            <input type="text" placeholder="Cerca..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-800 rounded-lg p-3 text-sm mb-4 text-white" />
             <div className="max-h-60 overflow-y-auto space-y-2">
               {availablePlayers.map(p => (
                 <div key={p.id} className="flex justify-between items-center p-2 bg-slate-800 rounded-lg">
