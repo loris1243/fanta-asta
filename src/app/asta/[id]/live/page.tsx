@@ -233,9 +233,9 @@ export default function LiveAuctionPage() {
                 prev.map((team) =>
                     team.id === data.id
                         ? {
-                              ...team,
-                              budget: data.budget
-                          }
+                            ...team,
+                            budget: data.budget
+                        }
                         : team
                 )
             )
@@ -299,9 +299,9 @@ export default function LiveAuctionPage() {
             const calculatedBudget =
                 mode === 'percentage'
                     ? Math.round(
-                          (maxBudgetTotal * rawVal) /
-                              100
-                      )
+                        (maxBudgetTotal * rawVal) /
+                        100
+                    )
                     : rawVal
 
             setMyRoleBudget(calculatedBudget)
@@ -524,7 +524,7 @@ export default function LiveAuctionPage() {
 
         setHighestTeamId(
             nomination.highest_bidder_team_id ||
-                null
+            null
         )
 
         await Promise.all([
@@ -704,7 +704,7 @@ export default function LiveAuctionPage() {
             try {
                 const {
                     data:
-                        freshNomination,
+                    freshNomination,
                     error
                 } =
                     await supabase
@@ -741,11 +741,11 @@ export default function LiveAuctionPage() {
                 const [
                     {
                         data:
-                            freshBids
+                        freshBids
                     },
                     {
                         data:
-                            freshWithdrawals
+                        freshWithdrawals
                     }
                 ] =
                     await Promise.all([
@@ -787,9 +787,9 @@ export default function LiveAuctionPage() {
 
                 const {
                     teamId:
-                        winningTeamId,
+                    winningTeamId,
                     amount:
-                        winningAmount
+                    winningAmount
                 } =
                     getBestActiveBid(
                         (
@@ -862,7 +862,7 @@ export default function LiveAuctionPage() {
 
                 const {
                     error:
-                        closeError
+                    closeError
                 } =
                     await supabase
                         .from(
@@ -907,7 +907,7 @@ export default function LiveAuctionPage() {
 
                 const {
                     data:
-                        existingTx
+                    existingTx
                 } =
                     await supabase
                         .from(
@@ -929,7 +929,7 @@ export default function LiveAuctionPage() {
                 if (!existingTx) {
                     const {
                         error:
-                            txError
+                        txError
                     } =
                         await supabase
                             .from(
@@ -956,7 +956,7 @@ export default function LiveAuctionPage() {
 
                     const {
                         error:
-                            playerError
+                        playerError
                     } =
                         await supabase
                             .from(
@@ -998,12 +998,12 @@ export default function LiveAuctionPage() {
                                     targetTeam.budget ||
                                     0
                                 ) -
-                                    finalWinningAmount
+                                finalWinningAmount
                             )
 
                         const {
                             error:
-                                budgetError
+                            budgetError
                         } =
                             await supabase
                                 .from(
@@ -1043,7 +1043,7 @@ export default function LiveAuctionPage() {
                 if (nextTurnTeamId) {
                     const {
                         error:
-                            turnError
+                        turnError
                     } =
                         await supabase
                             .from(
@@ -1072,10 +1072,10 @@ export default function LiveAuctionPage() {
                             (prev: any) =>
                                 prev
                                     ? {
-                                          ...prev,
-                                          current_turn_team_id:
-                                              nextTurnTeamId
-                                      }
+                                        ...prev,
+                                        current_turn_team_id:
+                                            nextTurnTeamId
+                                    }
                                     : prev
                         )
                     }
@@ -1255,7 +1255,7 @@ export default function LiveAuctionPage() {
             if (
                 !myTeamId ||
                 currentTurnTeamId !==
-                    myTeamId
+                myTeamId
             ) {
                 alert(
                     'Non è il tuo turno di chiamata.'
@@ -1314,9 +1314,9 @@ export default function LiveAuctionPage() {
 
                 const {
                     data:
-                        newNomination,
+                    newNomination,
                     error:
-                        nominationError
+                    nominationError
                 } =
                     await supabase
                         .from(
@@ -1353,7 +1353,7 @@ export default function LiveAuctionPage() {
 
                 const {
                     error:
-                        priceError
+                    priceError
                 } =
                     await supabase
                         .from(
@@ -1378,7 +1378,7 @@ export default function LiveAuctionPage() {
 
                 const {
                     error:
-                        bidError
+                    bidError
                 } =
                     await supabase
                         .from(
@@ -1527,7 +1527,7 @@ export default function LiveAuctionPage() {
                 if (
                     effectiveCostDelta >
                     myRoleBudget -
-                        myRoleSpent
+                    myRoleSpent
                 ) {
                     alert(
                         `L'offerta supera il budget residuo per il ruolo ${ROLE_NAMES[requiredRole]} (${myRoleBudget - myRoleSpent} CR disponibili)!`
@@ -1539,9 +1539,9 @@ export default function LiveAuctionPage() {
 
             const {
                 data:
-                    bidRow,
+                bidRow,
                 error:
-                    bidInsertError
+                bidInsertError
             } =
                 await supabase
                     .from(
@@ -1588,7 +1588,7 @@ export default function LiveAuctionPage() {
 
             const {
                 error:
-                    nominationError
+                nominationError
             } =
                 await supabase
                     .from(
@@ -1683,7 +1683,7 @@ export default function LiveAuctionPage() {
             if (
                 !isMounted ||
                 initId !==
-                    initSequenceRef.current
+                initSequenceRef.current
             ) {
                 return
             }
@@ -1700,7 +1700,7 @@ export default function LiveAuctionPage() {
 
             const {
                 data:
-                    auctionData
+                auctionData
             } =
                 await supabase
                     .from(
@@ -1737,12 +1737,12 @@ export default function LiveAuctionPage() {
 
             setCurrentTurnTeamId(
                 auctionData.current_turn_team_id ||
-                    null
+                null
             )
 
             const {
                 data:
-                    realTeams
+                realTeams
             } =
                 await supabase
                     .from(
@@ -1761,7 +1761,7 @@ export default function LiveAuctionPage() {
 
             const {
                 data:
-                    teamData
+                teamData
             } =
                 await supabase
                     .from(
@@ -1786,7 +1786,7 @@ export default function LiveAuctionPage() {
 
                 setMyBudget(
                     teamData.budget ||
-                        0
+                    0
                 )
 
                 await fetchRoleBudgetInfo(
@@ -1804,7 +1804,7 @@ export default function LiveAuctionPage() {
             if (
                 !activeTurnId &&
                 fetchedTeams.length >
-                    0
+                0
             ) {
                 activeTurnId =
                     fetchedTeams[0]?.id
@@ -1825,7 +1825,7 @@ export default function LiveAuctionPage() {
 
             setCurrentTurnTeamId(
                 activeTurnId ||
-                    null
+                null
             )
 
             await fetchCurrentNomination()
@@ -1854,7 +1854,7 @@ export default function LiveAuctionPage() {
             if (
                 !isMounted ||
                 initId !==
-                    initSequenceRef.current
+                initSequenceRef.current
             ) {
                 return
             }
@@ -1936,7 +1936,7 @@ export default function LiveAuctionPage() {
                             if (
                                 isCongratulationModalOpen &&
                                 newTurn !==
-                                    previousTurn
+                                previousTurn
                             ) {
                                 setIsCongratulationModalOpen(
                                     false
@@ -1999,7 +1999,7 @@ export default function LiveAuctionPage() {
                             ) {
                                 const {
                                     data:
-                                        closedNomination
+                                    closedNomination
                                 } =
                                     await supabase
                                         .from(
@@ -2085,7 +2085,7 @@ export default function LiveAuctionPage() {
 
                             const {
                                 data:
-                                    nomination
+                                nomination
                             } =
                                 await supabase
                                     .from(
@@ -2141,7 +2141,7 @@ export default function LiveAuctionPage() {
 
                             const {
                                 data:
-                                    nomination
+                                nomination
                             } =
                                 await supabase
                                     .from(
@@ -2221,9 +2221,9 @@ export default function LiveAuctionPage() {
                                                             .new
                                                             .id
                                                         ? {
-                                                              ...team,
-                                                              ...payload.new
-                                                          }
+                                                            ...team,
+                                                            ...payload.new
+                                                        }
                                                         : team
                                             )
                                         }
@@ -2240,7 +2240,7 @@ export default function LiveAuctionPage() {
                                     setMyBudget(
                                         payload.new
                                             .budget ||
-                                            0
+                                        0
                                     )
 
                                     await fetchRoleBudgetInfo(
@@ -2250,6 +2250,27 @@ export default function LiveAuctionPage() {
                                     )
                                 }
                             }
+                        }
+                    )
+                    .on(
+                        'broadcast',
+                        {
+                            event: 'auction_continue'
+                        },
+                        async ({ payload }) => {
+                            if (!isMounted) {
+                                return
+                            }
+
+                            console.log(
+                                '📢 Continua asta ricevuto:',
+                                payload
+                            )
+
+                            setIsCongratulationModalOpen(false)
+                            setCongratulatedPlayer(null)
+
+                            await fetchCurrentNomination()
                         }
                     )
 
@@ -2296,7 +2317,7 @@ export default function LiveAuctionPage() {
 
             const {
                 data:
-                    assignedData
+                assignedData
             } =
                 await supabase
                     .from(
@@ -2470,7 +2491,7 @@ export default function LiveAuctionPage() {
 
     const roleDisplay =
         ROLE_NAMES[
-            requiredRole
+        requiredRole
         ] || requiredRole
 
     // ============================================================
@@ -2481,7 +2502,7 @@ export default function LiveAuctionPage() {
         !!myTeamId &&
         !!currentTurnTeamId &&
         currentTurnTeamId ===
-            myTeamId &&
+        myTeamId &&
         !currentNomination
 
     const hasWithdrawn =
@@ -2505,7 +2526,7 @@ export default function LiveAuctionPage() {
     const amHighestBidder =
         !!myTeamId &&
         highestTeamId ===
-            myTeamId
+        myTeamId
 
     // ============================================================
     // RENDER
@@ -2578,9 +2599,9 @@ export default function LiveAuctionPage() {
                                         <span className="text-xs font-bold uppercase px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg">
                                             {
                                                 ROLE_NAMES[
-                                                    currentNomination
-                                                        .players
-                                                        ?.role
+                                                currentNomination
+                                                    .players
+                                                    ?.role
                                                 ] ||
                                                 currentNomination
                                                     .players
@@ -2593,10 +2614,10 @@ export default function LiveAuctionPage() {
                                                 .players
                                                 ?.id
                                         ) && (
-                                            <span className="px-2.5 py-1 bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-extrabold rounded-full uppercase tracking-wider">
-                                                ⭐ Obiettivo
-                                            </span>
-                                        )}
+                                                <span className="px-2.5 py-1 bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-extrabold rounded-full uppercase tracking-wider">
+                                                    ⭐ Obiettivo
+                                                </span>
+                                            )}
 
                                     </div>
 
@@ -2660,110 +2681,109 @@ export default function LiveAuctionPage() {
 
                             {withdrawalMessages.length >
                                 0 && (
-                                <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+                                    <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
 
-                                    <div className="flex items-center gap-2 text-xs font-black uppercase text-red-300 mb-3">
-                                        <LogOut className="w-4 h-4" />
-                                        Ritiri
-                                    </div>
+                                        <div className="flex items-center gap-2 text-xs font-black uppercase text-red-300 mb-3">
+                                            <LogOut className="w-4 h-4" />
+                                            Ritiri
+                                        </div>
 
-                                    <div className="space-y-2">
+                                        <div className="space-y-2">
 
-                                        {withdrawalMessages.map(
-                                            (
-                                                message
-                                            ) => (
-                                                <div
-                                                    key={
-                                                        message.id
-                                                    }
-                                                    className="text-sm text-slate-300"
-                                                >
-                                                    🔥{' '}
-                                                    <span className="font-black text-white">
-                                                        {
-                                                            message.teamName
+                                            {withdrawalMessages.map(
+                                                (
+                                                    message
+                                                ) => (
+                                                    <div
+                                                        key={
+                                                            message.id
                                                         }
-                                                    </span>{' '}
-                                                    si è ritirata
-                                                    dall'asta
-                                                </div>
-                                            )
-                                        )}
+                                                        className="text-sm text-slate-300"
+                                                    >
+                                                        🔥{' '}
+                                                        <span className="font-black text-white">
+                                                            {
+                                                                message.teamName
+                                                            }
+                                                        </span>{' '}
+                                                        si è ritirata
+                                                        dall'asta
+                                                    </div>
+                                                )
+                                            )}
+
+                                        </div>
 
                                     </div>
-
-                                </div>
-                            )}
+                                )}
 
                             {/* OFFERTE */}
 
                             {bids.length >
                                 0 && (
-                                <div className="bg-slate-900/60 border border-slate-700/50 rounded-xl p-4">
+                                    <div className="bg-slate-900/60 border border-slate-700/50 rounded-xl p-4">
 
-                                    <h3 className="text-xs font-black uppercase text-slate-400 mb-3">
-                                        Ultime offerte
-                                    </h3>
+                                        <h3 className="text-xs font-black uppercase text-slate-400 mb-3">
+                                            Ultime offerte
+                                        </h3>
 
-                                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                                        <div className="space-y-2 max-h-40 overflow-y-auto">
 
-                                        {bids
-                                            .slice()
-                                            .reverse()
-                                            .map(
-                                                (
-                                                    bid
-                                                ) => {
-                                                    const team =
-                                                        teamsData.find(
-                                                            (
-                                                                t
-                                                            ) =>
-                                                                t.id ===
+                                            {bids
+                                                .slice()
+                                                .reverse()
+                                                .map(
+                                                    (
+                                                        bid
+                                                    ) => {
+                                                        const team =
+                                                            teamsData.find(
+                                                                (
+                                                                    t
+                                                                ) =>
+                                                                    t.id ===
+                                                                    bid.team_id
+                                                            )
+
+                                                        const withdrawn =
+                                                            withdrawnTeamIds.has(
                                                                 bid.team_id
-                                                        )
+                                                            )
 
-                                                    const withdrawn =
-                                                        withdrawnTeamIds.has(
-                                                            bid.team_id
-                                                        )
-
-                                                    return (
-                                                        <div
-                                                            key={
-                                                                bid.id
-                                                            }
-                                                            className={`flex justify-between items-center text-xs ${
-                                                                withdrawn
+                                                        return (
+                                                            <div
+                                                                key={
+                                                                    bid.id
+                                                                }
+                                                                className={`flex justify-between items-center text-xs ${withdrawn
                                                                     ? 'opacity-40 line-through'
                                                                     : ''
-                                                            }`}
-                                                        >
+                                                                    }`}
+                                                            >
 
-                                                            <span className="font-bold">
-                                                                {
-                                                                    team?.name ||
-                                                                    'Squadra'
-                                                                }
-                                                            </span>
+                                                                <span className="font-bold">
+                                                                    {
+                                                                        team?.name ||
+                                                                        'Squadra'
+                                                                    }
+                                                                </span>
 
-                                                            <span className="font-black text-amber-400">
-                                                                {
-                                                                    bid.amount
-                                                                }{' '}
-                                                                CR
-                                                            </span>
+                                                                <span className="font-black text-amber-400">
+                                                                    {
+                                                                        bid.amount
+                                                                    }{' '}
+                                                                    CR
+                                                                </span>
 
-                                                        </div>
-                                                    )
-                                                }
-                                            )}
+                                                            </div>
+                                                        )
+                                                    }
+                                                )}
+
+                                        </div>
 
                                     </div>
-
-                                </div>
-                            )}
+                                )}
 
                             {/* BOTTONI ASTA */}
 
@@ -2791,7 +2811,7 @@ export default function LiveAuctionPage() {
                                                     onClick={() =>
                                                         handlePlaceBid(
                                                             currentBid +
-                                                                1
+                                                            1
                                                         )
                                                     }
                                                     className="py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold uppercase text-sm transition"
@@ -2803,7 +2823,7 @@ export default function LiveAuctionPage() {
                                                     onClick={() =>
                                                         handlePlaceBid(
                                                             currentBid +
-                                                                5
+                                                            5
                                                         )
                                                     }
                                                     className="py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold uppercase text-sm transition"
@@ -2815,7 +2835,7 @@ export default function LiveAuctionPage() {
                                                     onClick={() =>
                                                         handlePlaceBid(
                                                             currentBid +
-                                                                10
+                                                            10
                                                         )
                                                     }
                                                     className="py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold uppercase text-sm transition"
@@ -2857,7 +2877,7 @@ export default function LiveAuctionPage() {
                                                                 value
                                                             ) ||
                                                             value <=
-                                                                currentBid
+                                                            currentBid
                                                         ) {
                                                             alert(
                                                                 "L'offerta deve essere superiore all'offerta corrente!"
@@ -3030,14 +3050,13 @@ export default function LiveAuctionPage() {
                                     key={
                                         team.id
                                     }
-                                    className={`p-3 rounded-xl border flex justify-between items-center ${
-                                        withdrawn
-                                            ? 'bg-red-500/5 border-red-500/20 opacity-60'
-                                            : team.id ===
-                                              currentTurnTeamId
+                                    className={`p-3 rounded-xl border flex justify-between items-center ${withdrawn
+                                        ? 'bg-red-500/5 border-red-500/20 opacity-60'
+                                        : team.id ===
+                                            currentTurnTeamId
                                             ? 'bg-amber-500/10 border-amber-500/50'
                                             : 'bg-slate-800/80 border-slate-700'
-                                    }`}
+                                        }`}
                                 >
 
                                     <div>
@@ -3056,10 +3075,10 @@ export default function LiveAuctionPage() {
 
                                         {team.id ===
                                             currentTurnTeamId && (
-                                            <span className="text-[10px] uppercase font-black text-amber-400 block mt-1">
-                                                Turno di chiamata
-                                            </span>
-                                        )}
+                                                <span className="text-[10px] uppercase font-black text-amber-400 block mt-1">
+                                                    Turno di chiamata
+                                                </span>
+                                            )}
 
                                     </div>
 
@@ -3148,23 +3167,21 @@ export default function LiveAuctionPage() {
                             {isAdmin ? (
                                 <button
                                     onClick={async () => {
-                                        /*
-                                         * L'admin chiude immediatamente
-                                         * il proprio modale.
-                                         *
-                                         * L'UPDATE su auctions,
-                                         * eseguito da finalizeAuctionItem,
-                                         * farà chiudere il modale anche
-                                         * sugli altri client tramite
-                                         * Realtime.
-                                         */
-                                        setIsCongratulationModalOpen(
-                                            false
-                                        )
+                                        setIsCongratulationModalOpen(false)
+                                        setCongratulatedPlayer(null)
 
-                                        setCongratulatedPlayer(
-                                            null
-                                        )
+                                        const channel =
+                                            auctionChannelRef.current
+
+                                        if (channel) {
+                                            await channel.send({
+                                                type: 'broadcast',
+                                                event: 'auction_continue',
+                                                payload: {
+                                                    auctionId: id
+                                                }
+                                            })
+                                        }
 
                                         await fetchCurrentNomination()
                                     }}
@@ -3364,19 +3381,17 @@ export default function LiveAuctionPage() {
                                         !onlyTargets
                                     )
                                 }
-                                className={`px-4 py-3 rounded-lg text-xs font-black uppercase transition flex items-center gap-1.5 border ${
-                                    onlyTargets
-                                        ? 'bg-amber-500 text-slate-950 border-amber-400'
-                                        : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-600'
-                                }`}
+                                className={`px-4 py-3 rounded-lg text-xs font-black uppercase transition flex items-center gap-1.5 border ${onlyTargets
+                                    ? 'bg-amber-500 text-slate-950 border-amber-400'
+                                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-600'
+                                    }`}
                             >
 
                                 <Star
-                                    className={`w-4 h-4 ${
-                                        onlyTargets
-                                            ? 'fill-slate-950'
-                                            : ''
-                                    }`}
+                                    className={`w-4 h-4 ${onlyTargets
+                                        ? 'fill-slate-950'
+                                        : ''
+                                        }`}
                                 />
 
                                 Obiettivi
@@ -3390,7 +3405,7 @@ export default function LiveAuctionPage() {
                         <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
 
                             {availablePlayers.length ===
-                            0 ? (
+                                0 ? (
                                 <p className="text-center text-xs text-slate-500 py-6 uppercase font-semibold">
                                     Nessun giocatore trovato
                                 </p>
@@ -3411,8 +3426,8 @@ export default function LiveAuctionPage() {
                                                 {targetPlayerIds.has(
                                                     p.id
                                                 ) && (
-                                                    <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
-                                                )}
+                                                        <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
+                                                    )}
 
                                                 <div>
 
