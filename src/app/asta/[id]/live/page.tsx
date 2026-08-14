@@ -37,7 +37,7 @@ export default function LiveAuctionPage() {
   const [customBidValue, setCustomBidValue] = useState<string>('')
   
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [timeLeft, setTimeLeft] = useState<number>(15) // Timer di default per l'asta
+  const [timeLeft, setTimeLeft] = useState<number>(15)
   
   const auctionChannelRef = useRef<any>(null)
 
@@ -66,7 +66,6 @@ export default function LiveAuctionPage() {
       }
 
       setAuction(auctionData)
-      setCurrentTurnTeamId(auctionData.current_turn_team_id || null)
       setRequiredRole(auctionData.required_role || 'P')
 
       const { data: teamData } = await supabase
@@ -80,12 +79,21 @@ export default function LiveAuctionPage() {
         setMyBudget(teamData.budget || 0)
       }
 
-      await fetchParticipantsAndTeams()
+      const fetchedTeams = await fetchParticipantsAndTeams()
+      
+      // Fallback automatico: se nel DB è NULL, assegniamo la prima squadra disponibile
+      let activeTurnId = auctionData.current_turn_team_id
+      if (!activeTurnId && fetchedTeams.length > 0) {
+        activeTurnId = fetchedTeams[0].id
+        // Aggiorniamo anche silenziosamente il DB così rimane salvato
+        await supabase.from('auctions').update({ current_turn_team_id: activeTurnId }).eq('id', id)
+      }
+      setCurrentTurnTeamId(activeTurnId || null)
+
       await fetchCurrentNomination()
 
       if (isMounted) setLoading(false)
 
-      // Listener Realtime corretto su eventi inserimento, aggiornamento ed eliminazione
       auctionChannelRef.current = supabase.channel(`auction-room-${id}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'auctions', filter: `id=eq.${id}` }, (payload: any) => {
           if (payload.new) {
@@ -109,16 +117,14 @@ export default function LiveAuctionPage() {
     }
   }, [id, router])
 
-  // Gestione del Timer reattivo quando c'è una nomina attiva
   useEffect(() => {
     if (!currentNomination) return
-    setTimeLeft(15) // Reset timer a ogni nuova offerta o nomina
+    setTimeLeft(15)
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer)
-          // Qui in futuro gestiremo la chiusura automatica dell'asta
           return 0
         }
         return prev - 1
@@ -131,15 +137,24 @@ export default function LiveAuctionPage() {
   const fetchParticipantsAndTeams = async () => {
     const { data: participants } = await supabase
       .from('auction_participants')
-      .select('league_teams(id, name, budget)')
+      .select('team_id')
       .eq('auction_id', id)
 
-    if (participants) {
-      const teams = participants.map((p: any) => p.league_teams).filter(Boolean)
-      setTeamsData(teams)
-      const currentTeam = teams.find((t: any) => t.id === myTeamId)
-      if (currentTeam) setMyBudget(currentTeam.budget)
+    if (participants && participants.length > 0) {
+      const teamIds = participants.map((p: any) => p.team_id).filter(Boolean)
+      const { data: teams } = await supabase
+        .from('league_teams')
+        .select('id, name, budget')
+        .in('id', teamIds)
+
+      if (teams) {
+        setTeamsData(teams)
+        const currentTeam = teams.find((t: any) => t.id === myTeamId)
+        if (currentTeam) setMyBudget(currentTeam.budget)
+        return teams
+      }
     }
+    return []
   }
 
   const fetchCurrentNomination = async () => {
@@ -257,8 +272,6 @@ export default function LiveAuctionPage() {
         <div className="lg:col-span-2 space-y-6">
           {currentNomination ? (
             <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-6 md:p-8 space-y-6 relative overflow-hidden">
-              
-              {/* Barra Timer Superiore */}
               <div className="flex justify-between items-center bg-slate-900/60 p-3 rounded-xl border border-slate-700/50">
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase">
                   <Timer className="w-4 h-4 text-amber-400 animate-spin" /> Chiusura tra: <span className="text-amber-400 font-black text-sm">{timeLeft}s</span>
@@ -280,14 +293,12 @@ export default function LiveAuctionPage() {
                 </div>
               </div>
 
-              {/* Pulsanti Rilancio Rapido */}
               <div className="grid grid-cols-3 gap-3">
                 <button onClick={() => handlePlaceBid(currentBid + 1)} className="py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold uppercase text-sm transition">+1 ({currentBid + 1})</button>
                 <button onClick={() => handlePlaceBid(currentBid + 5)} className="py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold uppercase text-sm transition">+5 ({currentBid + 5})</button>
                 <button onClick={() => handlePlaceBid(currentBid + 10)} className="py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold uppercase text-sm transition">+10 ({currentBid + 10})</button>
               </div>
 
-              {/* Input Offerta Manuale Personalizzata */}
               <div className="flex gap-2 pt-2 border-t border-slate-700/50">
                 <input 
                   type="number" 
@@ -306,7 +317,6 @@ export default function LiveAuctionPage() {
                   Rilancia
                 </button>
               </div>
-
             </div>
           ) : (
             <div className="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-12 text-center space-y-4">
