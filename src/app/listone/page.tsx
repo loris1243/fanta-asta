@@ -46,12 +46,20 @@ interface Player {
 interface TeamData {
   id?: string
   name: string
+  alias: string
+  color?: string
+  colors?: string[]
   logo_url?: string
 }
 
 export default function ListonePage() {
   const [user, setUser] = useState<UserProfile | null>(null)
-  const [team, setTeam] = useState<TeamData>({
+
+  const [team, setTeam] = useState<{
+    id?: string
+    name: string
+    logo_url?: string
+  }>({
     name: 'Nessuna squadra associata',
   })
 
@@ -59,6 +67,8 @@ export default function ListonePage() {
 
   const [players, setPlayers] = useState<Player[]>([])
   const [targetIds, setTargetIds] = useState<string[]>([])
+
+  const [teams, setTeams] = useState<TeamData[]>([])
 
   const [loading, setLoading] = useState(true)
 
@@ -73,6 +83,12 @@ export default function ListonePage() {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
+  /*
+   * --------------------------------------------------------------
+   * CARICAMENTO DATI
+   * --------------------------------------------------------------
+   */
+
   useEffect(() => {
     async function loadData() {
       const currentUser = await getCurrentUser()
@@ -86,16 +102,23 @@ export default function ListonePage() {
 
       /*
        * ----------------------------------------------------------
-       * SQUADRA
+       * SQUADRA UTENTE
        * ----------------------------------------------------------
        */
 
       try {
-        const { data: teamData } = await supabase
+        const { data: teamData, error: teamError } = await supabase
           .from('league_teams')
           .select('id, name, logo_url')
           .eq('user_id', currentUser.id)
           .maybeSingle()
+
+        if (teamError) {
+          console.error(
+            'Errore caricamento squadra:',
+            teamError
+          )
+        }
 
         if (teamData) {
           setTeam({
@@ -110,28 +133,56 @@ export default function ListonePage() {
            * ------------------------------------------------------
            */
 
-          const { data: settings } = await supabase
-            .from('league_settings')
-            .select('initial_budget')
-            .maybeSingle()
+          const { data: settings, error: settingsError } =
+            await supabase
+              .from('league_settings')
+              .select('initial_budget')
+              .maybeSingle()
 
-          const initialBudget = settings?.initial_budget ?? currentUser.budget ?? 500
+          if (settingsError) {
+            console.error(
+              'Errore caricamento impostazioni lega:',
+              settingsError
+            )
+          }
 
-          const { data: boughtPlayers } = await supabase
-            .from('league_team_players')
-            .select('price')
-            .eq('team_id', teamData.id)
+          const initialBudget =
+            settings?.initial_budget ??
+            currentUser.budget ??
+            500
+
+          const { data: boughtPlayers, error: boughtError } =
+            await supabase
+              .from('league_team_players')
+              .select('price')
+              .eq('team_id', teamData.id)
+
+          if (boughtError) {
+            console.error(
+              'Errore caricamento giocatori acquistati:',
+              boughtError
+            )
+          }
 
           const totalSpent =
             boughtPlayers?.reduce(
-              (acc, player) => acc + (player.price || 0),
+              (acc, player) =>
+                acc + (player.price || 0),
               0
             ) ?? 0
 
-          setRemainingBudget(Math.max(initialBudget - totalSpent, 0))
+          setRemainingBudget(
+            Math.max(
+              initialBudget - totalSpent,
+              0
+            )
+          )
         }
       } catch (error) {
-        console.error('Errore caricamento squadra:', error)
+        console.error(
+          'Errore caricamento squadra:',
+          error
+        )
       }
 
       /*
@@ -141,7 +192,10 @@ export default function ListonePage() {
        */
 
       try {
-        const { data: targets, error: targetsError } = await supabase
+        const {
+          data: targets,
+          error: targetsError,
+        } = await supabase
           .from('user_targets')
           .select('player_id')
           .eq('user_id', currentUser.id)
@@ -153,12 +207,26 @@ export default function ListonePage() {
           )
         } else if (targets) {
           setTargetIds(
-            targets.map((target: { player_id: string }) => target.player_id)
+            targets.map(
+              (target: { player_id: string }) =>
+                target.player_id
+            )
           )
         }
       } catch (error) {
-        console.error('Errore caricamento obiettivi:', error)
+        console.error(
+          'Errore caricamento obiettivi:',
+          error
+        )
       }
+
+      /*
+       * ----------------------------------------------------------
+       * SQUADRE SERIE A
+       * ----------------------------------------------------------
+       */
+
+      await loadTeams()
 
       /*
        * ----------------------------------------------------------
@@ -171,30 +239,100 @@ export default function ListonePage() {
       setLoading(false)
     }
 
-    async function loadPlayers() {
-      const { data, error } = await supabase
-        .from('players')
-        .select('*')
-        .order('name', { ascending: true })
+    /*
+     * ------------------------------------------------------------
+     * CARICA SQUADRE
+     * ------------------------------------------------------------
+     */
+
+    async function loadTeams() {
+      const {
+        data,
+        error,
+      } = await supabase
+        .from('teams')
+        .select(
+          'id, name, alias, color, colors'
+        )
+        .order('name', {
+          ascending: true,
+        })
 
       if (error) {
-        console.error('Errore caricamento listone:', error)
+        console.error(
+          'Errore caricamento squadre:',
+          error
+        )
         return
       }
 
-      if (!data) return
+      if (!data) {
+        setTeams([])
+        return
+      }
+
+      setTeams(
+        data.map((team) => ({
+          id: team.id,
+          name: team.name,
+          alias: team.alias,
+          color: team.color,
+          colors: Array.isArray(team.colors)
+            ? team.colors
+            : undefined,
+        }))
+      )
+    }
+
+    /*
+     * ------------------------------------------------------------
+     * CARICA LISTONE
+     * ------------------------------------------------------------
+     */
+
+    async function loadPlayers() {
+      const {
+        data,
+        error,
+      } = await supabase
+        .from('players')
+        .select('*')
+        .order('name', {
+          ascending: true,
+        })
+
+      if (error) {
+        console.error(
+          'Errore caricamento listone:',
+          error
+        )
+        return
+      }
+
+      if (!data) {
+        setPlayers([])
+        setAvailableTeams([])
+        return
+      }
 
       setPlayers(data)
 
-      const teams = Array.from(
+      const playerTeams = Array.from(
         new Set(
           data
-            .map((player: Player) => player.team)
+            .map(
+              (player: Player) =>
+                player.team
+            )
             .filter(Boolean)
         )
       ) as string[]
 
-      setAvailableTeams(teams.sort())
+      setAvailableTeams(
+        playerTeams.sort((a, b) =>
+          a.localeCompare(b)
+        )
+      )
     }
 
     loadData()
@@ -215,10 +353,15 @@ export default function ListonePage() {
           table: 'players',
         },
         async () => {
-          const { data, error } = await supabase
+          const {
+            data,
+            error,
+          } = await supabase
             .from('players')
             .select('*')
-            .order('name', { ascending: true })
+            .order('name', {
+              ascending: true,
+            })
 
           if (error) {
             console.error(
@@ -231,15 +374,22 @@ export default function ListonePage() {
           if (data) {
             setPlayers(data)
 
-            const teams = Array.from(
+            const playerTeams = Array.from(
               new Set(
                 data
-                  .map((player: Player) => player.team)
+                  .map(
+                    (player: Player) =>
+                      player.team
+                  )
                   .filter(Boolean)
               )
             ) as string[]
 
-            setAvailableTeams(teams.sort())
+            setAvailableTeams(
+              playerTeams.sort((a, b) =>
+                a.localeCompare(b)
+              )
+            )
           }
         }
       )
@@ -249,6 +399,102 @@ export default function ListonePage() {
       supabase.removeChannel(channel)
     }
   }, [])
+
+  /*
+   * --------------------------------------------------------------
+   * TROVA SQUADRA DAL PLAYER.TEAM
+   * --------------------------------------------------------------
+   *
+   * Il valore presente in players.team viene confrontato
+   * con teams.alias senza distinguere maiuscole/minuscole.
+   */
+
+  const getTeamData = (
+    playerTeam: string
+  ): TeamData | undefined => {
+    if (!playerTeam) return undefined
+
+    const normalizedPlayerTeam =
+      playerTeam.trim().toLowerCase()
+
+    return teams.find(
+      (team) =>
+        team.alias?.trim().toLowerCase() ===
+        normalizedPlayerTeam
+    )
+  }
+
+  /*
+   * --------------------------------------------------------------
+   * COLORI BANDIERINA
+   * --------------------------------------------------------------
+   */
+
+  const getTeamColors = (
+    teamData?: TeamData
+  ): string[] => {
+    if (!teamData) {
+      return ['#334155']
+    }
+
+    if (
+      Array.isArray(teamData.colors) &&
+      teamData.colors.length > 0
+    ) {
+      return teamData.colors
+    }
+
+    if (teamData.color) {
+      return [teamData.color]
+    }
+
+    return ['#334155']
+  }
+
+  /*
+   * --------------------------------------------------------------
+   * BANDIERINA SQUADRA
+   * --------------------------------------------------------------
+   */
+
+  const TeamFlag = ({
+    teamData,
+    playerTeam,
+  }: {
+    teamData?: TeamData
+    playerTeam: string
+  }) => {
+    const colors = getTeamColors(teamData)
+
+    const background =
+      colors.length === 1
+        ? colors[0]
+        : `linear-gradient(90deg, ${colors
+            .map(
+              (color, index) =>
+                `${color} ${
+                  (index / colors.length) * 100
+                }%, ${color} ${
+                  ((index + 1) / colors.length) *
+                    100
+                }%`
+            )
+            .join(', ')})`
+
+    return (
+      <div
+        className="w-10 h-7 shrink-0 rounded-md border border-white/10 shadow-sm overflow-hidden"
+        style={{
+          background,
+        }}
+        title={
+          teamData
+            ? `${teamData.name} (${teamData.alias})`
+            : playerTeam
+        }
+      />
+    )
+  }
 
   /*
    * --------------------------------------------------------------
@@ -266,10 +512,15 @@ export default function ListonePage() {
    * --------------------------------------------------------------
    */
 
-  const formatUsername = (name: string) => {
+  const formatUsername = (
+    name: string
+  ) => {
     if (!name) return ''
 
-    return name.charAt(0).toUpperCase() + name.slice(1)
+    return (
+      name.charAt(0).toUpperCase() +
+      name.slice(1)
+    )
   }
 
   /*
@@ -278,17 +529,21 @@ export default function ListonePage() {
    * --------------------------------------------------------------
    */
 
-  const toggleTarget = async (playerId: string) => {
+  const toggleTarget = async (
+    playerId: string
+  ) => {
     if (!user?.id) return
 
-    const isAlreadyTarget = targetIds.includes(playerId)
+    const isAlreadyTarget =
+      targetIds.includes(playerId)
 
     if (isAlreadyTarget) {
-      const { error } = await supabase
-        .from('user_targets')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('player_id', playerId)
+      const { error } =
+        await supabase
+          .from('user_targets')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('player_id', playerId)
 
       if (error) {
         console.error(
@@ -299,18 +554,21 @@ export default function ListonePage() {
       }
 
       setTargetIds((prev) =>
-        prev.filter((id) => id !== playerId)
+        prev.filter(
+          (id) => id !== playerId
+        )
       )
 
       return
     }
 
-    const { error } = await supabase
-      .from('user_targets')
-      .insert({
-        user_id: user.id,
-        player_id: playerId,
-      })
+    const { error } =
+      await supabase
+        .from('user_targets')
+        .insert({
+          user_id: user.id,
+          player_id: playerId,
+        })
 
     if (error) {
       console.error(
@@ -320,7 +578,10 @@ export default function ListonePage() {
       return
     }
 
-    setTargetIds((prev) => [...prev, playerId])
+    setTargetIds((prev) => [
+      ...prev,
+      playerId,
+    ])
   }
 
   /*
@@ -329,32 +590,36 @@ export default function ListonePage() {
    * --------------------------------------------------------------
    */
 
-  const filteredPlayers = players.filter((player) => {
-    const normalizedSearch = searchTerm
-      .trim()
-      .toLowerCase()
+  const filteredPlayers =
+    players.filter((player) => {
+      const normalizedSearch =
+        searchTerm
+          .trim()
+          .toLowerCase()
 
-    const matchesSearch =
-      !normalizedSearch ||
-      player.name
-        ?.toLowerCase()
-        .includes(normalizedSearch)
+      const matchesSearch =
+        !normalizedSearch ||
+        player.name
+          ?.toLowerCase()
+          .includes(
+            normalizedSearch
+          )
 
-    const matchesRole =
-      roleFilter === 'TUTTI' ||
-      player.role?.toUpperCase() ===
-        roleFilter.toUpperCase()
+      const matchesRole =
+        roleFilter === 'TUTTI' ||
+        player.role?.toUpperCase() ===
+          roleFilter.toUpperCase()
 
-    const matchesTeam =
-      teamFilter === 'TUTTE' ||
-      player.team === teamFilter
+      const matchesTeam =
+        teamFilter === 'TUTTE' ||
+        player.team === teamFilter
 
-    return (
-      matchesSearch &&
-      matchesRole &&
-      matchesTeam
-    )
-  })
+      return (
+        matchesSearch &&
+        matchesRole &&
+        matchesTeam
+      )
+    })
 
   /*
    * --------------------------------------------------------------
@@ -377,16 +642,19 @@ export default function ListonePage() {
 
   const totalPages =
     Math.ceil(
-      filteredPlayers.length / itemsPerPage
+      filteredPlayers.length /
+        itemsPerPage
     ) || 1
 
-  const safeCurrentPage = Math.min(
-    currentPage,
-    totalPages
-  )
+  const safeCurrentPage =
+    Math.min(
+      currentPage,
+      totalPages
+    )
 
   const startIndex =
-    (safeCurrentPage - 1) * itemsPerPage
+    (safeCurrentPage - 1) *
+    itemsPerPage
 
   const currentPlayers =
     filteredPlayers.slice(
@@ -403,10 +671,15 @@ export default function ListonePage() {
   ])
 
   useEffect(() => {
-    if (currentPage > totalPages) {
+    if (
+      currentPage > totalPages
+    ) {
       setCurrentPage(totalPages)
     }
-  }, [currentPage, totalPages])
+  }, [
+    currentPage,
+    totalPages,
+  ])
 
   /*
    * --------------------------------------------------------------
@@ -509,7 +782,9 @@ export default function ListonePage() {
             <button
               type="button"
               onClick={() =>
-                setIsSidebarOpen((prev) => !prev)
+                setIsSidebarOpen(
+                  (prev) => !prev
+                )
               }
               aria-label={
                 isSidebarOpen
@@ -538,7 +813,9 @@ export default function ListonePage() {
               `}
             >
               <span className="text-[10px] font-black">
-                {isSidebarOpen ? '◀' : '▶'}
+                {isSidebarOpen
+                  ? '◀'
+                  : '▶'}
               </span>
             </button>
           </div>
@@ -592,7 +869,9 @@ export default function ListonePage() {
             {isSidebarOpen && (
               <div className="min-w-0 overflow-hidden">
                 <p className="text-sm font-bold text-white truncate">
-                  {formatUsername(user.username)}
+                  {formatUsername(
+                    user.username
+                  )}
                 </p>
 
                 <p className="text-xs text-emerald-400 font-extrabold mt-0.5">
@@ -924,9 +1203,8 @@ export default function ListonePage() {
 
       <main className="flex-1 min-w-0 p-5 md:p-8 xl:p-10 overflow-y-auto">
         <div className="max-w-[1500px] mx-auto space-y-6">
-          {/* =====================================================
-              HEADER
-          ===================================================== */}
+
+          {/* HEADER */}
 
           <header className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
             <div>
@@ -968,13 +1246,12 @@ export default function ListonePage() {
             </div>
           </header>
 
-          {/* =====================================================
-              FILTRI
-          ===================================================== */}
+          {/* FILTRI */}
 
           <section className="bg-slate-800/80 border border-slate-700/80 rounded-2xl shadow-xl overflow-hidden">
             <div className="p-5 md:p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1.6fr_0.8fr_1fr_auto] gap-4 items-end">
+
                 {/* RICERCA */}
 
                 <div className="space-y-1.5">
@@ -989,7 +1266,9 @@ export default function ListonePage() {
                       type="text"
                       value={searchTerm}
                       onChange={(e) =>
-                        setSearchTerm(e.target.value)
+                        setSearchTerm(
+                          e.target.value
+                        )
                       }
                       placeholder="Cerca per nome..."
                       className="
@@ -1023,7 +1302,9 @@ export default function ListonePage() {
                   <select
                     value={roleFilter}
                     onChange={(e) =>
-                      setRoleFilter(e.target.value)
+                      setRoleFilter(
+                        e.target.value
+                      )
                     }
                     className="
                       w-full
@@ -1068,7 +1349,9 @@ export default function ListonePage() {
                   <select
                     value={teamFilter}
                     onChange={(e) =>
-                      setTeamFilter(e.target.value)
+                      setTeamFilter(
+                        e.target.value
+                      )
                     }
                     className="
                       w-full
@@ -1106,11 +1389,15 @@ export default function ListonePage() {
 
                 <button
                   type="button"
-                  onClick={handleResetFilters}
+                  onClick={
+                    handleResetFilters
+                  }
                   disabled={
                     !searchTerm &&
-                    roleFilter === 'TUTTI' &&
-                    teamFilter === 'TUTTE'
+                    roleFilter ===
+                      'TUTTI' &&
+                    teamFilter ===
+                      'TUTTE'
                   }
                   className="
                     h-[46px]
@@ -1150,7 +1437,8 @@ export default function ListonePage() {
 
               {(searchTerm ||
                 roleFilter !== 'TUTTI' ||
-                teamFilter !== 'TUTTE') && (
+                teamFilter !==
+                  'TUTTE') && (
                 <div className="flex items-center gap-2">
                   {searchTerm && (
                     <span className="px-2.5 py-1 rounded-md bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-300">
@@ -1158,13 +1446,15 @@ export default function ListonePage() {
                     </span>
                   )}
 
-                  {roleFilter !== 'TUTTI' && (
+                  {roleFilter !==
+                    'TUTTI' && (
                     <span className="px-2.5 py-1 rounded-md bg-purple-500/10 border border-purple-500/20 text-[10px] font-bold text-purple-300">
                       {roleFilter}
                     </span>
                   )}
 
-                  {teamFilter !== 'TUTTE' && (
+                  {teamFilter !==
+                    'TUTTE' && (
                     <span className="px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-300">
                       {teamFilter}
                     </span>
@@ -1174,57 +1464,55 @@ export default function ListonePage() {
             </div>
           </section>
 
-          {/* =====================================================
-              TABELLA
-          ===================================================== */}
+          {/* TABELLA */}
 
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-3 bg-slate-800/80 border border-slate-700 rounded-2xl">
-              <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+          <section className="bg-slate-800/80 border border-slate-700/80 rounded-2xl shadow-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[820px]">
+                <thead>
+                  <tr className="border-b border-slate-700 bg-slate-950/30">
+                    <th className="px-5 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      Calciatore
+                    </th>
 
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Caricamento listone...
-              </p>
-            </div>
-          ) : (
-            <section className="bg-slate-800/80 border border-slate-700/80 rounded-2xl shadow-xl overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[760px]">
-                  <thead>
-                    <tr className="border-b border-slate-700 bg-slate-950/30">
-                      <th className="px-5 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-500">
-                        Calciatore
-                      </th>
+                    <th className="px-5 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      Ruolo
+                    </th>
 
-                      <th className="px-5 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-500">
-                        Ruolo
-                      </th>
+                    <th className="px-5 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      Squadra
+                    </th>
 
-                      <th className="px-5 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-500">
-                        Squadra
-                      </th>
+                    <th className="px-5 md:px-6 py-4 text-right text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      FantaMedia
+                    </th>
 
-                      <th className="px-5 md:px-6 py-4 text-right text-[10px] font-black uppercase tracking-wider text-slate-500">
-                        FantaMedia
-                      </th>
+                    <th className="px-5 md:px-6 py-4 text-center text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      Obiettivo
+                    </th>
+                  </tr>
+                </thead>
 
-                      <th className="px-5 md:px-6 py-4 text-center text-[10px] font-black uppercase tracking-wider text-slate-500">
-                        Obiettivo
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-slate-700/60">
-                    {currentPlayers.length > 0 ? (
-                      currentPlayers.map((player) => {
+                <tbody className="divide-y divide-slate-700/60">
+                  {currentPlayers.length >
+                  0 ? (
+                    currentPlayers.map(
+                      (player) => {
                         const isTarget =
                           targetIds.includes(
                             player.id
                           )
 
+                        const teamData =
+                          getTeamData(
+                            player.team
+                          )
+
                         return (
                           <tr
-                            key={player.id}
+                            key={
+                              player.id
+                            }
                             className={`
                               group
                               transition
@@ -1258,7 +1546,10 @@ export default function ListonePage() {
                                   `}
                                 >
                                   {player.name
-                                    .slice(0, 2)
+                                    .slice(
+                                      0,
+                                      2
+                                    )
                                     .toUpperCase()}
                                 </div>
 
@@ -1275,7 +1566,9 @@ export default function ListonePage() {
                                       }
                                     `}
                                   >
-                                    {player.name}
+                                    {
+                                      player.name
+                                    }
                                   </div>
 
                                   {player.is_out && (
@@ -1302,26 +1595,54 @@ export default function ListonePage() {
                                   font-black
                                   border
                                   ${
-                                    player.role === 'P'
+                                    player.role ===
+                                    'P'
                                       ? 'bg-sky-500/10 border-sky-500/20 text-sky-300'
-                                      : player.role === 'D'
+                                      : player.role ===
+                                        'D'
                                       ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
-                                      : player.role === 'C'
+                                      : player.role ===
+                                        'C'
                                       ? 'bg-amber-500/10 border-amber-500/20 text-amber-300'
                                       : 'bg-red-500/10 border-red-500/20 text-red-300'
                                   }
                                 `}
                               >
-                                {player.role}
+                                {
+                                  player.role
+                                }
                               </span>
                             </td>
 
                             {/* SQUADRA */}
 
                             <td className="px-5 md:px-6 py-4">
-                              <span className="text-sm font-medium text-slate-300">
-                                {player.team}
-                              </span>
+                              <div className="flex items-center gap-3">
+                                <TeamFlag
+                                  teamData={
+                                    teamData
+                                  }
+                                  playerTeam={
+                                    player.team
+                                  }
+                                />
+
+                                <div className="min-w-0">
+                                  <div className="text-sm font-bold text-white truncate">
+                                    {teamData
+                                      ?.name ??
+                                      player.team}
+                                  </div>
+
+                                  {teamData?.alias && (
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5">
+                                      {
+                                        teamData.alias
+                                      }
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </td>
 
                             {/* FANTAMEDIA */}
@@ -1339,7 +1660,9 @@ export default function ListonePage() {
                                     }
                                   `}
                                 >
-                                  {player.fanta_media}
+                                  {
+                                    player.fanta_media
+                                  }
                                 </span>
 
                                 <span className="text-[9px] uppercase tracking-wider text-slate-600 font-bold">
@@ -1384,164 +1707,181 @@ export default function ListonePage() {
                             </td>
                           </tr>
                         )
-                      })
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan={5}
-                          className="py-20 text-center"
-                        >
-                          <div className="flex flex-col items-center gap-3">
-                            <Search className="w-8 h-8 text-slate-700" />
+                      }
+                    )
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="py-20 text-center"
+                      >
+                        <div className="flex flex-col items-center gap-3">
+                          <Search className="w-8 h-8 text-slate-700" />
 
-                            <div>
-                              <p className="text-sm font-bold text-slate-300">
-                                Nessun calciatore trovato
-                              </p>
+                          <div>
+                            <p className="text-sm font-bold text-slate-300">
+                              Nessun calciatore trovato
+                            </p>
 
-                              <p className="text-xs text-slate-500 mt-1">
-                                Prova a modificare i filtri di ricerca.
-                              </p>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={handleResetFilters}
-                              className="mt-2 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 hover:text-white transition"
-                            >
-                              <RotateCcw className="w-3.5 h-3.5" />
-                              Resetta filtri
-                            </button>
+                            <p className="text-xs text-slate-500 mt-1">
+                              Prova a modificare i filtri di ricerca.
+                            </p>
                           </div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+
+                          <button
+                            type="button"
+                            onClick={
+                              handleResetFilters
+                            }
+                            className="mt-2 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 hover:text-white transition"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Resetta filtri
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* PAGINAZIONE */}
+
+            <div className="px-5 md:px-6 py-4 border-t border-slate-700/70 bg-slate-950/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3 text-xs text-slate-500">
+                <span>Mostra</span>
+
+                <select
+                  value={
+                    itemsPerPage
+                  }
+                  onChange={(e) => {
+                    setItemsPerPage(
+                      Number(
+                        e.target.value
+                      )
+                    )
+                    setCurrentPage(1)
+                  }}
+                  className="
+                    bg-slate-800
+                    border border-slate-700
+                    rounded-lg
+                    px-2.5
+                    py-1.5
+                    text-xs
+                    text-white
+                    font-bold
+                    outline-none
+                    cursor-pointer
+                  "
+                >
+                  <option value={15}>
+                    15
+                  </option>
+                  <option value={20}>
+                    20
+                  </option>
+                  <option value={50}>
+                    50
+                  </option>
+                  <option value={100}>
+                    100
+                  </option>
+                </select>
+
+                <span>
+                  di{' '}
+                  <strong className="text-slate-300">
+                    {
+                      filteredPlayers.length
+                    }
+                  </strong>
+                </span>
               </div>
 
-              {/* =================================================
-                  PAGINAZIONE
-              ================================================= */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage(
+                      (prev) =>
+                        Math.max(
+                          prev - 1,
+                          1
+                        )
+                    )
+                  }
+                  disabled={
+                    safeCurrentPage ===
+                    1
+                  }
+                  className="
+                    w-9 h-9
+                    rounded-xl
+                    bg-slate-800
+                    border border-slate-700
+                    text-slate-300
+                    hover:text-white
+                    hover:bg-slate-700
+                    disabled:opacity-30
+                    disabled:cursor-not-allowed
+                    transition
+                    inline-flex
+                    items-center
+                    justify-center
+                  "
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
 
-              <div className="px-5 md:px-6 py-4 border-t border-slate-700/70 bg-slate-950/20 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3 text-xs text-slate-500">
-                  <span>Mostra</span>
-
-                  <select
-                    value={itemsPerPage}
-                    onChange={(e) => {
-                      setItemsPerPage(
-                        Number(e.target.value)
-                      )
-                      setCurrentPage(1)
-                    }}
-                    className="
-                      bg-slate-800
-                      border border-slate-700
-                      rounded-lg
-                      px-2.5
-                      py-1.5
-                      text-xs
-                      text-white
-                      font-bold
-                      outline-none
-                      cursor-pointer
-                    "
-                  >
-                    <option value={15}>15</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-
-                  <span>
-                    di{' '}
-                    <strong className="text-slate-300">
-                      {filteredPlayers.length}
-                    </strong>
-                  </span>
+                <div className="px-3 text-xs font-bold text-slate-400">
+                  Pagina{' '}
+                  <span className="text-white">
+                    {
+                      safeCurrentPage
+                    }
+                  </span>{' '}
+                  di {totalPages}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setCurrentPage(
-                        (prev) =>
-                          Math.max(
-                            prev - 1,
-                            1
-                          )
-                      )
-                    }
-                    disabled={
-                      safeCurrentPage === 1
-                    }
-                    className="
-                      w-9 h-9
-                      rounded-xl
-                      bg-slate-800
-                      border border-slate-700
-                      text-slate-300
-                      hover:text-white
-                      hover:bg-slate-700
-                      disabled:opacity-30
-                      disabled:cursor-not-allowed
-                      transition
-                      inline-flex
-                      items-center
-                      justify-center
-                    "
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-
-                  <div className="px-3 text-xs font-bold text-slate-400">
-                    Pagina{' '}
-                    <span className="text-white">
-                      {safeCurrentPage}
-                    </span>{' '}
-                    di {totalPages}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setCurrentPage(
-                        (prev) =>
-                          Math.min(
-                            prev + 1,
-                            totalPages
-                          )
-                      )
-                    }
-                    disabled={
-                      safeCurrentPage ===
-                      totalPages
-                    }
-                    className="
-                      w-9 h-9
-                      rounded-xl
-                      bg-slate-800
-                      border border-slate-700
-                      text-slate-300
-                      hover:text-white
-                      hover:bg-slate-700
-                      disabled:opacity-30
-                      disabled:cursor-not-allowed
-                      transition
-                      inline-flex
-                      items-center
-                      justify-center
-                    "
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage(
+                      (prev) =>
+                        Math.min(
+                          prev + 1,
+                          totalPages
+                        )
+                    )
+                  }
+                  disabled={
+                    safeCurrentPage ===
+                    totalPages
+                  }
+                  className="
+                    w-9 h-9
+                    rounded-xl
+                    bg-slate-800
+                    border border-slate-700
+                    text-slate-300
+                    hover:text-white
+                    hover:bg-slate-700
+                    disabled:opacity-30
+                    disabled:cursor-not-allowed
+                    transition
+                    inline-flex
+                    items-center
+                    justify-center
+                  "
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
-            </section>
-          )}
+            </div>
+          </section>
         </div>
       </main>
     </div>
