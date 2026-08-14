@@ -24,7 +24,7 @@ export async function createAuction() {
   const { data, error } = await supabase
     .from('auctions')
     .insert({
-      status: 'in_corso',
+      status: 'nuova',
     })
     .select()
     .single()

@@ -5,10 +5,10 @@ import Link from 'next/link'
 import { getCurrentUser, logout } from '../app/actions/auth'
 import { createAuction } from '../app/actions/auctions'
 import { supabase } from '../lib/supabaseClient'
-import { 
-  LogOut, Shield, History, Wallet, ArrowUpRight, 
-  LayoutDashboard, Target, ClipboardList, 
-  Inbox, Users, Settings, ScrollText, Building2, Plus 
+import {
+  LogOut, Shield, History, Wallet, ArrowUpRight,
+  LayoutDashboard, Target, ClipboardList,
+  Inbox, Users, Settings, ScrollText, Building2, Plus, Trash2
 } from 'lucide-react'
 
 interface UserProfile {
@@ -28,6 +28,72 @@ interface AuctionItem {
   id: string
   status: string
   created_at: string
+}
+
+// Sotto-componente per evitare duplicazioni nel rendering dell'asta
+function AuctionContent({ 
+  item, 
+  isInCorso, 
+  isNuova, 
+  user, 
+  handleDeleteAuction 
+}: { 
+  item: AuctionItem
+  isInCorso: boolean
+  isNuova: boolean
+  user: UserProfile
+  handleDeleteAuction: (auctionId: string, e: React.MouseEvent) => void 
+}) {
+  return (
+    <div className="flex items-center justify-between w-full">
+      <div className="flex items-center gap-3">
+        <div className={`w-2.5 h-2.5 rounded-full ${
+          isInCorso 
+            ? 'bg-amber-400 animate-ping' 
+            : isNuova 
+            ? 'bg-blue-400' 
+            : 'bg-slate-500'
+        }`} />
+        <div>
+          <p className="font-bold text-white uppercase tracking-wide">
+            Asta #{item.id.slice(0, 6)}
+          </p>
+          <p className="text-[10px] text-slate-400">
+            Creata il: {new Date(item.created_at).toLocaleDateString('it-IT', { 
+              day: '2-digit', 
+              month: '2-digit', 
+              year: 'numeric', 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${
+          isInCorso 
+            ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' 
+            : isNuova 
+            ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' 
+            : 'bg-slate-800 text-slate-300 border-slate-700'
+        }`}>
+          {isInCorso ? 'In Corso' : isNuova ? 'Nuova' : item.status}
+        </span>
+
+        {user.role === 'admin' && (
+          <button
+            onClick={(e) => handleDeleteAuction(item.id, e)}
+            type="button"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition cursor-pointer"
+            title="Elimina asta"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export default function DashboardPage() {
@@ -162,6 +228,29 @@ export default function DashboardPage() {
     const res = await createAuction()
     if (!res.success) {
       alert(res.error || "Errore durante l'avvio della nuova asta.")
+    }
+  }
+
+  const handleDeleteAuction = async (auctionId: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (!window.confirm("Sei sicuro di voler eliminare questa asta?")) return
+
+    try {
+      const { error } = await supabase
+        .from('auctions')
+        .delete()
+        .eq('id', auctionId)
+
+      if (error) {
+        alert("Errore durante l'eliminazione dell'asta: " + error.message)
+      } else {
+        setAuctions(prev => prev.filter(item => item.id !== auctionId))
+      }
+    } catch (err) {
+      console.error("Errore imprevisto:", err)
+      alert("Errore imprevisto durante l'eliminazione.")
     }
   }
 
@@ -344,20 +433,20 @@ export default function DashboardPage() {
               <span className="text-xs font-bold uppercase tracking-widest text-blue-400 block mb-1">
                 🛡️ La mia Squadra
               </span>
-              
+
               <div className="flex items-center gap-4 flex-wrap">
                 {team.logo_url ? (
-                  <img 
-                    src={team.logo_url} 
-                    alt="Logo Squadra" 
-                    className="w-16 h-16 object-contain rounded-xl bg-slate-900/60 p-1.5 border border-slate-700 shrink-0 shadow-md" 
+                  <img
+                    src={team.logo_url}
+                    alt="Logo Squadra"
+                    className="w-16 h-16 object-contain rounded-xl bg-slate-900/60 p-1.5 border border-slate-700 shrink-0 shadow-md"
                   />
                 ) : (
                   <div className="w-16 h-16 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center shrink-0 text-blue-400 shadow-md">
                     <Shield className="w-8 h-8" />
                   </div>
                 )}
-                
+
                 <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight uppercase break-words">
                   {team.name}
                 </h2>
@@ -377,7 +466,7 @@ export default function DashboardPage() {
 
         {/* 💳 Budget Residuo Card & 📜 Stato Aste */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
+
           {/* Card Budget Residuo */}
           <div className="bg-slate-800/80 border border-slate-700 p-6 rounded-2xl shadow-xl flex flex-col justify-between">
             <div>
@@ -398,7 +487,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Stato Aste Padre (In Corso / Monitoraggio) */}
+          {/* Stato Aste Live */}
           <div className="lg:col-span-2 bg-slate-800/80 border border-slate-700 p-6 rounded-2xl shadow-xl flex flex-col justify-between">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <div className="flex items-center gap-2">
@@ -420,8 +509,8 @@ export default function DashboardPage() {
                   </button>
                 )}
 
-                <Link 
-                  href="/rosa" 
+                <Link
+                  href="/rosa"
                   className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1 transition"
                 >
                   Vedi tutti <ArrowUpRight className="w-3.5 h-3.5" />
@@ -433,34 +522,47 @@ export default function DashboardPage() {
               <div className="space-y-2.5">
                 {auctions.map((item) => {
                   const isInCorso = item.status === 'in_corso' || item.status === 'active'
+                  const isNuova = item.status === 'pending' || item.status === 'nuova' || item.status === 'da_iniziare'
+
+                  const handleAuctionClick = (e: React.MouseEvent) => {
+                    if (isInCorso) {
+                      e.preventDefault()
+                      alert("Non puoi unirti ad un'asta in corso")
+                    }
+                  }
 
                   return (
-                    <Link 
-                      key={item.id} 
-                      href={`/asta/${item.id}`}
+                    <div
+                      key={item.id}
+                      onClick={handleAuctionClick}
                       className={`border rounded-xl px-4 py-3 flex items-center justify-between text-xs sm:text-sm transition-all hover:border-blue-500 hover:bg-slate-800/50 cursor-pointer ${
-                        isInCorso 
-                          ? 'bg-amber-500/10 border-amber-500/40 animate-pulse' 
+                        isInCorso
+                          ? 'bg-amber-500/10 border-amber-500/40 animate-pulse'
+                          : isNuova
+                          ? 'bg-blue-500/10 border-blue-500/40'
                           : 'bg-slate-900/60 border-slate-700/60'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="font-medium text-white">
-                          Asta ID: <span className="font-mono text-slate-400">{item.id.slice(0, 8)}...</span>
-                        </span>
-                        {isInCorso && (
-                          <span className="bg-amber-500 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider">
-                            In Corso 🔴
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className={`font-bold uppercase text-xs ${isInCorso ? 'text-amber-400' : 'text-slate-400'}`}>
-                          {item.status}
-                        </span>
-                        <ArrowUpRight className="w-4 h-4 text-slate-400" />
-                      </div>
-                    </Link>
+                      {isInCorso ? (
+                        <AuctionContent 
+                          item={item} 
+                          isInCorso={isInCorso} 
+                          isNuova={isNuova} 
+                          user={user} 
+                          handleDeleteAuction={handleDeleteAuction} 
+                        />
+                      ) : (
+                        <Link href={`/asta/${item.id}`} className="contents">
+                          <AuctionContent 
+                            item={item} 
+                            isInCorso={isInCorso} 
+                            isNuova={isNuova} 
+                            user={user} 
+                            handleDeleteAuction={handleDeleteAuction} 
+                          />
+                        </Link>
+                      )}
+                    </div>
                   )
                 })}
               </div>
