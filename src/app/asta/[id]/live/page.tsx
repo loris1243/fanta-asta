@@ -151,9 +151,56 @@ export default function LiveAuctionPage() {
             return []
         }
 
-        setTeamsData(teams || [])
+        /*
+         * Manteniamo l'ordine restituito da auction_participants.
+         * Questo ordine viene usato per la rotazione dei turni.
+         */
+        const orderedTeams =
+            teamIds
+                .map((teamId: string) =>
+                    (teams || []).find(
+                        (team: any) =>
+                            team.id === teamId
+                    )
+                )
+                .filter(Boolean)
 
-        return teams || []
+        setTeamsData(orderedTeams)
+
+        return orderedTeams
+    }
+
+    // ============================================================
+    // TROVA PROSSIMA SQUADRA DEL TURNO
+    // ============================================================
+
+    const getNextTurnTeamId = (
+        currentTeamId: string | null,
+        teams: any[]
+    ): string | null => {
+        if (!teams || teams.length === 0) {
+            return null
+        }
+
+        if (!currentTeamId) {
+            return teams[0]?.id || null
+        }
+
+        const currentIndex =
+            teams.findIndex(
+                (team) =>
+                    team.id === currentTeamId
+            )
+
+        if (currentIndex === -1) {
+            return teams[0]?.id || null
+        }
+
+        const nextIndex =
+            (currentIndex + 1) %
+            teams.length
+
+        return teams[nextIndex]?.id || null
     }
 
     // ============================================================
@@ -800,6 +847,16 @@ export default function LiveAuctionPage() {
                 }
 
                 // ====================================================
+                // CALCOLO PROSSIMO TURNO
+                // ====================================================
+
+                const nextTurnTeamId =
+                    getNextTurnTeamId(
+                        currentTurnTeamId,
+                        teamsData
+                    )
+
+                // ====================================================
                 // CHIUSURA NOMINATION
                 // ====================================================
 
@@ -973,11 +1030,59 @@ export default function LiveAuctionPage() {
                 }
 
                 // ====================================================
-                // IMPORTANTE:
-                // NON APRIAMO QUI IL MODALE.
+                // AGGIORNA TURNO
                 //
-                // La modifica della nomination viene ricevuta
-                // tramite Realtime da TUTTI i client.
+                // QUESTO È IL FIX PRINCIPALE DELLA ROTAZIONE.
+                //
+                // Esempio:
+                // Client 1 → Client 2
+                // Client 2 → Client 3
+                // Client 3 → Client 1
+                // ====================================================
+
+                if (nextTurnTeamId) {
+                    const {
+                        error:
+                            turnError
+                    } =
+                        await supabase
+                            .from(
+                                'auctions'
+                            )
+                            .update({
+                                current_turn_team_id:
+                                    nextTurnTeamId
+                            })
+                            .eq(
+                                'id',
+                                id
+                            )
+
+                    if (turnError) {
+                        console.error(
+                            'Errore aggiornamento turno:',
+                            turnError
+                        )
+                    } else {
+                        setCurrentTurnTeamId(
+                            nextTurnTeamId
+                        )
+
+                        setAuction(
+                            (prev: any) =>
+                                prev
+                                    ? {
+                                          ...prev,
+                                          current_turn_team_id:
+                                              nextTurnTeamId
+                                      }
+                                    : prev
+                        )
+                    }
+                }
+
+                // ====================================================
+                // PULIZIA STATO LOCALE
                 // ====================================================
 
                 setCurrentNomination(null)
@@ -1354,6 +1459,22 @@ export default function LiveAuctionPage() {
                 return
             }
 
+            /*
+             * FIX:
+             * se siamo già noi ad avere l'offerta massima,
+             * non ha senso rilanciare contro noi stessi.
+             */
+            if (
+                highestTeamId ===
+                myTeamId
+            ) {
+                alert(
+                    'Sei già in vantaggio: non puoi rilanciare contro la tua stessa offerta.'
+                )
+
+                return
+            }
+
             if (
                 newAmount <=
                 currentBid
@@ -1686,7 +1807,7 @@ export default function LiveAuctionPage() {
                     0
             ) {
                 activeTurnId =
-                    fetchedTeams[0].id
+                    fetchedTeams[0]?.id
 
                 await supabase
                     .from(
@@ -1770,14 +1891,20 @@ export default function LiveAuctionPage() {
                                 return
                             }
 
+                            const previousTurn =
+                                currentTurnTeamId
+
+                            const newTurn =
+                                payload.new
+                                    .current_turn_team_id ||
+                                null
+
                             setAuction(
                                 payload.new
                             )
 
                             setCurrentTurnTeamId(
-                                payload.new
-                                    .current_turn_team_id ||
-                                    null
+                                newTurn
                             )
 
                             const newRole =
@@ -1796,6 +1923,30 @@ export default function LiveAuctionPage() {
                                     teamData.id,
                                     newRole
                                 )
+                            }
+
+                            /*
+                             * Quando l'admin preme "Continua l'Asta",
+                             * il nuovo current_turn_team_id viene
+                             * propagato tramite Realtime.
+                             *
+                             * Questo chiude il modale sugli altri
+                             * client.
+                             */
+                            if (
+                                isCongratulationModalOpen &&
+                                newTurn !==
+                                    previousTurn
+                            ) {
+                                setIsCongratulationModalOpen(
+                                    false
+                                )
+
+                                setCongratulatedPlayer(
+                                    null
+                                )
+
+                                await fetchCurrentNomination()
                             }
                         }
                     )
@@ -1839,11 +1990,8 @@ export default function LiveAuctionPage() {
                             /*
                              * NOMINATION CHIUSA
                              *
-                             * Questo evento arriva a TUTTI
-                             * i client.
-                             *
-                             * Recuperiamo i dati aggiornati
-                             * e mostriamo il modale a tutti.
+                             * Il modale viene mostrato
+                             * a TUTTI i client.
                              */
                             if (
                                 payload.new?.status ===
@@ -2350,6 +2498,15 @@ export default function LiveAuctionPage() {
                 )
         )
 
+    /*
+     * Se sono già io il miglior offerente,
+     * non devo rilanciare contro me stesso.
+     */
+    const amHighestBidder =
+        !!myTeamId &&
+        highestTeamId ===
+            myTeamId
+
     // ============================================================
     // RENDER
     // ============================================================
@@ -2612,98 +2769,115 @@ export default function LiveAuctionPage() {
 
                             {!hasWithdrawn ? (
                                 <>
+                                    {amHighestBidder ? (
+                                        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-5 text-center">
 
-                                    <div className="grid grid-cols-3 gap-3">
+                                            <div className="text-emerald-400 text-sm font-black uppercase">
+                                                Sei in vantaggio
+                                            </div>
 
-                                        <button
-                                            onClick={() =>
-                                                handlePlaceBid(
-                                                    currentBid +
-                                                        1
-                                                )
-                                            }
-                                            className="py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold uppercase text-sm transition"
-                                        >
-                                            +1
-                                        </button>
+                                            <p className="text-xs text-slate-400 mt-1">
+                                                Non puoi rilanciare
+                                                contro la tua stessa
+                                                offerta.
+                                            </p>
 
-                                        <button
-                                            onClick={() =>
-                                                handlePlaceBid(
-                                                    currentBid +
-                                                        5
-                                                )
-                                            }
-                                            className="py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold uppercase text-sm transition"
-                                        >
-                                            +5
-                                        </button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="grid grid-cols-3 gap-3">
 
-                                        <button
-                                            onClick={() =>
-                                                handlePlaceBid(
-                                                    currentBid +
-                                                        10
-                                                )
-                                            }
-                                            className="py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold uppercase text-sm transition"
-                                        >
-                                            +10
-                                        </button>
+                                                <button
+                                                    onClick={() =>
+                                                        handlePlaceBid(
+                                                            currentBid +
+                                                                1
+                                                        )
+                                                    }
+                                                    className="py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold uppercase text-sm transition"
+                                                >
+                                                    +1
+                                                </button>
 
-                                    </div>
+                                                <button
+                                                    onClick={() =>
+                                                        handlePlaceBid(
+                                                            currentBid +
+                                                                5
+                                                        )
+                                                    }
+                                                    className="py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold uppercase text-sm transition"
+                                                >
+                                                    +5
+                                                </button>
 
-                                    <div className="flex gap-2 pt-2 border-t border-slate-700/50">
+                                                <button
+                                                    onClick={() =>
+                                                        handlePlaceBid(
+                                                            currentBid +
+                                                                10
+                                                        )
+                                                    }
+                                                    className="py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold uppercase text-sm transition"
+                                                >
+                                                    +10
+                                                </button>
 
-                                        <input
-                                            type="number"
-                                            placeholder={`Offerta personalizzata (> ${currentBid})`}
-                                            value={
-                                                customBidValue
-                                            }
-                                            onChange={(
-                                                e
-                                            ) =>
-                                                setCustomBidValue(
-                                                    e
-                                                        .target
-                                                        .value
-                                                )
-                                            }
-                                            className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500"
-                                        />
+                                            </div>
 
-                                        <button
-                                            onClick={() => {
-                                                const value =
-                                                    parseInt(
+                                            <div className="flex gap-2 pt-2 border-t border-slate-700/50">
+
+                                                <input
+                                                    type="number"
+                                                    placeholder={`Offerta personalizzata (> ${currentBid})`}
+                                                    value={
                                                         customBidValue
-                                                    )
+                                                    }
+                                                    onChange={(
+                                                        e
+                                                    ) =>
+                                                        setCustomBidValue(
+                                                            e
+                                                                .target
+                                                                .value
+                                                        )
+                                                    }
+                                                    className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500"
+                                                />
 
-                                                if (
-                                                    isNaN(
-                                                        value
-                                                    ) ||
-                                                    value <=
-                                                        currentBid
-                                                ) {
-                                                    alert(
-                                                        "L'offerta deve essere superiore all'offerta corrente!"
-                                                    )
+                                                <button
+                                                    onClick={() => {
+                                                        const value =
+                                                            parseInt(
+                                                                customBidValue
+                                                            )
 
-                                                    return
-                                                }
+                                                        if (
+                                                            isNaN(
+                                                                value
+                                                            ) ||
+                                                            value <=
+                                                                currentBid
+                                                        ) {
+                                                            alert(
+                                                                "L'offerta deve essere superiore all'offerta corrente!"
+                                                            )
 
-                                                handlePlaceBid(
-                                                    value
-                                                )
-                                            }}
-                                            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-black text-xs uppercase transition"
-                                        >
-                                            Rilancia
-                                        </button>
+                                                            return
+                                                        }
 
-                                    </div>
+                                                        handlePlaceBid(
+                                                            value
+                                                        )
+                                                    }}
+                                                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-black text-xs uppercase transition"
+                                                >
+                                                    Rilancia
+                                                </button>
+
+                                            </div>
+                                        </>
+                                    )}
 
                                     <button
                                         onClick={
@@ -2974,6 +3148,16 @@ export default function LiveAuctionPage() {
                             {isAdmin ? (
                                 <button
                                     onClick={async () => {
+                                        /*
+                                         * L'admin chiude immediatamente
+                                         * il proprio modale.
+                                         *
+                                         * L'UPDATE su auctions,
+                                         * eseguito da finalizeAuctionItem,
+                                         * farà chiudere il modale anche
+                                         * sugli altri client tramite
+                                         * Realtime.
+                                         */
                                         setIsCongratulationModalOpen(
                                             false
                                         )
