@@ -9,13 +9,20 @@ import { Target, Trash2, Settings, Percent, DollarSign, AlertTriangle } from 'lu
 interface TargetPlayer {
   id: string
   player_id: number
+  // Gestisce sia il caso in cui Supabase restituisca un oggetto singolo sia un array
   player: {
     id: number
     name: string
     role: string
     team: string
     fvm: number
-  }
+  } | {
+    id: number
+    name: string
+    role: string
+    team: string
+    fvm: number
+  }[]
 }
 
 interface RoleBudget {
@@ -27,7 +34,7 @@ interface RoleBudget {
 }
 
 export default function ObiettiviPage() {
-  const [targets, setTargets] = useState<TargetPlayer[]>([])
+  const [targets, setTargets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
   const [showWarning, setShowWarning] = useState(false)
@@ -58,8 +65,18 @@ export default function ObiettiviPage() {
         `)
         .eq('user_id', user.id)
 
-      if (targetsError) console.error('Errore nel caricamento obiettivi:', targetsError)
-      else if (targetsData) setTargets(targetsData.filter((item: any) => item.player))
+      if (targetsError) {
+        console.error('Errore nel caricamento obiettivi:', targetsError)
+      } else if (targetsData) {
+        // Normalizziamo il campo player nel caso in cui arrivi come array dalla join di Supabase
+        const formattedTargets = targetsData
+          .filter((item: any) => item.player)
+          .map((item: any) => ({
+            ...item,
+            player: Array.isArray(item.player) ? item.player[0] : item.player
+          }))
+        setTargets(formattedTargets)
+      }
 
       const { data: settingsData } = await supabase.from('settings').select('*').single()
       if (settingsData?.max_budget) setMaxBudget(settingsData.max_budget)
@@ -190,7 +207,7 @@ export default function ObiettiviPage() {
 
       <div className="space-y-8">
         {roles.map(role => {
-          const rolePlayers = targets.filter(t => t.player.role?.toUpperCase() === role)
+          const rolePlayers = targets.filter(t => t.player?.role?.toUpperCase() === role)
           return (
             <div key={role} className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-6 shadow-xl">
               <h2 className="text-sm font-extrabold text-amber-400 uppercase tracking-wider mb-4">{roleTitles[role]} ({rolePlayers.length})</h2>
