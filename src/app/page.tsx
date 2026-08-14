@@ -8,7 +8,8 @@ import { supabase } from '../lib/supabaseClient'
 import {
   LogOut, Shield, History, Wallet, ArrowUpRight,
   LayoutDashboard, Target, ClipboardList,
-  Inbox, Users, Settings, ScrollText, Building2, Plus, Trash2
+  Inbox, Users, Settings, ScrollText, Building2, Plus, Trash2,
+  Gavel, PanelLeftClose, PanelLeftOpen
 } from 'lucide-react'
 
 interface UserProfile {
@@ -31,53 +32,51 @@ interface AuctionItem {
 }
 
 // Sotto-componente per evitare duplicazioni nel rendering dell'asta
-function AuctionContent({ 
-  item, 
-  isInCorso, 
-  isNuova, 
-  user, 
-  handleDeleteAuction 
-}: { 
+function AuctionContent({
+  item,
+  isInCorso,
+  isNuova,
+  user,
+  handleDeleteAuction
+}: {
   item: AuctionItem
   isInCorso: boolean
   isNuova: boolean
   user: UserProfile
-  handleDeleteAuction: (auctionId: string, e: React.MouseEvent) => void 
+  handleDeleteAuction: (auctionId: string, e: React.MouseEvent) => void
 }) {
   return (
     <div className="flex items-center justify-between w-full">
       <div className="flex items-center gap-3">
-        <div className={`w-2.5 h-2.5 rounded-full ${
-          isInCorso 
-            ? 'bg-amber-400 animate-ping' 
-            : isNuova 
-            ? 'bg-blue-400' 
-            : 'bg-slate-500'
-        }`} />
+        <div className={`w-2.5 h-2.5 rounded-full ${isInCorso
+            ? 'bg-amber-400 animate-ping'
+            : isNuova
+              ? 'bg-blue-400'
+              : 'bg-slate-500'
+          }`} />
         <div>
           <p className="font-bold text-white uppercase tracking-wide">
             Asta #{item.id.slice(0, 6)}
           </p>
           <p className="text-[10px] text-slate-400">
-            Creata il: {new Date(item.created_at).toLocaleDateString('it-IT', { 
-              day: '2-digit', 
-              month: '2-digit', 
-              year: 'numeric', 
-              hour: '2-digit', 
-              minute: '2-digit' 
+            Creata il: {new Date(item.created_at).toLocaleDateString('it-IT', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
             })}
           </p>
         </div>
       </div>
 
       <div className="flex items-center gap-3">
-        <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${
-          isInCorso 
-            ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' 
-            : isNuova 
-            ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' 
-            : 'bg-slate-800 text-slate-300 border-slate-700'
-        }`}>
+        <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${isInCorso
+            ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+            : isNuova
+              ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+              : 'bg-slate-800 text-slate-300 border-slate-700'
+          }`}>
           {isInCorso ? 'In Corso' : isNuova ? 'Nuova' : item.status}
         </span>
 
@@ -112,7 +111,7 @@ export default function DashboardPage() {
       const u = await getCurrentUser()
       setUser(u)
 
-            try {
+      try {
         const { data: settings } = await supabase
           .from('league_settings')
           .select('*')
@@ -122,7 +121,7 @@ export default function DashboardPage() {
           setLeagueName(settings.league_name)
         }
 
-                if (settings?.initial_budget) {
+        if (settings?.initial_budget) {
           setInitialBudget(settings.initial_budget)
         }
 
@@ -276,141 +275,454 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col md:flex-row transition-colors duration-300">
 
       {/* 🔴 SIDEBAR NAVIGATION */}
-      <aside className={`bg-slate-800/80 border-r border-slate-700 transition-all duration-300 flex flex-col justify-between shadow-xl ${
-        isSidebarOpen ? 'w-full md:w-64' : 'w-full md:w-20'
-      }`}>
-        <div className="p-4 md:p-5">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-blue-600 text-white font-black flex items-center justify-center shadow-md text-sm">
-                ⚽
-              </div>
-              {isSidebarOpen && (
-                <div>
-                  <h1 className="font-extrabold text-base tracking-tight text-white leading-tight">FantAsta</h1>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Aste Live</p>
-                </div>
-              )}
-            </div>
+{/* ============================================================
+    SIDEBAR
+============================================================ */}
 
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="hidden md:flex p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition text-xs"
-            >
-              {isSidebarOpen ? '◀' : '▶'}
-            </button>
-          </div>
+<aside
+  className={`
+    relative shrink-0
+    bg-slate-900/95
+    border-r border-slate-800
+    shadow-xl
+    transition-[width] duration-300 ease-in-out
+    flex flex-col
+    ${isSidebarOpen ? 'w-full md:w-64' : 'w-full md:w-[76px]'}
+  `}
+>
+  {/* ==========================================================
+      HEADER SIDEBAR
+  ========================================================== */}
 
-          <div className="bg-slate-900 border border-slate-700 rounded-xl p-3 mb-6 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/40 flex items-center justify-center font-bold text-xs shrink-0">
-              {user.username.slice(0, 2).toUpperCase()}
-            </div>
-            {isSidebarOpen && (
-              <div className="overflow-hidden">
-                <p className="text-sm font-bold text-white truncate">{formatUsername(user.username)}</p>
-                <p className="text-xs text-emerald-400 font-extrabold">{remainingBudget} FM</p>
-              </div>
-            )}
-          </div>
+  <div className="relative p-3 md:p-4">
+    <div
+      className={`
+        relative flex items-center
+        ${isSidebarOpen ? 'justify-between' : 'justify-center'}
+        min-h-10
+      `}
+    >
+      {/* LOGO */}
 
-          <nav className="space-y-1.5">
-            <Link
-              href="/"
-              className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 shadow-md shadow-blue-600/20 transition"
-            >
-              <LayoutDashboard className="w-4 h-4 shrink-0" />
-              {isSidebarOpen && <span className="truncate">Dashboard</span>}
-            </Link>
-
-            <Link
-              href="/rosa"
-              className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition"
-            >
-              <Shield className="w-4 h-4 shrink-0 text-emerald-400" />
-              {isSidebarOpen && <span className="truncate">La Mia Squadra</span>}
-            </Link>
-
-            <Link
-              href="/obiettivi"
-              className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition"
-            >
-              <Target className="w-4 h-4 shrink-0 text-amber-400" />
-              {isSidebarOpen && <span className="truncate">I Miei Obiettivi</span>}
-            </Link>
-
-            <Link
-              href="/listone"
-              className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition"
-            >
-              <ClipboardList className="w-4 h-4 shrink-0" />
-              {isSidebarOpen && <span className="truncate">Listone</span>}
-            </Link>
-
-            {user.role === 'admin' && (
-              <div className="pt-4 mt-4 border-t border-slate-700">
-                {isSidebarOpen && (
-                  <span className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
-                    Pannello Admin
-                  </span>
-                )}
-                <Link
-                  href="/admin/import-listone"
-                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition mb-1.5"
-                >
-                  <Inbox className="w-4 h-4 shrink-0" />
-                  {isSidebarOpen && <span className="truncate">Importa Listone</span>}
-                </Link>
-                <Link
-                  href="/admin/users"
-                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition mb-1.5"
-                >
-                  <Users className="w-4 h-4 shrink-0" />
-                  {isSidebarOpen && <span className="truncate">Gestione Partecipanti</span>}
-                </Link>
-
-                <Link
-                  href="/admin/settings"
-                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition mb-1.5"
-                >
-                  <Settings className="w-4 h-4 shrink-0" />
-                  {isSidebarOpen && <span className="truncate">Configurazione Lega</span>}
-                </Link>
-
-                {isSidebarOpen && (
-                  <span className="px-2 pt-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                    Anagrafiche
-                  </span>
-                )}
-                <Link
-                  href="/admin/anagrafiche/serie-a"
-                  className="flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition mb-1"
-                >
-                  <ScrollText className="w-4 h-4 shrink-0" />
-                  {isSidebarOpen && <span className="truncate">Squadre Serie A</span>}
-                </Link>
-                <Link
-                  href="/admin/anagrafiche/squadre_lega"
-                  className="flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition"
-                >
-                  <Building2 className="w-4 h-4 shrink-0" />
-                  {isSidebarOpen && <span className="truncate">Squadre Lega</span>}
-                </Link>
-              </div>
-            )}
-          </nav>
+      <div
+        className={`
+          flex items-center
+          ${isSidebarOpen ? 'gap-3' : 'justify-center'}
+          min-w-0
+        `}
+      >
+        <div
+          className="
+            w-10 h-10 shrink-0
+            rounded-xl
+            bg-blue-600
+            text-white
+            flex items-center justify-center
+            shadow-lg shadow-blue-600/20
+          "
+        >
+          <Gavel className="w-5 h-5" />
         </div>
 
-        <div className="p-4 md:p-5 border-t border-slate-700 space-y-2">
-          <button
-            onClick={handleLogout}
-            type="button"
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-red-400 hover:text-white hover:bg-red-600/20 transition cursor-pointer"
+        {isSidebarOpen && (
+          <div className="min-w-0">
+            <h1 className="font-extrabold text-base tracking-tight text-white leading-tight">
+              FantAsta
+            </h1>
+
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+              Aste Live
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* TOGGLE */}
+
+      <button
+        type="button"
+        onClick={() => setIsSidebarOpen((prev) => !prev)}
+        aria-label={
+          isSidebarOpen
+            ? 'Comprimi barra laterale'
+            : 'Espandi barra laterale'
+        }
+        title={
+          isSidebarOpen
+            ? 'Comprimi sidebar'
+            : 'Espandi sidebar'
+        }
+        className={`
+          hidden md:flex
+          items-center justify-center
+          w-7 h-7
+          rounded-lg
+          text-slate-500
+          hover:text-white
+          hover:bg-slate-800
+          transition-all
+          ${!isSidebarOpen ? 'absolute -right-2 top-1/2 -translate-y-1/2 z-20 bg-slate-900 border border-slate-700 shadow-lg' : ''}
+        `}
+      >
+        <span className="text-[10px] font-black">
+          {isSidebarOpen ? '◀' : '▶'}
+        </span>
+      </button>
+    </div>
+  </div>
+
+  {/* ==========================================================
+      USER CARD
+  ========================================================== */}
+
+  <div
+    className={`
+      mx-3 md:mx-4
+      mb-5
+      bg-slate-950/70
+      border border-slate-800
+      rounded-xl
+      transition-all duration-300
+      ${isSidebarOpen ? 'p-3' : 'p-2'}
+    `}
+  >
+    <div
+      className={`
+        flex items-center
+        ${isSidebarOpen ? 'gap-3' : 'justify-center'}
+      `}
+    >
+      <div
+        className="
+          w-10 h-10
+          shrink-0
+          rounded-lg
+          bg-blue-500/10
+          text-blue-300
+          border border-blue-500/30
+          flex items-center justify-center
+          font-black text-xs
+        "
+      >
+        {user.username.slice(0, 2).toUpperCase()}
+      </div>
+
+      {isSidebarOpen && (
+        <div className="min-w-0 overflow-hidden">
+          <p className="text-sm font-bold text-white truncate">
+            {formatUsername(user.username)}
+          </p>
+
+          <p className="text-xs text-emerald-400 font-extrabold mt-0.5">
+            {remainingBudget} FM
+          </p>
+        </div>
+      )}
+    </div>
+  </div>
+
+  {/* ==========================================================
+      NAVIGAZIONE
+  ========================================================== */}
+
+  <nav className="flex-1 px-3 md:px-4 overflow-y-auto">
+    <div className="space-y-1.5">
+
+      {/* DASHBOARD */}
+
+      <Link
+        href="/"
+        title={!isSidebarOpen ? 'Dashboard' : undefined}
+        className={`
+          flex items-center
+          ${isSidebarOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
+          h-11
+          rounded-xl
+          text-sm font-semibold
+          text-white
+          bg-blue-600
+          shadow-md shadow-blue-600/20
+          transition-all
+        `}
+      >
+        <LayoutDashboard className="w-4 h-4 shrink-0" />
+
+        {isSidebarOpen && (
+          <span className="truncate">
+            Dashboard
+          </span>
+        )}
+      </Link>
+
+      {/* LA MIA SQUADRA */}
+
+      <Link
+        href="/rosa"
+        title={!isSidebarOpen ? 'La Mia Squadra' : undefined}
+        className={`
+          flex items-center
+          ${isSidebarOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
+          h-11
+          rounded-xl
+          text-sm font-semibold
+          text-slate-300
+          hover:text-white
+          hover:bg-slate-800
+          transition-all
+        `}
+      >
+        <Shield className="w-4 h-4 shrink-0 text-emerald-400" />
+
+        {isSidebarOpen && (
+          <span className="truncate">
+            La Mia Squadra
+          </span>
+        )}
+      </Link>
+
+      {/* OBIETTIVI */}
+
+      <Link
+        href="/obiettivi"
+        title={!isSidebarOpen ? 'I Miei Obiettivi' : undefined}
+        className={`
+          flex items-center
+          ${isSidebarOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
+          h-11
+          rounded-xl
+          text-sm font-semibold
+          text-slate-300
+          hover:text-white
+          hover:bg-slate-800
+          transition-all
+        `}
+      >
+        <Target className="w-4 h-4 shrink-0 text-amber-400" />
+
+        {isSidebarOpen && (
+          <span className="truncate">
+            I Miei Obiettivi
+          </span>
+        )}
+      </Link>
+
+      {/* LISTONE */}
+
+      <Link
+        href="/listone"
+        title={!isSidebarOpen ? 'Listone' : undefined}
+        className={`
+          flex items-center
+          ${isSidebarOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
+          h-11
+          rounded-xl
+          text-sm font-semibold
+          text-slate-300
+          hover:text-white
+          hover:bg-slate-800
+          transition-all
+        `}
+      >
+        <ClipboardList className="w-4 h-4 shrink-0" />
+
+        {isSidebarOpen && (
+          <span className="truncate">
+            Listone
+          </span>
+        )}
+      </Link>
+
+      {/* ======================================================
+          ADMIN
+      ====================================================== */}
+
+      {user.role === 'admin' && (
+        <div className="pt-4 mt-4 border-t border-slate-800">
+
+          {isSidebarOpen && (
+            <span className="px-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+              Pannello Admin
+            </span>
+          )}
+
+          {/* IMPORTA LISTONE */}
+
+          <Link
+            href="/admin/import-listone"
+            title={!isSidebarOpen ? 'Importa Listone' : undefined}
+            className={`
+              flex items-center
+              ${isSidebarOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
+              h-10
+              rounded-xl
+              text-sm font-semibold
+              text-slate-300
+              hover:text-white
+              hover:bg-slate-800
+              transition-all
+            `}
           >
-            <LogOut className="w-5 h-5 shrink-0 text-red-400" />
-            {isSidebarOpen && <span>Esci</span>}
-          </button>
+            <Inbox className="w-4 h-4 shrink-0" />
+
+            {isSidebarOpen && (
+              <span className="truncate">
+                Importa Listone
+              </span>
+            )}
+          </Link>
+
+          {/* PARTECIPANTI */}
+
+          <Link
+            href="/admin/users"
+            title={!isSidebarOpen ? 'Gestione Partecipanti' : undefined}
+            className={`
+              flex items-center
+              ${isSidebarOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
+              h-10
+              rounded-xl
+              text-sm font-semibold
+              text-slate-300
+              hover:text-white
+              hover:bg-slate-800
+              transition-all
+            `}
+          >
+            <Users className="w-4 h-4 shrink-0" />
+
+            {isSidebarOpen && (
+              <span className="truncate">
+                Gestione Partecipanti
+              </span>
+            )}
+          </Link>
+
+          {/* CONFIGURAZIONE */}
+
+          <Link
+            href="/admin/settings"
+            title={!isSidebarOpen ? 'Configurazione Lega' : undefined}
+            className={`
+              flex items-center
+              ${isSidebarOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
+              h-10
+              rounded-xl
+              text-sm font-semibold
+              text-slate-300
+              hover:text-white
+              hover:bg-slate-800
+              transition-all
+            `}
+          >
+            <Settings className="w-4 h-4 shrink-0" />
+
+            {isSidebarOpen && (
+              <span className="truncate">
+                Configurazione Lega
+              </span>
+            )}
+          </Link>
+
+          {/* ANAGRAFICHE */}
+
+          {isSidebarOpen && (
+            <span className="px-2 pt-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+              Anagrafiche
+            </span>
+          )}
+
+          <Link
+            href="/admin/anagrafiche/serie-a"
+            title={!isSidebarOpen ? 'Squadre Serie A' : undefined}
+            className={`
+              flex items-center
+              ${isSidebarOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
+              h-9
+              rounded-xl
+              text-xs font-semibold
+              text-slate-400
+              hover:text-white
+              hover:bg-slate-800
+              transition-all
+            `}
+          >
+            <ScrollText className="w-4 h-4 shrink-0" />
+
+            {isSidebarOpen && (
+              <span className="truncate">
+                Squadre Serie A
+              </span>
+            )}
+          </Link>
+
+          <Link
+            href="/admin/anagrafiche/squadre_lega"
+            title={!isSidebarOpen ? 'Squadre Lega' : undefined}
+            className={`
+              flex items-center
+              ${isSidebarOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
+              h-9
+              rounded-xl
+              text-xs font-semibold
+              text-slate-400
+              hover:text-white
+              hover:bg-slate-800
+              transition-all
+            `}
+          >
+            <Building2 className="w-4 h-4 shrink-0" />
+
+            {isSidebarOpen && (
+              <span className="truncate">
+                Squadre Lega
+              </span>
+            )}
+          </Link>
+
         </div>
-      </aside>
+      )}
+    </div>
+  </nav>
+
+  {/* ==========================================================
+      FOOTER
+  ========================================================== */}
+
+  <div
+    className="
+      mt-auto
+      p-3 md:p-4
+      border-t border-slate-800
+    "
+  >
+    <button
+      onClick={handleLogout}
+      type="button"
+      title={!isSidebarOpen ? 'Esci' : undefined}
+      className={`
+        w-full
+        flex items-center
+        ${isSidebarOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
+        h-11
+        rounded-xl
+        text-sm font-semibold
+        text-red-400
+        hover:text-red-300
+        hover:bg-red-500/10
+        transition-all
+        cursor-pointer
+      `}
+    >
+      <LogOut className="w-4 h-4 shrink-0" />
+
+      {isSidebarOpen && (
+        <span>
+          Esci
+        </span>
+      )}
+    </button>
+  </div>
+</aside>
 
       {/* 🔵 MAIN CONTENT AREA */}
       <main className="flex-1 p-6 md:p-12 space-y-6 overflow-y-auto">
@@ -422,11 +734,10 @@ export default function DashboardPage() {
               <span className="bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-md">
                 Stagione {season}
               </span>
-              <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-md border ${
-                user.role === 'admin'
+              <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-md border ${user.role === 'admin'
                   ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
                   : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-              }`}>
+                }`}>
                 Ruolo: {user.role}
               </span>
               <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-md">
@@ -540,30 +851,29 @@ export default function DashboardPage() {
                     <div
                       key={item.id}
                       onClick={handleAuctionClick}
-                      className={`border rounded-xl px-4 py-3 flex items-center justify-between text-xs sm:text-sm transition-all hover:border-blue-500 hover:bg-slate-800/50 cursor-pointer ${
-                        isInCorso
+                      className={`border rounded-xl px-4 py-3 flex items-center justify-between text-xs sm:text-sm transition-all hover:border-blue-500 hover:bg-slate-800/50 cursor-pointer ${isInCorso
                           ? 'bg-amber-500/10 border-amber-500/40 animate-pulse'
                           : isNuova
-                          ? 'bg-blue-500/10 border-blue-500/40'
-                          : 'bg-slate-900/60 border-slate-700/60'
-                      }`}
+                            ? 'bg-blue-500/10 border-blue-500/40'
+                            : 'bg-slate-900/60 border-slate-700/60'
+                        }`}
                     >
                       {isInCorso ? (
-                        <AuctionContent 
-                          item={item} 
-                          isInCorso={isInCorso} 
-                          isNuova={isNuova} 
-                          user={user} 
-                          handleDeleteAuction={handleDeleteAuction} 
+                        <AuctionContent
+                          item={item}
+                          isInCorso={isInCorso}
+                          isNuova={isNuova}
+                          user={user}
+                          handleDeleteAuction={handleDeleteAuction}
                         />
                       ) : (
                         <Link href={`/asta/${item.id}`} className="contents">
-                          <AuctionContent 
-                            item={item} 
-                            isInCorso={isInCorso} 
-                            isNuova={isNuova} 
-                            user={user} 
-                            handleDeleteAuction={handleDeleteAuction} 
+                          <AuctionContent
+                            item={item}
+                            isInCorso={isInCorso}
+                            isNuova={isNuova}
+                            user={user}
+                            handleDeleteAuction={handleDeleteAuction}
                           />
                         </Link>
                       )}
