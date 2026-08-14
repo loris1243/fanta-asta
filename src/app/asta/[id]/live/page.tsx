@@ -39,7 +39,6 @@ export default function LiveAuctionPage() {
   const [customBidValue, setCustomBidValue] = useState<string>('')
   
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [timeLeft, setTimeLeft] = useState<number>(15)
   
   const auctionChannelRef = useRef<any>(null)
 
@@ -118,7 +117,6 @@ export default function LiveAuctionPage() {
     }
   }, [id, router])
 
-  // Calcola i secondi rimanenti in base a countdown_started_at memorizzato nel DB
   const evaluateTimer = async (currentAuctionData: any) => {
     if (!currentAuctionData?.countdown_started_at) {
       setPendingTimer(0)
@@ -140,7 +138,6 @@ export default function LiveAuctionPage() {
     }
   }
 
-  // Intervallo di decremento del timer sincronizzato
   useEffect(() => {
     if (pendingTimer > 0) {
       const interval = setInterval(() => {
@@ -189,11 +186,42 @@ export default function LiveAuctionPage() {
     }
   }
 
+  // Funzione corretta per caricare i giocatori filtrati per ruolo, nome e squadra reale
+  useEffect(() => {
+    async function loadPlayers() {
+      if (!isNominateModalOpen) return
+
+      let query = supabase.from('players').select('*').order('name', { ascending: true })
+      
+      if (requiredRole) {
+        query = query.eq('role', requiredRole)
+      }
+
+      const { data, error } = await query
+
+      if (!error && data) {
+        const uniqueTeams = Array.from(new Set(data.map((p: any) => p.team).filter(Boolean))) as string[]
+        setAvailableTeamsList(uniqueTeams.sort())
+
+        let filtered = data
+        if (searchQuery.trim()) {
+          filtered = filtered.filter((p: any) => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        }
+        if (selectedTeamFilter) {
+          filtered = filtered.filter((p: any) => p.team === selectedTeamFilter)
+        }
+
+        setAvailablePlayers(filtered)
+      }
+    }
+
+    loadPlayers()
+  }, [isNominateModalOpen, requiredRole, searchQuery, selectedTeamFilter])
+
   const handleNominatePlayer = async (playerId: number) => {
     if (isSubmitting) return
     setIsSubmitting(true)
 
-    // Impostiamo il timestamp corrente sul database per avviare il timer su TUTTI i client connessi
     const nowISO = new Date().toISOString()
     await supabase.from('auctions').update({ countdown_started_at: nowISO }).eq('id', id)
 
@@ -225,7 +253,6 @@ export default function LiveAuctionPage() {
   const roleDisplay = ROLE_NAMES[requiredRole] || requiredRole
   const canNominate = isAdmin || (currentTurnTeamId === myTeamId)
 
-  // Determiniamo quale squadra ha effettuato la chiamata in corso
   const nominatingTeamId = currentNomination?.highest_bidder_team_id
   const nominatingTeamName = teamsData.find(t => t.id === nominatingTeamId)?.name || 'Una squadra'
 
