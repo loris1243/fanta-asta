@@ -20,7 +20,6 @@ export default function LiveAuctionPage() {
   
   const [auction, setAuction] = useState<any>(null)
   const [currentNomination, setCurrentNomination] = useState<any>(null)
-  const [pendingNomination, setPendingNomination] = useState<any>(null)
   const [pendingTimer, setPendingTimer] = useState<number>(0)
   
   const [teamsData, setTeamsData] = useState<any[]>([])
@@ -70,6 +69,7 @@ export default function LiveAuctionPage() {
 
       setAuction(auctionData)
       setRequiredRole(auctionData.required_role || 'P')
+      setCurrentTurnTeamId(auctionData.current_turn_team_id || null)
 
       const { data: teamData } = await supabase
         .from('league_teams')
@@ -91,7 +91,7 @@ export default function LiveAuctionPage() {
       }
       setCurrentTurnTeamId(activeTurnId || null)
 
-      await fetchCurrentNomination()
+      await fetchCurrentNomination(auctionData)
 
       if (isMounted) setLoading(false)
 
@@ -101,6 +101,7 @@ export default function LiveAuctionPage() {
             setAuction(payload.new)
             setCurrentTurnTeamId(payload.new.current_turn_team_id || null)
             setRequiredRole(payload.new.required_role || 'P')
+            evaluateTimer(payload.new)
           }
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'auction_nominations', filter: `auction_id=eq.${id}` }, () => {
@@ -117,15 +118,43 @@ export default function LiveAuctionPage() {
     }
   }, [id, router])
 
+  // Calcola i secondi rimanenti in base a countdown_started_at memorizzato nel DB
+  const evaluateTimer = async (currentAuctionData: any) => {
+    if (!currentAuctionData?.countdown_started_at) {
+      setPendingTimer(0)
+      return
+    }
+
+    const { data: settings } = await supabase.from('league_settings').select('call_timeout_seconds').single()
+    const timeout = settings?.call_timeout_seconds || 15
+
+    const startTime = new Date(currentAuctionData.countdown_started_at).getTime()
+    const now = new Date().getTime()
+    const elapsedSeconds = Math.floor((now - startTime) / 1000)
+    const remaining = timeout - elapsedSeconds
+
+    if (remaining > 0) {
+      setPendingTimer(remaining)
+    } else {
+      setPendingTimer(0)
+    }
+  }
+
+  // Intervallo di decremento del timer sincronizzato
   useEffect(() => {
     if (pendingTimer > 0) {
-      const interval = setInterval(() => setPendingTimer(prev => prev - 1), 1000)
+      const interval = setInterval(() => {
+        setPendingTimer(prev => {
+          if (prev <= 1) {
+            clearInterval(interval)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
       return () => clearInterval(interval)
-    } else if (pendingTimer === 0 && pendingNomination) {
-      setPendingNomination(null)
-      fetchCurrentNomination()
     }
-  }, [pendingTimer, pendingNomination])
+  }, [pendingTimer])
 
   const fetchParticipantsAndTeams = async () => {
     const { data: participants } = await supabase.from('auction_participants').select('team_id').eq('auction_id', id)
@@ -142,7 +171,7 @@ export default function LiveAuctionPage() {
     return []
   }
 
-  const fetchCurrentNomination = async () => {
+  const fetchCurrentNomination = async (forcedAuctionData?: any) => {
     const { data: nomination } = await supabase
       .from('auction_nominations')
       .select('*, players(*)')
@@ -153,48 +182,20 @@ export default function LiveAuctionPage() {
     setCurrentNomination(nomination)
     setCurrentBid(nomination?.current_bid || nomination?.base_price || 1)
     setHighestTeamId(nomination?.highest_bidder_team_id || null)
-  }
 
-  const fetchAvailablePlayers = async () => {
-    let baseQuery = supabase.from('players').select('*').eq('role', requiredRole).order('name', { ascending: true })
-    const { data } = await baseQuery
-
-    if (data) {
-      const uniqueTeams = Array.from(new Set(data.map((p: any) => p.team).filter(Boolean))) as string[]
-      setAvailableTeamsList(uniqueTeams.sort())
-
-      let filtered = data
-      if (searchQuery.trim()) {
-        filtered = filtered.filter((p: any) => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
-      }
-      if (selectedTeamFilter) {
-        filtered = filtered.filter((p: any) => p.team === selectedTeamFilter)
-      }
-
-      setAvailablePlayers(filtered)
+    const act = forcedAuctionData || auction
+    if (act) {
+      evaluateTimer(act)
     }
   }
 
-  useEffect(() => {
-    if (isNominateModalOpen) {
-      setSelectedTeamFilter('')
-      setSearchQuery('')
-      fetchAvailablePlayers()
-    }
-  }, [isNominateModalOpen, requiredRole])
-
-  useEffect(() => {
-    if (isNominateModalOpen) {
-      fetchAvailablePlayers()
-    }
-  }, [searchQuery, selectedTeamFilter])
-
-  const handleNominatePlayer = async (playerId: number, playerName: string) => {
+  const handleNominatePlayer = async (playerId: number) => {
     if (isSubmitting) return
     setIsSubmitting(true)
-    
-    const { data: settings } = await supabase.from('league_settings').select('call_timeout_seconds').single()
-    const timeout = settings?.call_timeout_seconds || 15
+
+    // Impostiamo il timestamp corrente sul database per avviare il timer su TUTTI i client connessi
+    const nowISO = new Date().toISOString()
+    await supabase.from('auctions').update({ countdown_started_at: nowISO }).eq('id', id)
 
     const { error } = await supabase
       .from('auction_nominations')
@@ -208,8 +209,6 @@ export default function LiveAuctionPage() {
       })
 
     if (!error) {
-      setPendingNomination({ playerName, teamName: teamsData.find(t => t.id === myTeamId)?.name })
-      setPendingTimer(timeout)
       setIsNominateModalOpen(false)
     }
     setIsSubmitting(false)
@@ -222,8 +221,13 @@ export default function LiveAuctionPage() {
   }
 
   const currentTurnTeamName = teamsData.find(t => t.id === currentTurnTeamId)?.name || 'Nessuna squadra'
+  const highestBidderName = teamsData.find(t => t.id === highestTeamId)?.name || 'Nessuna'
   const roleDisplay = ROLE_NAMES[requiredRole] || requiredRole
   const canNominate = isAdmin || (currentTurnTeamId === myTeamId)
+
+  // Determiniamo quale squadra ha effettuato la chiamata in corso
+  const nominatingTeamId = currentNomination?.highest_bidder_team_id
+  const nominatingTeamName = teamsData.find(t => t.id === nominatingTeamId)?.name || 'Una squadra'
 
   if (loading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="w-8 h-8 border-4 border-blue-500 rounded-full animate-spin" /></div>
 
@@ -237,18 +241,24 @@ export default function LiveAuctionPage() {
       <main className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6 py-6 flex-1">
         <div className="lg:col-span-2 space-y-6">
           
-          {pendingNomination ? (
+          {currentNomination && pendingTimer > 0 ? (
             <div className="bg-slate-800/60 border border-amber-500/50 rounded-2xl p-12 text-center space-y-4">
-              <h3 className="text-xl font-black uppercase text-amber-400">La squadra {pendingNomination.teamName} ha scelto {pendingNomination.playerName}!</h3>
+              <h3 className="text-xl font-black uppercase text-amber-400">La squadra {nominatingTeamName} ha scelto {currentNomination.players?.name}!</h3>
               <p className="text-slate-400 text-sm">L'asta inizia tra...</p>
               <div className="text-6xl font-black text-white">{pendingTimer}s</div>
             </div>
           ) : currentNomination ? (
             <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-6 md:p-8 space-y-6">
+              <div className="flex justify-between items-center bg-slate-900/60 p-3 rounded-xl border border-slate-700/50">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase">
+                  <Timer className="w-4 h-4 text-amber-400 animate-spin" /> In vantaggio: <span className="text-white font-black">{highestBidderName}</span>
+                </div>
+              </div>
               <div className="flex justify-between items-start">
                 <div>
                   <span className="text-xs font-bold uppercase px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg">{ROLE_NAMES[currentNomination.players?.role] || currentNomination.players?.role}</span>
                   <h2 className="text-3xl font-black uppercase text-white mt-3">{currentNomination.players?.name}</h2>
+                  <p className="text-sm text-slate-400 mt-1">{currentNomination.players?.team}</p>
                 </div>
                 <div className="text-right">
                   <span className="text-xs text-slate-400 uppercase font-semibold">Offerta</span>
@@ -331,7 +341,7 @@ export default function LiveAuctionPage() {
                     </div>
                     <button 
                       disabled={isSubmitting}
-                      onClick={() => handleNominatePlayer(p.id, p.name)} 
+                      onClick={() => handleNominatePlayer(p.id)} 
                       className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg text-xs font-black uppercase transition flex items-center gap-1"
                     >
                       CHIAMA
