@@ -102,6 +102,16 @@ export default function LiveAuctionPage() {
 
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isWithdrawing, setIsWithdrawing] = useState(false)
+
+    const [isRoleBudgetWarningOpen, setIsRoleBudgetWarningOpen] =
+    useState(false)
+
+const [pendingBidAmount, setPendingBidAmount] =
+    useState<number | null>(null)
+
+const [pendingRoleBudgetExceeded, setPendingRoleBudgetExceeded] =
+    useState(0)
+
     const [isClosingAuction, setIsClosingAuction] =
         useState(false)
 
@@ -1465,7 +1475,8 @@ export default function LiveAuctionPage() {
 
     const handlePlaceBid =
         async (
-            newAmount: number
+            newAmount: number,
+            skipRoleBudgetWarning = false
         ) => {
             if (
                 !currentNomination ||
@@ -1524,43 +1535,60 @@ export default function LiveAuctionPage() {
                 return
             }
 
-            if (
-                myRoleBudget !==
-                null
-            ) {
-                const myPreviousBestBid =
-                    bids
-                        .filter(
-                            (bid) =>
-                                bid.team_id ===
-                                myTeamId
-                        )
-                        .reduce(
-                            (
-                                max,
-                                bid
-                            ) =>
-                                Math.max(
-                                    max,
-                                    bid.amount
-                                ),
-                            0
-                        )
+if (
+    myRoleBudget !== null &&
+    !skipRoleBudgetWarning
+) {
+    const myPreviousBestBid =
+        bids
+            .filter(
+                (bid) =>
+                    bid.team_id ===
+                    myTeamId
+            )
+            .reduce(
+                (
+                    max,
+                    bid
+                ) =>
+                    Math.max(
+                        max,
+                        bid.amount
+                    ),
+                0
+            )
 
-                const effectiveCostDelta =
-                    newAmount -
-                    myPreviousBestBid
+    const effectiveCostDelta =
+        newAmount -
+        myPreviousBestBid
 
-                if (
-                    effectiveCostDelta >
-                    myRoleBudget -
-                    myRoleSpent
-                ) {
-                    alert(
-                        `L'offerta supera il budget residuo prefissato per il ruolo ${ROLE_NAMES[requiredRole]} (${myRoleBudget - myRoleSpent} CR disponibili)!`
-                    )
-                }
-            }
+    const roleBudgetRemaining =
+        myRoleBudget -
+        myRoleSpent
+
+    if (
+        effectiveCostDelta >
+        roleBudgetRemaining
+    ) {
+        const exceededAmount =
+            effectiveCostDelta -
+            roleBudgetRemaining
+
+        setPendingBidAmount(
+            newAmount
+        )
+
+        setPendingRoleBudgetExceeded(
+            exceededAmount
+        )
+
+        setIsRoleBudgetWarningOpen(
+            true
+        )
+
+        return
+    }
+}
 
             const {
                 data:
@@ -1655,6 +1683,23 @@ export default function LiveAuctionPage() {
 
             setCustomBidValue('')
         }
+
+        const confirmRoleBudgetBid = async () => {
+    if (pendingBidAmount === null) {
+        return
+    }
+
+    const amount = pendingBidAmount
+
+    setIsRoleBudgetWarningOpen(false)
+    setPendingBidAmount(null)
+    setPendingRoleBudgetExceeded(0)
+
+    await handlePlaceBid(
+        amount,
+        true
+    )
+}
 
     // ============================================================
     // INIT
@@ -3150,6 +3195,118 @@ export default function LiveAuctionPage() {
                 </div>
 
             </main>
+
+            {/* ===================================================
+    WARNING BUDGET RUOLO
+=================================================== */}
+
+{isRoleBudgetWarningOpen &&
+    pendingBidAmount !== null && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="w-full max-w-md bg-slate-900 border border-red-500/30 rounded-2xl shadow-2xl p-6">
+
+                {/* HEADER */}
+                <div className="flex items-center gap-3 mb-5">
+
+                    <div className="w-11 h-11 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center">
+                        <Wallet className="w-5 h-5 text-red-400" />
+                    </div>
+
+                    <div>
+                        <h2 className="text-lg font-black text-white uppercase">
+                            Budget ruolo superato
+                        </h2>
+
+                        <p className="text-xs text-slate-400 font-bold uppercase">
+                            {ROLE_NAMES[requiredRole]}
+                        </p>
+                    </div>
+
+                </div>
+
+                {/* DATI */}
+                <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-4 mb-5 space-y-3">
+
+                    <div className="flex justify-between text-sm">
+                        <span className="text-slate-400">
+                            Budget impostato
+                        </span>
+
+                        <span className="text-white font-black">
+                            {myRoleBudget} CR
+                        </span>
+                    </div>
+
+                    <div className="flex justify-between text-sm">
+                        <span className="text-slate-400">
+                            Già spesi
+                        </span>
+
+                        <span className="text-white font-black">
+                            {myRoleSpent} CR
+                        </span>
+                    </div>
+
+                    <div className="flex justify-between text-sm">
+                        <span className="text-slate-400">
+                            Nuova offerta
+                        </span>
+
+                        <span className="text-amber-400 font-black">
+                            {pendingBidAmount} CR
+                        </span>
+                    </div>
+
+                    <div className="border-t border-slate-700 pt-3 flex justify-between">
+                        <span className="text-red-300 font-bold">
+                            Superamento
+                        </span>
+
+                        <span className="text-red-400 font-black">
+                            +{pendingRoleBudgetExceeded} CR
+                        </span>
+                    </div>
+
+                </div>
+
+                {/* MESSAGGIO */}
+                <p className="text-sm text-slate-300 leading-relaxed mb-6">
+                    Questa offerta supera il budget che hai
+                    impostato per questo ruolo.
+                    <br />
+                    <br />
+                    Il budget per ruolo è indicativo.
+                    Vuoi comunque effettuare l'offerta?
+                </p>
+
+                {/* AZIONI */}
+                <div className="flex gap-3">
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setIsRoleBudgetWarningOpen(false)
+                            setPendingBidAmount(null)
+                            setPendingRoleBudgetExceeded(0)
+                        }}
+                        className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl font-black text-xs uppercase transition"
+                    >
+                        Annulla
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={confirmRoleBudgetBid}
+                        className="flex-1 py-3 bg-red-600 hover:bg-red-500 rounded-xl font-black text-xs uppercase transition"
+                    >
+                        Fai comunque l'offerta
+                    </button>
+
+                </div>
+
+            </div>
+        </div>
+    )}
 
             {/* ===================================================
                 MODALE ASSEGNAZIONE
