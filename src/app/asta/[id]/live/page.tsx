@@ -28,27 +28,6 @@ const ROLE_COLUMN_MAP: Record<string, string> = {
     A: 'a_val'
 }
 
-// Limiti massimi della rosa per ruolo.
-// P = 3, D = 8, C = 8, A = 6 (totale 25).
-const ROLE_SQUAD_LIMITS: Record<string, number> = {
-    P: 3,
-    D: 8,
-    C: 8,
-    A: 6
-}
-
-const TOTAL_SQUAD_LIMIT = Object.values(ROLE_SQUAD_LIMITS).reduce(
-    (sum, limit) => sum + limit,
-    0
-)
-
-type RosterCount = {
-    P: number
-    D: number
-    C: number
-    A: number
-}
-
 type BidRow = {
     id: number
     team_id: string
@@ -75,10 +54,6 @@ export default function LiveAuctionPage() {
 
     const [teamsData, setTeamsData] = useState<any[]>([])
     const [realTeamsData, setRealTeamsData] = useState<any[]>([])
-
-    // Numero di giocatori già assegnati a ogni squadra, divisi per ruolo.
-    const [teamRosterCounts, setTeamRosterCounts] =
-        useState<Record<string, RosterCount>>({})
 
     const [myTeamId, setMyTeamId] = useState<string | null>(null)
     const [myBudget, setMyBudget] = useState<number>(0)
@@ -192,50 +167,6 @@ export default function LiveAuctionPage() {
 
         setTeamsData(orderedTeams)
 
-        // Carichiamo anche la rosa corrente di tutte le squadre partecipanti.
-        // Questo dato serve sia per la visualizzazione sia per impedire di
-        // superare i limiti 3/8/8/6.
-        const { data: rosterRows, error: rosterError } =
-            await supabase
-                .from('league_team_players')
-                .select('team_id, role')
-                .eq('auction_id', id)
-                .in('team_id', teamIds)
-
-        if (rosterError) {
-            console.error(
-                'Errore caricamento rose:',
-                rosterError
-            )
-        }
-
-        const nextRosterCounts: Record<string, RosterCount> = {}
-
-        teamIds.forEach((teamId: string) => {
-            nextRosterCounts[teamId] = {
-                P: 0,
-                D: 0,
-                C: 0,
-                A: 0
-            }
-        })
-
-        ;(rosterRows || []).forEach((row: any) => {
-            const role = row.role as keyof RosterCount
-            if (
-                row.team_id &&
-                nextRosterCounts[row.team_id] &&
-                Object.prototype.hasOwnProperty.call(
-                    ROLE_SQUAD_LIMITS,
-                    role
-                )
-            ) {
-                nextRosterCounts[row.team_id][role] += 1
-            }
-        })
-
-        setTeamRosterCounts(nextRosterCounts)
-
         return orderedTeams
     }
 
@@ -270,67 +201,6 @@ export default function LiveAuctionPage() {
             teams.length
 
         return teams[nextIndex]?.id || null
-    }
-
-    // ============================================================
-    // GESTIONE ROSA / LIMITI RUOLO
-    // ============================================================
-
-    const getRosterCount = (
-        teamId: string | null,
-        role?: string
-    ) => {
-        if (!teamId) {
-            return 0
-        }
-
-        const roster = teamRosterCounts[teamId]
-
-        if (!roster) {
-            return 0
-        }
-
-        if (role) {
-            return roster[role as keyof RosterCount] || 0
-        }
-
-        return Object.values(roster).reduce(
-            (sum, count) => sum + count,
-            0
-        )
-    }
-
-    const getRoleLimit = (role: string) =>
-        ROLE_SQUAD_LIMITS[role] || 0
-
-    const isRoleFull = (
-        teamId: string | null,
-        role: string
-    ) => {
-        const limit = getRoleLimit(role)
-        return limit > 0 && getRosterCount(teamId, role) >= limit
-    }
-
-    const isSquadFull = (teamId: string | null) =>
-        getRosterCount(teamId) >= TOTAL_SQUAD_LIMIT
-
-    const getRosterLabel = (teamId: string) => {
-        const roster = teamRosterCounts[teamId] || {
-            P: 0,
-            D: 0,
-            C: 0,
-            A: 0
-        }
-
-        return `${
-            roster.P
-        }/${ROLE_SQUAD_LIMITS.P} · ${
-            roster.D
-        }/${ROLE_SQUAD_LIMITS.D} · ${
-            roster.C
-        }/${ROLE_SQUAD_LIMITS.C} · ${
-            roster.A
-        }/${ROLE_SQUAD_LIMITS.A}`
     }
 
     // ============================================================
@@ -976,53 +846,6 @@ export default function LiveAuctionPage() {
                         1
                 }
 
-                // Controllo difensivo: la squadra vincitrice non può
-                // ricevere un giocatore se ha già completato il ruolo
-                // oppure l'intera rosa. Il controllo viene rifatto dal
-                // database subito prima della chiusura dell'asta.
-                const { data: winningRosterRows, error: winningRosterError } =
-                    await supabase
-                        .from('league_team_players')
-                        .select('role')
-                        .eq('auction_id', id)
-                        .eq('team_id', finalWinningTeamId)
-
-                if (winningRosterError) {
-                    throw winningRosterError
-                }
-
-                const winningRole =
-                    (freshNomination.players as any)?.role ||
-                    requiredRole
-
-                const winningRoleCount =
-                    (winningRosterRows || []).filter(
-                        (row: any) => row.role === winningRole
-                    ).length
-
-                const winningTotalCount =
-                    (winningRosterRows || []).length
-
-                const winningRoleLimit =
-                    getRoleLimit(winningRole)
-
-                if (winningTotalCount >= TOTAL_SQUAD_LIMIT) {
-                    alert(
-                        "L'asta non può essere chiusa: la squadra vincitrice ha già una rosa completa di 25 giocatori."
-                    )
-                    return
-                }
-
-                if (
-                    winningRoleLimit > 0 &&
-                    winningRoleCount >= winningRoleLimit
-                ) {
-                    alert(
-                        `L'asta non può essere chiusa: la squadra vincitrice ha già raggiunto il limite di ${winningRoleLimit} ${ROLE_NAMES[winningRole] || winningRole}.`
-                    )
-                    return
-                }
-
                 // ====================================================
                 // CALCOLO PROSSIMO TURNO
                 // ====================================================
@@ -1451,90 +1274,6 @@ export default function LiveAuctionPage() {
                 return
             }
 
-            // Controllo lato client prima di chiamare la RPC.
-            // La verifica viene comunque rifatta subito dopo dal server/UI
-            // tramite il caricamento aggiornato della rosa.
-            const myTotalRosterCount =
-                getRosterCount(myTeamId)
-
-            const myRoleRosterCount =
-                getRosterCount(
-                    myTeamId,
-                    requiredRole
-                )
-
-            const currentRoleLimit =
-                getRoleLimit(requiredRole)
-
-            if (
-                myTotalRosterCount >=
-                TOTAL_SQUAD_LIMIT
-            ) {
-                alert(
-                    'La tua rosa è completa: hai già 25 giocatori.'
-                )
-                return
-            }
-
-            if (
-                currentRoleLimit > 0 &&
-                myRoleRosterCount >=
-                currentRoleLimit
-            ) {
-                alert(
-                    `Hai già raggiunto il limite di ${currentRoleLimit} ${roleDisplay}.`
-                )
-                return
-            }
-
-            // Rifacciamo il controllo direttamente sul database prima della
-            // RPC, così un conteggio locale non aggiornato non può consentire
-            // una quarta chiamata da portiere (o il superamento di qualsiasi
-            // altro limite di ruolo).
-            const { data: freshMyRoster, error: freshMyRosterError } =
-                await supabase
-                    .from('league_team_players')
-                    .select('role')
-                    .eq('auction_id', id)
-                    .eq('team_id', myTeamId)
-
-            if (freshMyRosterError) {
-                console.error(
-                    'Errore controllo rosa prima della chiamata:',
-                    freshMyRosterError
-                )
-                alert(
-                    'Non è stato possibile verificare la tua rosa. Riprova.'
-                )
-                return
-            }
-
-            const freshTotalRosterCount =
-                (freshMyRoster || []).length
-
-            const freshRoleRosterCount =
-                (freshMyRoster || []).filter(
-                    (row: any) => row.role === requiredRole
-                ).length
-
-            if (freshTotalRosterCount >= TOTAL_SQUAD_LIMIT) {
-                alert(
-                    'La tua rosa è completa: hai già 25 giocatori.'
-                )
-                return
-            }
-
-            if (
-                currentRoleLimit > 0 &&
-                freshRoleRosterCount >= currentRoleLimit
-            ) {
-                alert(
-                    `Hai già raggiunto il limite di ${currentRoleLimit} ${roleDisplay}.`
-                )
-                await fetchParticipantsAndTeams()
-                return
-            }
-
             const basePrice =
                 parseInt(
                     basePriceValue
@@ -1717,37 +1456,6 @@ export default function LiveAuctionPage() {
                     'Ti sei ritirato da questa asta.'
                 )
 
-                return
-            }
-
-            // Una squadra che ha già completato il ruolo non può partecipare
-            // all'asta per un altro giocatore dello stesso ruolo.
-            const nominationRole =
-                currentNomination.players?.role ||
-                requiredRole
-
-            if (
-                getRosterCount(myTeamId) >=
-                TOTAL_SQUAD_LIMIT
-            ) {
-                alert(
-                    'La tua rosa è completa: non puoi fare altre offerte.'
-                )
-                return
-            }
-
-            if (
-                isRoleFull(
-                    myTeamId,
-                    nominationRole
-                )
-            ) {
-                const roleLimit =
-                    getRoleLimit(nominationRole)
-
-                alert(
-                    `Hai già raggiunto il limite di ${roleLimit} ${ROLE_NAMES[nominationRole] || nominationRole}.`
-                )
                 return
             }
 
@@ -2544,31 +2252,6 @@ export default function LiveAuctionPage() {
                             }
                         }
                     )
-                    // Aggiorna i conteggi della rosa in tempo reale dopo ogni
-                    // assegnazione del giocatore.
-                    .on(
-                        'postgres_changes',
-                        {
-                            event: '*',
-                            schema: 'public',
-                            table: 'league_team_players',
-                            filter: `auction_id=eq.${id}`
-                        },
-                        async () => {
-                            if (!isMounted) {
-                                return
-                            }
-
-                            await fetchParticipantsAndTeams()
-
-                            if (teamData?.id) {
-                                await fetchRoleBudgetInfo(
-                                    teamData.id,
-                                    requiredRole
-                                )
-                            }
-                        }
-                    )
                     .on(
                         'broadcast',
                         {
@@ -2820,9 +2503,7 @@ export default function LiveAuctionPage() {
         !!currentTurnTeamId &&
         currentTurnTeamId ===
         myTeamId &&
-        !currentNomination &&
-        !isRoleFull(myTeamId, requiredRole) &&
-        !isSquadFull(myTeamId)
+        !currentNomination
 
     const hasWithdrawn =
         !!myTeamId &&
@@ -2846,33 +2527,6 @@ export default function LiveAuctionPage() {
         !!myTeamId &&
         highestTeamId ===
         myTeamId
-
-    const myRoster =
-        teamRosterCounts[myTeamId || ''] || {
-            P: 0,
-            D: 0,
-            C: 0,
-            A: 0
-        }
-
-    const myRosterTotal =
-        Object.values(myRoster).reduce(
-            (sum, count) => sum + count,
-            0
-        )
-
-    const myRoleCount =
-        myRoster[requiredRole as keyof RosterCount] || 0
-
-    const myRoleLimit =
-        getRoleLimit(requiredRole)
-
-    const myRoleIsFull =
-        myRoleLimit > 0 &&
-        myRoleCount >= myRoleLimit
-
-    const mySquadIsFull =
-        myRosterTotal >= TOTAL_SQUAD_LIMIT
 
     // ============================================================
     // RENDER
@@ -2919,10 +2573,6 @@ export default function LiveAuctionPage() {
                     <div className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs font-black uppercase">
                         Budget Tot:{' '}
                         {myBudget} CR
-                    </div>
-
-                    <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-300 text-xs font-black uppercase">
-                        Rosa: {myRosterTotal}/{TOTAL_SQUAD_LIMIT}
                     </div>
 
                 </div>
@@ -3374,24 +3024,6 @@ export default function LiveAuctionPage() {
                                 </button>
                             )}
 
-                            {myTeamId &&
-                                currentTurnTeamId === myTeamId &&
-                                !currentNomination &&
-                                (myRoleIsFull || mySquadIsFull) && (
-                                    <div className="mt-4 bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-                                        <p className="text-xs font-black uppercase text-red-300">
-                                            {mySquadIsFull
-                                                ? 'Rosa completa'
-                                                : `Limite ${roleDisplay} raggiunto`}
-                                        </p>
-                                        <p className="text-[11px] text-slate-400 mt-1">
-                                            {mySquadIsFull
-                                                ? `Hai già ${TOTAL_SQUAD_LIMIT} giocatori in rosa.`
-                                                : `Hai già ${myRoleCount}/${myRoleLimit} ${roleDisplay}.`}
-                                        </p>
-                                    </div>
-                                )}
-
                         </div>
                     )}
 
@@ -3447,17 +3079,6 @@ export default function LiveAuctionPage() {
                                                     Turno di chiamata
                                                 </span>
                                             )}
-
-                                        <span className="text-[10px] uppercase font-black text-slate-400 block mt-2">
-                                            Rosa {getRosterCount(team.id)}/{TOTAL_SQUAD_LIMIT}
-                                        </span>
-
-                                        <span className="text-[9px] font-bold text-slate-500 block mt-0.5">
-                                            P {getRosterCount(team.id, 'P')}/{ROLE_SQUAD_LIMITS.P} ·{' '}
-                                            D {getRosterCount(team.id, 'D')}/{ROLE_SQUAD_LIMITS.D} ·{' '}
-                                            C {getRosterCount(team.id, 'C')}/{ROLE_SQUAD_LIMITS.C} ·{' '}
-                                            A {getRosterCount(team.id, 'A')}/{ROLE_SQUAD_LIMITS.A}
-                                        </span>
 
                                     </div>
 
@@ -3642,34 +3263,6 @@ export default function LiveAuctionPage() {
                         {/* PREZZO BASE */}
 
                         <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-4">
-
-                            <div className="flex items-center justify-between gap-3 mb-3">
-                                <div>
-                                    <span className="text-xs font-black uppercase text-slate-400 block">
-                                        Rosa attuale
-                                    </span>
-                                    <span className="text-sm font-black text-white">
-                                        {myRosterTotal}/{TOTAL_SQUAD_LIMIT} giocatori
-                                    </span>
-                                </div>
-
-                                <div className="text-right">
-                                    <span className="text-xs font-black uppercase text-slate-400 block">
-                                        {roleDisplay}
-                                    </span>
-                                    <span className={`text-sm font-black ${myRoleIsFull ? 'text-red-400' : 'text-emerald-400'}`}>
-                                        {myRoleCount}/{myRoleLimit}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {(mySquadIsFull || myRoleIsFull) && (
-                                <div className="mb-3 bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-xs font-bold text-red-300">
-                                    {mySquadIsFull
-                                        ? 'La tua rosa è completa: non puoi chiamare altri giocatori.'
-                                        : `Hai già raggiunto il limite di ${myRoleLimit} ${roleDisplay}.`}
-                                </div>
-                            )}
 
                             <label className="text-xs font-black uppercase text-slate-400 block mb-2">
                                 Prezzo base
@@ -3856,16 +3449,14 @@ export default function LiveAuctionPage() {
 
                                             <button
                                                 disabled={
-                                                    isSubmitting ||
-                                                    mySquadIsFull ||
-                                                    myRoleIsFull
+                                                    isSubmitting
                                                 }
                                                 onClick={() =>
                                                     handleNominatePlayer(
                                                         p.id
                                                     )
                                                 }
-                                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-xs font-black uppercase transition"
+                                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg text-xs font-black uppercase transition"
                                             >
                                                 CHIAMA
                                             </button>
