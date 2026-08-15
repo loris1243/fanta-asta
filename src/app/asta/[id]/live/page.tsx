@@ -46,6 +46,7 @@ export default function LiveAuctionPage() {
     const { id } = useParams()
     const router = useRouter()
 
+    const [myRoleCounts, setMyRoleCounts] = useState<Record<string, number>>({ P: 0, D: 0, C: 0, A: 0 })
     const [loading, setLoading] = useState(true)
     const [isAdmin, setIsAdmin] = useState(false)
 
@@ -326,6 +327,30 @@ export default function LiveAuctionPage() {
             setMyRoleBudget(null)
             setMyRoleSpent(0)
         }
+    }
+
+    const fetchMyRoleCounts = async (teamId: string) => {
+        if (!teamId) return
+
+        const { data, error } = await supabase
+            .from('league_team_players')
+            .select('role')
+            .eq('auction_id', id)
+            .eq('team_id', teamId)
+
+        if (error) {
+            console.error('Errore conteggio ruoli rosa:', error)
+            return
+        }
+
+        const counts: Record<string, number> = { P: 0, D: 0, C: 0, A: 0 }
+        data?.forEach((item: any) => {
+            if (item.role && counts[item.role] !== undefined) {
+                counts[item.role]++
+            }
+        })
+
+        setMyRoleCounts(counts)
     }
 
     // ============================================================
@@ -683,6 +708,7 @@ export default function LiveAuctionPage() {
                     playerData.role
                 )
             }
+            await fetchMyRoleCounts(myTeamId!)
         }
     }
 
@@ -1793,6 +1819,7 @@ export default function LiveAuctionPage() {
                     teamData.id,
                     initialRole
                 )
+                await fetchMyRoleCounts(teamData.id)
             }
 
             const fetchedTeams =
@@ -2573,6 +2600,15 @@ export default function LiveAuctionPage() {
                     <div className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs font-black uppercase">
                         Budget Tot:{' '}
                         {myBudget} CR
+                    </div>
+
+                    {/* 👉 NUOVO BLOCCO ROSA E RUOLI */}
+                    <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400 text-xs font-black uppercase flex items-center gap-2">
+                        <span>ROSA: {(myRoleCounts.P + myRoleCounts.D + myRoleCounts.C + myRoleCounts.A)}/25</span>
+                        <span className="text-slate-500 font-normal">|</span>
+                        <span className="text-[10px] text-slate-300">
+                            P:{myRoleCounts.P} D:{myRoleCounts.D} C:{myRoleCounts.C} A:{myRoleCounts.A}
+                        </span>
                     </div>
 
                 </div>
