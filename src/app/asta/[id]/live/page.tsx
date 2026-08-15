@@ -2299,6 +2299,10 @@ export default function LiveAuctionPage() {
                             setCongratulatedPlayer(null)
 
                             await fetchCurrentNomination()
+
+                            if (myTeamId) {
+                                await fetchMyRoleCounts(myTeamId)
+                            }
                         }
                     )
 
@@ -3221,6 +3225,10 @@ export default function LiveAuctionPage() {
                                         }
 
                                         await fetchCurrentNomination()
+
+                                        if (myTeamId) {
+                                            await fetchMyRoleCounts(myTeamId)
+                                        }
                                     }}
                                     className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition"
                                 >
