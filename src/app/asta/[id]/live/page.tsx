@@ -1557,10 +1557,8 @@ export default function LiveAuctionPage() {
                     myRoleSpent
                 ) {
                     alert(
-                        `L'offerta supera il budget residuo per il ruolo ${ROLE_NAMES[requiredRole]} (${myRoleBudget - myRoleSpent} CR disponibili)!`
+                        `L'offerta supera il budget residuo prefissato per il ruolo ${ROLE_NAMES[requiredRole]} (${myRoleBudget - myRoleSpent} CR disponibili)!`
                     )
-
-                    return
                 }
             }
 
@@ -2526,6 +2524,10 @@ export default function LiveAuctionPage() {
         requiredRole
         ] || requiredRole
 
+    const isRoleBudgetExceeded =
+        myRoleBudget !== null &&
+        myRoleSpent > myRoleBudget
+
     // ============================================================
     // TURNO
     // ============================================================
@@ -2587,17 +2589,27 @@ export default function LiveAuctionPage() {
                 <div className="flex items-center gap-2">
 
                     {myRoleBudget !== null && (
-                        <div className="px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-indigo-300 text-xs font-black uppercase flex items-center gap-1.5">
+                        <div
+                            className={`px-3 py-1 rounded-lg text-xs font-black uppercase flex items-center gap-1.5 transition-all ${isRoleBudgetExceeded
+                                    ? 'bg-red-500/15 border border-red-500/50 text-red-400 animate-pulse'
+                                    : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-300'
+                                }`}
+                        >
                             <Wallet className="w-3.5 h-3.5" />
 
                             Budget {roleDisplay}:{' '}
-                            {myRoleBudget -
-                                myRoleSpent}{' '}
-                            CR
 
-                            <span className="text-slate-500 font-normal">
-                                /{' '}
-                                {myRoleBudget}
+                            <span className="font-black">
+                                {myRoleBudget - myRoleSpent} CR
+                            </span>
+
+                            <span
+                                className={`font-normal ${isRoleBudgetExceeded
+                                        ? 'text-red-300'
+                                        : 'text-slate-500'
+                                    }`}
+                            >
+                                / {myRoleBudget}
                             </span>
                         </div>
                     )}
