@@ -470,20 +470,29 @@ export default function ListonePage() {
       colors.length === 1
         ? colors[0]
         : `linear-gradient(90deg, ${colors
-            .map(
-              (color, index) =>
-                `${color} ${
-                  (index / colors.length) * 100
-                }%, ${color} ${
-                  ((index + 1) / colors.length) *
-                    100
-                }%`
-            )
-            .join(', ')})`
+          .map(
+            (color, index) =>
+              `${color} ${(index / colors.length) * 100
+              }%, ${color} ${((index + 1) / colors.length) *
+              100
+              }%`
+          )
+          .join(', ')})`
 
     return (
       <div
-        className="w-10 h-7 shrink-0 rounded-md border border-white/10 shadow-sm overflow-hidden"
+        className="
+                                      relative
+                                      w-7 h-5
+                                      shrink-0
+                                      rounded-md
+                                      overflow-hidden
+                                      flex
+                                      border-2
+                                      border-slate-300/70
+                                      bg-slate-800
+                                      shadow-lg
+                                    "
         style={{
           background,
         }}
@@ -608,7 +617,7 @@ export default function ListonePage() {
       const matchesRole =
         roleFilter === 'TUTTI' ||
         player.role?.toUpperCase() ===
-          roleFilter.toUpperCase()
+        roleFilter.toUpperCase()
 
       const matchesTeam =
         teamFilter === 'TUTTE' ||
@@ -643,7 +652,7 @@ export default function ListonePage() {
   const totalPages =
     Math.ceil(
       filteredPlayers.length /
-        itemsPerPage
+      itemsPerPage
     ) || 1
 
   const safeCurrentPage =
@@ -721,10 +730,9 @@ export default function ListonePage() {
           duration-300
           ease-in-out
           flex flex-col
-          ${
-            isSidebarOpen
-              ? 'w-full md:w-64'
-              : 'w-full md:w-[76px]'
+          ${isSidebarOpen
+            ? 'w-full md:w-64'
+            : 'w-full md:w-[76px]'
           }
         `}
       >
@@ -734,10 +742,9 @@ export default function ListonePage() {
           <div
             className={`
               relative flex items-center
-              ${
-                isSidebarOpen
-                  ? 'justify-between'
-                  : 'justify-center'
+              ${isSidebarOpen
+                ? 'justify-between'
+                : 'justify-center'
               }
               min-h-10
             `}
@@ -745,10 +752,9 @@ export default function ListonePage() {
             <div
               className={`
                 flex items-center
-                ${
-                  isSidebarOpen
-                    ? 'gap-3'
-                    : 'justify-center'
+                ${isSidebarOpen
+                  ? 'gap-3'
+                  : 'justify-center'
                 }
                 min-w-0
               `}
@@ -805,10 +811,9 @@ export default function ListonePage() {
                 hover:text-white
                 hover:bg-slate-800
                 transition-all
-                ${
-                  !isSidebarOpen
-                    ? 'absolute -right-2 top-1/2 -translate-y-1/2 z-20 bg-slate-900 border border-slate-700 shadow-lg'
-                    : ''
+                ${!isSidebarOpen
+                  ? 'absolute -right-2 top-1/2 -translate-y-1/2 z-20 bg-slate-900 border border-slate-700 shadow-lg'
+                  : ''
                 }
               `}
             >
@@ -832,20 +837,18 @@ export default function ListonePage() {
             rounded-xl
             transition-all
             duration-300
-            ${
-              isSidebarOpen
-                ? 'p-3'
-                : 'p-2'
+            ${isSidebarOpen
+              ? 'p-3'
+              : 'p-2'
             }
           `}
         >
           <div
             className={`
               flex items-center
-              ${
-                isSidebarOpen
-                  ? 'gap-3'
-                  : 'justify-center'
+              ${isSidebarOpen
+                ? 'gap-3'
+                : 'justify-center'
               }
             `}
           >
@@ -1395,9 +1398,9 @@ export default function ListonePage() {
                   disabled={
                     !searchTerm &&
                     roleFilter ===
-                      'TUTTI' &&
+                    'TUTTI' &&
                     teamFilter ===
-                      'TUTTE'
+                    'TUTTE'
                   }
                   className="
                     h-[46px]
@@ -1438,29 +1441,29 @@ export default function ListonePage() {
               {(searchTerm ||
                 roleFilter !== 'TUTTI' ||
                 teamFilter !==
-                  'TUTTE') && (
-                <div className="flex items-center gap-2">
-                  {searchTerm && (
-                    <span className="px-2.5 py-1 rounded-md bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-300">
-                      {searchTerm}
-                    </span>
-                  )}
+                'TUTTE') && (
+                  <div className="flex items-center gap-2">
+                    {searchTerm && (
+                      <span className="px-2.5 py-1 rounded-md bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-300">
+                        {searchTerm}
+                      </span>
+                    )}
 
-                  {roleFilter !==
-                    'TUTTI' && (
-                    <span className="px-2.5 py-1 rounded-md bg-purple-500/10 border border-purple-500/20 text-[10px] font-bold text-purple-300">
-                      {roleFilter}
-                    </span>
-                  )}
+                    {roleFilter !==
+                      'TUTTI' && (
+                        <span className="px-2.5 py-1 rounded-md bg-purple-500/10 border border-purple-500/20 text-[10px] font-bold text-purple-300">
+                          {roleFilter}
+                        </span>
+                      )}
 
-                  {teamFilter !==
-                    'TUTTE' && (
-                    <span className="px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-300">
-                      {teamFilter}
-                    </span>
-                  )}
-                </div>
-              )}
+                    {teamFilter !==
+                      'TUTTE' && (
+                        <span className="px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-300">
+                          {teamFilter}
+                        </span>
+                      )}
+                  </div>
+                )}
             </div>
           </section>
 
@@ -1495,7 +1498,7 @@ export default function ListonePage() {
 
                 <tbody className="divide-y divide-slate-700/60">
                   {currentPlayers.length >
-                  0 ? (
+                    0 ? (
                     currentPlayers.map(
                       (player) => {
                         const isTarget =
@@ -1516,10 +1519,9 @@ export default function ListonePage() {
                             className={`
                               group
                               transition
-                              ${
-                                player.is_out
-                                  ? 'bg-red-950/10 hover:bg-red-950/20'
-                                  : 'hover:bg-slate-700/20'
+                              ${player.is_out
+                                ? 'bg-red-950/10 hover:bg-red-950/20'
+                                : 'hover:bg-slate-700/20'
                               }
                             `}
                           >
@@ -1538,10 +1540,9 @@ export default function ListonePage() {
                                     text-[10px]
                                     font-black
                                     border
-                                    ${
-                                      player.is_out
-                                        ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                                        : 'bg-blue-500/10 border-blue-500/20 text-blue-300'
+                                    ${player.is_out
+                                      ? 'bg-red-500/10 border-red-500/20 text-red-400'
+                                      : 'bg-blue-500/10 border-blue-500/20 text-blue-300'
                                     }
                                   `}
                                 >
@@ -1559,10 +1560,9 @@ export default function ListonePage() {
                                       font-bold
                                       text-sm
                                       truncate
-                                      ${
-                                        player.is_out
-                                          ? 'text-slate-500 line-through'
-                                          : 'text-white'
+                                      ${player.is_out
+                                        ? 'text-slate-500 line-through'
+                                        : 'text-white'
                                       }
                                     `}
                                   >
@@ -1594,17 +1594,16 @@ export default function ListonePage() {
                                   text-[10px]
                                   font-black
                                   border
-                                  ${
-                                    player.role ===
+                                  ${player.role ===
                                     'P'
-                                      ? 'bg-sky-500/10 border-sky-500/20 text-sky-300'
-                                      : player.role ===
-                                        'D'
+                                    ? 'bg-sky-500/10 border-sky-500/20 text-sky-300'
+                                    : player.role ===
+                                      'D'
                                       ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
                                       : player.role ===
                                         'C'
-                                      ? 'bg-amber-500/10 border-amber-500/20 text-amber-300'
-                                      : 'bg-red-500/10 border-red-500/20 text-red-300'
+                                        ? 'bg-amber-500/10 border-amber-500/20 text-amber-300'
+                                        : 'bg-red-500/10 border-red-500/20 text-red-300'
                                   }
                                 `}
                               >
@@ -1626,6 +1625,49 @@ export default function ListonePage() {
                                     player.team
                                   }
                                 />
+                                {/* <div
+                                  className="
+                                      relative
+                                      w-7 h-5
+                                      shrink-0
+                                      rounded-md
+                                      overflow-hidden
+                                      flex
+                                      border-2
+                                      border-slate-300/70
+                                      bg-slate-800
+                                      shadow-lg
+                                    "
+                                  title={
+                                    team?.name ??
+                                    player.team
+                                  }
+                                >                                    {teamColors.length > 0 ? (
+
+                                  teamColors.map(
+                                    (color, index) => (
+                                      <span
+                                        key={index}
+                                        className="flex-1 h-full"
+                                        style={{
+                                          backgroundColor:
+                                            color,
+                                        }}
+                                      />
+                                    )
+                                  )
+
+                                ) : (
+
+                                  <span
+                                    className="w-full h-full"
+                                    style={{
+                                      backgroundColor:
+                                        teamColor,
+                                    }}
+                                  />
+
+                                )}</div> */}
 
                                 <div className="min-w-0">
                                   <div className="text-sm font-bold text-white truncate">
@@ -1653,10 +1695,9 @@ export default function ListonePage() {
                                   className={`
                                     text-sm
                                     font-black
-                                    ${
-                                      player.is_out
-                                        ? 'text-slate-500'
-                                        : 'text-emerald-400'
+                                    ${player.is_out
+                                      ? 'text-slate-500'
+                                      : 'text-emerald-400'
                                     }
                                   `}
                                 >
@@ -1695,10 +1736,9 @@ export default function ListonePage() {
                                   border
                                   transition-all
                                   cursor-pointer
-                                  ${
-                                    isTarget
-                                      ? 'bg-amber-500/15 text-amber-400 border-amber-500/30 shadow-sm shadow-amber-500/10'
-                                      : 'bg-slate-950/50 text-slate-600 border-slate-700 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/5'
+                                  ${isTarget
+                                    ? 'bg-amber-500/15 text-amber-400 border-amber-500/30 shadow-sm shadow-amber-500/10'
+                                    : 'bg-slate-950/50 text-slate-600 border-slate-700 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/5'
                                   }
                                 `}
                               >
