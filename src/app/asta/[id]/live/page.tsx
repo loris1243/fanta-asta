@@ -2123,6 +2123,10 @@ export default function LiveAuctionPage() {
                                     await refreshMyTeamData(
                                         teamData.id
                                     )
+
+                                    await fetchMyRoleCounts(
+                                        teamData.id
+                                    )
                                 }
                             }
                         }
@@ -2320,8 +2324,8 @@ export default function LiveAuctionPage() {
 
                             await fetchCurrentNomination()
 
-                            if (myTeamId) {
-                                await fetchMyRoleCounts(myTeamId)
+                            if (teamData?.id) {
+                                await fetchMyRoleCounts(teamData.id)
                             }
                         }
                     )
