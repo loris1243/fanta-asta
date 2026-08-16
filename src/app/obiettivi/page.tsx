@@ -885,11 +885,7 @@ export default function ObiettiviPage() {
                                     ) : (
 
                                       <span
-                                        className="w-full h-full"
-                                        style={{
-                                          backgroundColor:
-                                            teamColor,
-                                        }}
+                                        className="w-full h-full"                                        
                                       />
 
                                     )}
@@ -908,9 +904,6 @@ export default function ObiettiviPage() {
                                       tracking-wider
                                       truncate
                                     "
-                                    style={{
-                                      color: teamColor,
-                                    }}
                                   >
                                     {team?.alias ??
                                       item.player.team}

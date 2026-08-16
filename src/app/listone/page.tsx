@@ -1197,20 +1197,27 @@ export default function ListonePage() {
 
                                 )}</div> */}
 
-                                <div className="min-w-0">
-                                  <div className="text-sm font-bold text-white truncate">
-                                    {teamData
-                                      ?.name ??
-                                      player.team}
-                                  </div>
-
+                                <div className="min-w-0">                            
                                   {teamData?.alias && (
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5">
+                                    <div className="text-[11px]
+
+                                      uppercase
+
+                                      font-black
+
+                                      tracking-wider
+
+                                      truncate">
                                       {
                                         teamData.alias
                                       }
                                     </div>
                                   )}
+                                       <div className="text-[10px] text-slate-500 truncate mt-0.5">
+                                    {teamData
+                                      ?.name ??
+                                      player.team}
+                                  </div>
                                 </div>
                               </div>
                             </td>
