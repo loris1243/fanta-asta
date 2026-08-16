@@ -14,6 +14,13 @@ import {
     LogOut
 } from 'lucide-react'
 
+const ROLE_LIMITS: Record<string, number> = {
+    P: 3,
+    D: 8,
+    C: 8,
+    A: 6
+}
+
 const ROLE_NAMES: Record<string, string> = {
     P: 'Portiere',
     D: 'Difensore',
@@ -138,6 +145,35 @@ export default function LiveAuctionPage() {
     // SQUADRE PARTECIPANTI
     // ============================================================
 
+    const handlePassTurn = async () => {
+        try {
+
+            const nextTurnTeamId =
+                getNextTurnTeamId(
+                    currentTurnTeamId,
+                    teamsData
+                )
+
+
+            const { error } = await supabase
+                .from('auctions')
+                .update({
+                    current_turn_team_id:
+                        nextTurnTeamId
+                })
+                .eq('id', id);
+
+            if (error) throw error;
+
+            // Oppure, se gestisci tutto via stato locale / websocket, richiama la funzione di aggiornamento dati
+            // fetchAuctionData();
+
+        } catch (err) {
+            console.error("Errore durante il passaggio del turno:", err);
+            alert("Impossibile passare il turno. Riprova.");
+        }
+    };
+
     const fetchParticipantsAndTeams = async () => {
         const { data: participants, error } = await supabase
             .from('auction_participants')
@@ -171,10 +207,6 @@ export default function LiveAuctionPage() {
             return []
         }
 
-        /*
-         * Manteniamo l'ordine restituito da auction_participants.
-         * Questo ordine viene usato per la rotazione dei turni.
-         */
         const orderedTeams =
             teamIds
                 .map((teamId: string) =>
@@ -364,7 +396,6 @@ export default function LiveAuctionPage() {
 
         const counts: Record<string, number> = { P: 0, D: 0, C: 0, A: 0 }
         data?.forEach((item: any) => {
-            console.log("Giocatore trovato in rosa con ruolo:", item.role)
             if (item.role && counts[item.role] !== undefined) {
                 counts[item.role]++
             }
@@ -892,19 +923,11 @@ export default function LiveAuctionPage() {
                         1
                 }
 
-                // ====================================================
-                // CALCOLO PROSSIMO TURNO
-                // ====================================================
-
                 const nextTurnTeamId =
                     getNextTurnTeamId(
                         currentTurnTeamId,
                         teamsData
                     )
-
-                // ====================================================
-                // CHIUSURA NOMINATION
-                // ====================================================
 
                 const {
                     error:
@@ -934,10 +957,6 @@ export default function LiveAuctionPage() {
                 if (closeError) {
                     throw closeError
                 }
-
-                // ====================================================
-                // TRANSAZIONE
-                // ====================================================
 
                 const playerId =
                     freshNomination.player_id
@@ -1030,8 +1049,8 @@ export default function LiveAuctionPage() {
                     }
 
                     if (finalWinningTeamId === myTeamId) {
-    await fetchMyRoleCounts(myTeamId!);
-}
+                        await fetchMyRoleCounts(myTeamId!);
+                    }
 
                     const targetTeam =
                         teamsData.find(
@@ -1079,17 +1098,6 @@ export default function LiveAuctionPage() {
                     }
                 }
 
-                // ====================================================
-                // AGGIORNA TURNO
-                //
-                // QUESTO È IL FIX PRINCIPALE DELLA ROTAZIONE.
-                //
-                // Esempio:
-                // Client 1 → Client 2
-                // Client 2 → Client 3
-                // Client 3 → Client 1
-                // ====================================================
-
                 if (nextTurnTeamId) {
                     const {
                         error:
@@ -1130,10 +1138,6 @@ export default function LiveAuctionPage() {
                         )
                     }
                 }
-
-                // ====================================================
-                // PULIZIA STATO LOCALE
-                // ====================================================
 
                 setCurrentNomination(null)
                 setCurrentBid(0)
@@ -1294,8 +1298,19 @@ export default function LiveAuctionPage() {
 
     const handleNominatePlayer =
         async (
-            playerId: number
+            playerId: number, playerRole: string
         ) => {
+            const currentCount = myRoleCounts[playerRole] || 0;
+            const limit = ROLE_LIMITS[playerRole];
+
+            if (currentCount >= limit) {
+                alert(`Hai raggiunto il limite massimo di ${limit} per il ruolo ${ROLE_NAMES[playerRole]}. Il turno passa alla prossima squadra.`);
+
+                const nextTeamId = getNextTurnTeamId(myTeamId, teamsData);
+                await supabase.from('auctions').update({ current_turn_team_id: nextTeamId }).eq('id', id);
+                return;
+            }
+
             if (
                 isSubmitting
             ) {
@@ -1510,11 +1525,6 @@ export default function LiveAuctionPage() {
                 return
             }
 
-            /*
-             * FIX:
-             * se siamo già noi ad avere l'offerta massima,
-             * non ha senso rilanciare contro noi stessi.
-             */
             if (
                 highestTeamId ===
                 myTeamId
@@ -1949,11 +1959,6 @@ export default function LiveAuctionPage() {
                     .channel(
                         channelTopic
                     )
-
-                    // ====================================================
-                    // AUCTION
-                    // ====================================================
-
                     .on(
                         'postgres_changes',
                         {
@@ -2010,14 +2015,6 @@ export default function LiveAuctionPage() {
                                 )
                             }
 
-                            /*
-                             * Quando l'admin preme "Continua l'Asta",
-                             * il nuovo current_turn_team_id viene
-                             * propagato tramite Realtime.
-                             *
-                             * Questo chiude il modale sugli altri
-                             * client.
-                             */
                             if (
                                 isCongratulationModalOpen &&
                                 newTurn !==
@@ -2035,11 +2032,6 @@ export default function LiveAuctionPage() {
                             }
                         }
                     )
-
-                    // ====================================================
-                    // NOMINATION
-                    // ====================================================
-
                     .on(
                         'postgres_changes',
                         {
@@ -2061,9 +2053,6 @@ export default function LiveAuctionPage() {
                                 return
                             }
 
-                            /*
-                             * NOMINATION APERTA
-                             */
                             if (
                                 payload.new?.status ===
                                 'in_corso'
@@ -2072,12 +2061,6 @@ export default function LiveAuctionPage() {
                                 return
                             }
 
-                            /*
-                             * NOMINATION CHIUSA
-                             *
-                             * Il modale viene mostrato
-                             * a TUTTI i client.
-                             */
                             if (
                                 payload.new?.status ===
                                 'chiusa'
@@ -2144,11 +2127,6 @@ export default function LiveAuctionPage() {
                             }
                         }
                     )
-
-                    // ====================================================
-                    // OFFERTE
-                    // ====================================================
-
                     .on(
                         'postgres_changes',
                         {
@@ -2200,11 +2178,6 @@ export default function LiveAuctionPage() {
                             }
                         }
                     )
-
-                    // ====================================================
-                    // RITIRI
-                    // ====================================================
-
                     .on(
                         'postgres_changes',
                         {
@@ -2254,11 +2227,6 @@ export default function LiveAuctionPage() {
                             }
                         }
                     )
-
-                    // ====================================================
-                    // SQUADRE / BUDGET
-                    // ====================================================
-
                     .on(
                         'postgres_changes',
                         {
@@ -2346,11 +2314,6 @@ export default function LiveAuctionPage() {
                             if (!isMounted) {
                                 return
                             }
-
-                            console.log(
-                                '📢 Continua asta ricevuto:',
-                                payload
-                            )
 
                             setIsCongratulationModalOpen(false)
                             setCongratulatedPlayer(null)
@@ -2588,8 +2551,13 @@ export default function LiveAuctionPage() {
         myRoleSpent > myRoleBudget
 
     // ============================================================
-    // TURNO
+    // TURNO E DISABILITAZIONE PULSANTI RILANCIO
     // ============================================================
+
+    const currentRoleCode = currentNomination?.players?.role || requiredRole
+    const currentRoleCount = myRoleCounts[currentRoleCode] || 0
+    const currentRoleLimit = ROLE_LIMITS[currentRoleCode] || 99
+    const isRoleFull = currentRoleCount >= currentRoleLimit
 
     const canNominate =
         !!myTeamId &&
@@ -2612,10 +2580,6 @@ export default function LiveAuctionPage() {
                 )
         )
 
-    /*
-     * Se sono già io il miglior offerente,
-     * non devo rilanciare contro me stesso.
-     */
     const amHighestBidder =
         !!myTeamId &&
         highestTeamId ===
@@ -2678,7 +2642,6 @@ export default function LiveAuctionPage() {
                         {myBudget} CR
                     </div>
 
-                    {/* 👉 NUOVO BLOCCO ROSA E RUOLI */}
                     <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400 text-xs font-black uppercase flex items-center gap-2">
                         <span>ROSA: {(myRoleCounts.P + myRoleCounts.D + myRoleCounts.C + myRoleCounts.A)}/25</span>
                         <span className="text-slate-500 font-normal">|</span>
@@ -2910,6 +2873,15 @@ export default function LiveAuctionPage() {
                                     </div>
                                 )}
 
+                            {/* MESSAGGIO SLOT PIENI */}
+                            {isRoleFull && (
+                                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-center">
+                                    <p className="text-xs font-black uppercase text-amber-400">
+                                        ⚠️ Hai esaurito gli slot disponibili per questo ruolo ({currentRoleCount}/{currentRoleLimit}). Rilanci disabilitati.
+                                    </p>
+                                </div>
+                            )}
+
                             {/* BOTTONI ASTA */}
 
                             {!hasWithdrawn ? (
@@ -2933,37 +2905,40 @@ export default function LiveAuctionPage() {
                                             <div className="grid grid-cols-3 gap-3">
 
                                                 <button
+                                                    disabled={isRoleFull}
                                                     onClick={() =>
                                                         handlePlaceBid(
                                                             currentBid +
                                                             1
                                                         )
                                                     }
-                                                    className="py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold uppercase text-sm transition"
+                                                    className="py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold uppercase text-sm transition"
                                                 >
                                                     +1
                                                 </button>
 
                                                 <button
+                                                    disabled={isRoleFull}
                                                     onClick={() =>
                                                         handlePlaceBid(
                                                             currentBid +
                                                             5
                                                         )
                                                     }
-                                                    className="py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold uppercase text-sm transition"
+                                                    className="py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold uppercase text-sm transition"
                                                 >
                                                     +5
                                                 </button>
 
                                                 <button
+                                                    disabled={isRoleFull}
                                                     onClick={() =>
                                                         handlePlaceBid(
                                                             currentBid +
                                                             10
                                                         )
                                                     }
-                                                    className="py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold uppercase text-sm transition"
+                                                    className="py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold uppercase text-sm transition"
                                                 >
                                                     +10
                                                 </button>
@@ -2974,7 +2949,8 @@ export default function LiveAuctionPage() {
 
                                                 <input
                                                     type="number"
-                                                    placeholder={`Offerta personalizzata (> ${currentBid})`}
+                                                    disabled={isRoleFull}
+                                                    placeholder={isRoleFull ? "Slot ruolo esauriti" : `Offerta personalizzata (> ${currentBid})`}
                                                     value={
                                                         customBidValue
                                                     }
@@ -2987,10 +2963,11 @@ export default function LiveAuctionPage() {
                                                                 .value
                                                         )
                                                     }
-                                                    className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500"
+                                                    className="flex-1 bg-slate-900 border border-slate-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500"
                                                 />
 
                                                 <button
+                                                    disabled={isRoleFull}
                                                     onClick={() => {
                                                         const value =
                                                             parseInt(
@@ -3015,7 +2992,7 @@ export default function LiveAuctionPage() {
                                                             value
                                                         )
                                                     }}
-                                                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-black text-xs uppercase transition"
+                                                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-black text-xs uppercase transition"
                                                 >
                                                     Rilancia
                                                 </button>
@@ -3114,40 +3091,50 @@ export default function LiveAuctionPage() {
                         <div className="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-12 text-center space-y-4">
 
                             <h3 className="text-xl font-black uppercase">
-                                In attesa della chiamata
+                                {canNominate && (myRoleCounts[requiredRole] || 0) >= ROLE_LIMITS[requiredRole]
+                                    ? "Hai completato gli slot per il ruolo"
+                                    : "In attesa della chiamata"
+                                }
                             </h3>
 
                             <p className="text-xs text-slate-400">
-                                È il turno di{' '}
-                                <span className="text-amber-400 font-bold">
-                                    {
-                                        currentTurnTeamName
-                                    }
-                                </span>{' '}
-                                di chiamare un{' '}
-                                <span className="text-white font-bold">
-                                    {
-                                        roleDisplay
-                                    }
-                                </span>
-                                .
+                                {canNominate && (myRoleCounts[requiredRole] || 0) >= ROLE_LIMITS[requiredRole] ? (
+                                    <span>
+                                        Hai esaurito i posti disponibili per il ruolo di <span className="text-white font-bold">{roleDisplay}</span>. Puoi passare il turno.
+                                    </span>
+                                ) : (
+                                    <span>
+                                        È il turno di{' '}
+                                        <span className="text-amber-400 font-bold">
+                                            {currentTurnTeamName}
+                                        </span>{' '}
+                                        di chiamare un{' '}
+                                        <span className="text-white font-bold">
+                                            {roleDisplay}
+                                        </span>.
+                                    </span>
+                                )}
                             </p>
 
-                            {canNominate && (
+                            {canNominate && (myRoleCounts[requiredRole] || 0) < ROLE_LIMITS[requiredRole] ? (
                                 <button
                                     onClick={() =>
-                                        setIsNominateModalOpen(
-                                            true
-                                        )
+                                        setIsNominateModalOpen(true)
                                     }
                                     className="mt-4 px-6 py-3 bg-blue-600 rounded-xl font-black text-xs uppercase hover:bg-blue-500 transition"
                                 >
-                                    Chiama{' '}
-                                    {
-                                        roleDisplay
-                                    }
+                                    Chiama {roleDisplay}
                                 </button>
-                            )}
+                            ) : canNominate ? (
+                                <div className="mt-4">
+                                    <button
+                                        onClick={() => handlePassTurn()}
+                                        className="px-6 py-3 bg-amber-600 rounded-xl font-black text-xs uppercase hover:bg-amber-500 transition text-white"
+                                    >
+                                        Passa il turno
+                                    </button>
+                                </div>
+                            ) : null}
 
                         </div>
                     )}
@@ -3232,7 +3219,6 @@ export default function LiveAuctionPage() {
                     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
                         <div className="w-full max-w-md bg-slate-900 border border-red-500/30 rounded-2xl shadow-2xl p-6">
 
-                            {/* HEADER */}
                             <div className="flex items-center gap-3 mb-5">
 
                                 <div className="w-11 h-11 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center">
@@ -3251,7 +3237,6 @@ export default function LiveAuctionPage() {
 
                             </div>
 
-                            {/* DATI */}
                             <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-4 mb-5 space-y-3">
 
                                 <div className="flex justify-between text-sm">
@@ -3296,7 +3281,6 @@ export default function LiveAuctionPage() {
 
                             </div>
 
-                            {/* MESSAGGIO */}
                             <p className="text-sm text-slate-300 leading-relaxed mb-6">
                                 Questa offerta supera il budget che hai
                                 impostato per questo ruolo.
@@ -3306,7 +3290,6 @@ export default function LiveAuctionPage() {
                                 Vuoi comunque effettuare l'offerta?
                             </p>
 
-                            {/* AZIONI */}
                             <div className="flex gap-3">
 
                                 <button
@@ -3337,7 +3320,6 @@ export default function LiveAuctionPage() {
 
             {/* ===================================================
                 MODALE ASSEGNAZIONE
-                VISIBILE A TUTTI I CLIENT
             =================================================== */}
 
             {isCongratulationModalOpen &&
@@ -3398,8 +3380,6 @@ export default function LiveAuctionPage() {
                                 </div>
 
                             </div>
-
-                            {/* SOLO ADMIN */}
 
                             {isAdmin ? (
                                 <button
@@ -3472,8 +3452,6 @@ export default function LiveAuctionPage() {
                             </div>
                         )}
 
-                        {/* HEADER */}
-
                         <div className="flex justify-between items-center">
 
                             <h3 className="text-sm font-black uppercase text-white">
@@ -3500,8 +3478,6 @@ export default function LiveAuctionPage() {
                             </button>
 
                         </div>
-
-                        {/* PREZZO BASE */}
 
                         <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-4">
 
@@ -3543,8 +3519,6 @@ export default function LiveAuctionPage() {
                             </p>
 
                         </div>
-
-                        {/* FILTRI */}
 
                         <div className="flex flex-col sm:flex-row items-center gap-2">
 
@@ -3641,8 +3615,6 @@ export default function LiveAuctionPage() {
 
                         </div>
 
-                        {/* ELENCO GIOCATORI */}
-
                         <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
 
                             {availablePlayers.length ===
@@ -3674,7 +3646,6 @@ export default function LiveAuctionPage() {
                                                     <span className="font-bold text-sm text-white">
                                                         {p.name.toUpperCase()}
                                                     </span>
-                                                    {/* Visualizzazione bandierina + nome completo + alias */}
                                                     {(() => {
                                                         const teamInfo = getRealTeamData(p.team)
                                                         return (
@@ -3697,7 +3668,7 @@ export default function LiveAuctionPage() {
                                                 }
                                                 onClick={() =>
                                                     handleNominatePlayer(
-                                                        p.id
+                                                        p.id, p.role
                                                     )
                                                 }
                                                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg text-xs font-black uppercase transition"
@@ -3720,6 +3691,7 @@ export default function LiveAuctionPage() {
         </div>
     )
 }
+
 const getTeamColors = (teamData: any): string[] => {
     if (!teamData) return ['#334155']
     if (Array.isArray(teamData.colors) && teamData.colors.length > 0) {

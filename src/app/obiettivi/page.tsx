@@ -9,15 +9,6 @@ import {
   Percent,
   DollarSign,
   AlertTriangle,
-  LayoutDashboard,
-  Shield,
-  ClipboardList,
-  Inbox,
-  Users,
-  ScrollText,
-  Building2,
-  LogOut,
-  Gavel,
 } from 'lucide-react'
 
 import { getCurrentUser, logout } from '../actions/auth'
@@ -526,19 +517,6 @@ export default function ObiettiviPage() {
                 </div>
 
               </div>
-
-              <div className="px-4 py-2.5 rounded-xl bg-slate-800/70 border border-slate-700/80">
-
-                <div className="flex items-center gap-2">
-
-                  <span className="text-xs font-bold text-slate-300">
-                    {maxBudget} FM
-                  </span>
-
-                </div>
-
-              </div>
-
             </div>
 
           </header>
