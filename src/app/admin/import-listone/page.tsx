@@ -43,6 +43,7 @@ export default function ImportListonePage() {
   const [user, setUser] = useState<UserProfile | null>(null)
   const [loadingPage, setLoadingPage] = useState(true)
   const [loadingImport, setLoadingImport] = useState(false)
+  const [importProgress, setImportProgress] = useState(0)
 
   const [lastResult, setLastResult] = useState<ImportResult | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -86,6 +87,7 @@ export default function ImportListonePage() {
     if (!file) return
 
     setLoadingImport(true)
+    setImportProgress(0)
     setLastResult(null)
     setErrorMessage(null)
 
@@ -163,7 +165,11 @@ export default function ImportListonePage() {
           /*
            * 2. Elaborazione Excel
            */
+          const totalRows = data.length + (existingPlayers?.length || 0)
+          let processedCount = 0
+          
           for (const row of data) {
+            processedCount++
             const playerId = Number(row['#'])
             const name = row['Nome']
             const team = row['Sq.']
@@ -256,6 +262,9 @@ export default function ImportListonePage() {
                 updatedCount++
               }
             }
+            
+            const progress = Math.round((processedCount / totalRows) * 100)
+            setImportProgress(progress)
           }
 
           /*
@@ -264,6 +273,7 @@ export default function ImportListonePage() {
            */
           if (existingPlayers) {
             for (const player of existingPlayers) {
+              processedCount++
               if (
                 !processedIds.includes(player.id) &&
                 !player.is_out
@@ -286,6 +296,9 @@ export default function ImportListonePage() {
 
                 deactivatedCount++
               }
+              
+              const progress = Math.round((processedCount / totalRows) * 100)
+              setImportProgress(progress)
             }
           }
 
@@ -337,6 +350,7 @@ export default function ImportListonePage() {
           )
         } finally {
           setLoadingImport(false)
+          setImportProgress(0)
         }
       }
 
@@ -380,6 +394,46 @@ export default function ImportListonePage() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col md:flex-row">
+      {/* =========================================================
+          OVERLAY BLOCCO UI DURANTE IMPORTAZIONE
+      ========================================================= */}
+      {loadingImport && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4">
+            {/* Spinner */}
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            </div>
+
+            {/* Testo */}
+            <h3 className="text-center text-lg font-bold text-white mb-2">
+              Importazione in corso
+            </h3>
+            <p className="text-center text-sm text-slate-400 mb-6">
+              Elaborazione dei giocatori dal listone...
+            </p>
+
+            {/* Barra di progresso */}
+            <div className="mb-4">
+              <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all duration-300 ease-out"
+                  style={{ width: `${importProgress}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Percentuale */}
+            <div className="text-center">
+              <span className="text-2xl font-black text-blue-400">{importProgress}%</span>
+              <p className="text-xs text-slate-500 mt-2">Non chiudere questa pagina</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* =========================================================
           SIDEBAR
       ========================================================= */}
