@@ -6,20 +6,14 @@ import Link from 'next/link'
 import {
   ArrowLeft,
   Building2,
-  LayoutDashboard,
-  Shield,
-  Target,
-  ClipboardList,
-  Inbox,
   Users,
-  Settings,
-  ScrollText,
-  LogOut,
   Play,
   Loader2,
+  Shield,
 } from 'lucide-react'
 
 import { supabase } from '../../../lib/supabaseClient'
+import DashboardSidebar from '../../../components/DashboardSidebar'
 
 interface LeagueTeam {
   id: string
@@ -35,6 +29,7 @@ interface CurrentUser {
   id: string
   username: string
   role: string
+  budget?: number
 }
 
 export default function WaitingRoomPage() {
@@ -48,8 +43,10 @@ export default function WaitingRoomPage() {
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState(false)
   const [auctionStatus, setAuctionStatus] = useState('attesa')
-  const [currentUser, setCurrentUser] =
-    useState<CurrentUser | null>(null)
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
+  const [remainingBudget, setRemainingBudget] = useState(500)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const currentTeamIdRef = useRef<string | null>(null)
 
@@ -59,23 +56,11 @@ export default function WaitingRoomPage() {
   const auctionChannelRef =
     useRef<ReturnType<typeof supabase.channel> | null>(null)
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-
   useEffect(() => {
     if (!auctionId) return
 
     let isMounted = true
 
-    /*
-     * ============================================================
-     * RECUPERO SQUADRE
-     * ============================================================
-     *
-     * Mostriamo tutte le squadre della lega.
-     *
-     * Una squadra viene considerata partecipante/online solo se
-     * esiste il relativo record in auction_participants.
-     */
     const fetchTeams = async () => {
       const {
         data: teams,
@@ -121,11 +106,6 @@ export default function WaitingRoomPage() {
 
           return {
             ...team,
-
-            /*
-             * Una squadra è online solamente se esiste
-             * come partecipante all'asta ed è_online=true.
-             */
             is_online:
               participant?.is_online === true,
           }
@@ -136,19 +116,9 @@ export default function WaitingRoomPage() {
       }
     }
 
-    /*
-     * ============================================================
-     * INIT
-     * ============================================================
-     */
     const init = async () => {
       setLoading(true)
 
-      /*
-       * ----------------------------------------------------------
-       * SESSIONE
-       * ----------------------------------------------------------
-       */
       const {
         data: { session },
       } = await supabase.auth.getSession()
@@ -160,11 +130,6 @@ export default function WaitingRoomPage() {
         return
       }
 
-      /*
-       * ----------------------------------------------------------
-       * RECUPERO ASTA
-       * ----------------------------------------------------------
-       */
       const {
         data: auctionData,
         error: auctionError,
@@ -184,10 +149,6 @@ export default function WaitingRoomPage() {
       if (auctionData?.status) {
         setAuctionStatus(auctionData.status)
 
-        /*
-         * Se l'asta è già iniziata, non ha senso rimanere
-         * nella Waiting Room.
-         */
         if (
           auctionData.status === 'in_corso'
         ) {
@@ -198,18 +159,13 @@ export default function WaitingRoomPage() {
         }
       }
 
-      /*
-       * ----------------------------------------------------------
-       * PROFILO UTENTE
-       * ----------------------------------------------------------
-       */
       const {
         data: profile,
         error: profileError,
       } = await supabase
         .from('profiles')
         .select(
-          'id, username, role'
+          'id, username, role, budget'
         )
         .eq('id', user.id)
         .maybeSingle()
@@ -228,11 +184,6 @@ export default function WaitingRoomPage() {
         )
       }
 
-      /*
-       * ----------------------------------------------------------
-       * RECUPERO SQUADRA DELL'UTENTE
-       * ----------------------------------------------------------
-       */
       const {
         data: teamData,
         error: teamError,
@@ -249,22 +200,39 @@ export default function WaitingRoomPage() {
         )
       }
 
-      /*
-       * ----------------------------------------------------------
-       * REGISTRAZIONE PARTECIPANTE
-       * ----------------------------------------------------------
-       *
-       * Questo è il punto fondamentale:
-       *
-       * quando l'utente entra nella Waiting Room viene creato
-       * (o aggiornato) il record in auction_participants.
-       *
-       * Quindi solo le squadre che entrano realmente nella sala
-       * partecipano all'asta.
-       */
       if (teamData) {
         currentTeamIdRef.current =
           teamData.id
+
+        // Calcolo budget rimanente per la sidebar
+        const { data: settings } = await supabase
+          .from('league_settings')
+          .select('initial_budget')
+          .maybeSingle()
+
+        const initialBudget =
+          settings?.initial_budget ??
+          profile?.budget ??
+          500
+
+        const { data: boughtPlayers } = await supabase
+          .from('league_team_players')
+          .select('price')
+          .eq('team_id', teamData.id)
+
+        const totalSpent =
+          boughtPlayers?.reduce(
+            (acc, player) =>
+              acc + (player.price || 0),
+            0
+          ) ?? 0
+
+        setRemainingBudget(
+          Math.max(
+            initialBudget - totalSpent,
+            0
+          )
+        )
 
         const {
           error: upsertError,
@@ -290,22 +258,12 @@ export default function WaitingRoomPage() {
         }
       }
 
-      /*
-       * ----------------------------------------------------------
-       * CARICAMENTO SQUADRE
-       * ----------------------------------------------------------
-       */
       await fetchTeams()
 
       if (!isMounted) return
 
       setLoading(false)
 
-      /*
-       * ----------------------------------------------------------
-       * REALTIME PARTECIPANTI
-       * ----------------------------------------------------------
-       */
       if (
         participantsChannelRef.current
       ) {
@@ -336,11 +294,6 @@ export default function WaitingRoomPage() {
           )
           .subscribe()
 
-      /*
-       * ----------------------------------------------------------
-       * REALTIME STATO ASTA
-       * ----------------------------------------------------------
-       */
       if (
         auctionChannelRef.current
       ) {
@@ -386,28 +339,6 @@ export default function WaitingRoomPage() {
 
     init()
 
-    /*
-     * ============================================================
-     * CLEANUP
-     * ============================================================
-     *
-     * IMPORTANTE:
-     *
-     * NON impostiamo più is_online=false qui.
-     *
-     * Il cleanup viene eseguito anche quando React smonta la
-     * Waiting Room perché l'utente passa alla pagina /live.
-     *
-     * Se facessimo:
-     *
-     *   is_online: false
-     *
-     * qui, il normale passaggio Waiting Room -> Live
-     * renderebbe immediatamente offline la squadra.
-     *
-     * Inoltre il record in auction_participants deve rimanere
-     * intatto perché determina chi partecipa all'asta.
-     */
     return () => {
       isMounted = false
 
@@ -432,20 +363,9 @@ export default function WaitingRoomPage() {
         auctionChannelRef.current =
           null
       }
-
-      /*
-       * NON modificare auction_participants qui.
-       *
-       * La squadra rimane partecipante anche passando alla Live.
-       */
     }
   }, [auctionId, router])
 
-  /*
-   * ============================================================
-   * AVVIO ASTA
-   * ============================================================
-   */
   const handleForceStart = async () => {
     if (!auctionId || starting) return
 
@@ -478,11 +398,6 @@ export default function WaitingRoomPage() {
     )
   }
 
-  /*
-   * ============================================================
-   * STATISTICHE ONLINE
-   * ============================================================
-   */
   const allTeamsOnline =
     teamsData.length > 0 &&
     teamsData.every(
@@ -494,365 +409,38 @@ export default function WaitingRoomPage() {
       (team) => team.is_online
     ).length
 
-  /*
-   * ============================================================
-   * LOGOUT
-   * ============================================================
-   */
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/login')
   }
 
-  /*
-   * ============================================================
-   * LOADING
-   * ============================================================
-   */
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center font-sans">
         <div className="flex flex-col items-center gap-3">
-
           <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
 
           <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
             Caricamento sala...
           </span>
-
         </div>
       </div>
     )
   }
 
-  /*
-   * ============================================================
-   * PAGINA
-   * ============================================================
-   */
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col md:flex-row">
 
-      {/* =======================================================
-          SIDEBAR
-      ======================================================= */}
-
-      <aside
-        className={`
-          relative shrink-0
-          bg-slate-900/95
-          border-r border-slate-800
-          shadow-xl
-          transition-[width]
-          duration-300
-          ease-in-out
-          flex flex-col
-          ${
-            isSidebarOpen
-              ? 'w-full md:w-64'
-              : 'w-full md:w-[76px]'
-          }
-        `}
-      >
-
-        <div className="relative p-3 md:p-4">
-
-          <div
-            className={`
-              relative flex items-center
-              ${
-                isSidebarOpen
-                  ? 'justify-between'
-                  : 'justify-center'
-              }
-              min-h-10
-            `}
-          >
-
-            <div
-              className={`
-                flex items-center
-                ${
-                  isSidebarOpen
-                    ? 'gap-3'
-                    : 'justify-center'
-                }
-              `}
-            >
-
-              <div className="w-10 h-10 shrink-0 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/20">
-                <Building2 className="w-5 h-5" />
-              </div>
-
-              {isSidebarOpen && (
-                <div>
-
-                  <h1 className="font-extrabold text-base tracking-tight text-white leading-tight">
-                    FantAsta
-                  </h1>
-
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                    Aste Live
-                  </p>
-
-                </div>
-              )}
-
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                setIsSidebarOpen(
-                  (prev) => !prev
-                )
-              }
-              className={`
-                hidden md:flex
-                items-center justify-center
-                w-7 h-7
-                rounded-lg
-                text-slate-500
-                hover:text-white
-                hover:bg-slate-800
-                transition-all
-                ${
-                  !isSidebarOpen
-                    ? 'absolute -right-2 top-1/2 -translate-y-1/2 z-20 bg-slate-900 border border-slate-700 shadow-lg'
-                    : ''
-                }
-              `}
-              aria-label={
-                isSidebarOpen
-                  ? 'Comprimi sidebar'
-                  : 'Espandi sidebar'
-              }
-            >
-              <span className="text-[10px] font-black">
-                {isSidebarOpen
-                  ? '◀'
-                  : '▶'}
-              </span>
-            </button>
-
-          </div>
-
-        </div>
-
-        <div
-          className={`
-            mx-3 md:mx-4 mb-5
-            bg-slate-950/70
-            border border-slate-800
-            rounded-xl
-            ${
-              isSidebarOpen
-                ? 'p-3'
-                : 'p-2'
-            }
-          `}
-        >
-
-          <div
-            className={`
-              flex items-center
-              ${
-                isSidebarOpen
-                  ? 'gap-3'
-                  : 'justify-center'
-              }
-            `}
-          >
-
-            <div className="w-10 h-10 shrink-0 rounded-lg bg-blue-500/10 text-blue-300 border border-blue-500/30 flex items-center justify-center font-black text-xs">
-              {currentUser?.username
-                ?.slice(0, 2)
-                .toUpperCase() || 'U'}
-            </div>
-
-            {isSidebarOpen && (
-              <div className="min-w-0">
-
-                <p className="text-sm font-bold text-white truncate">
-                  {currentUser?.username ||
-                    'Utente'}
-                </p>
-
-                <p className="text-[10px] text-blue-400 font-bold uppercase tracking-wider">
-                  {isAdmin
-                    ? 'Amministratore'
-                    : 'Partecipante'}
-                </p>
-
-              </div>
-            )}
-
-          </div>
-
-        </div>
-
-        <nav className="flex-1 px-3 md:px-4 overflow-y-auto">
-
-          <div className="space-y-1.5">
-
-            <Link
-              href="/"
-              className="flex items-center h-11 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
-            >
-              <LayoutDashboard className="w-4 h-4 shrink-0" />
-
-              {isSidebarOpen && (
-                <span>
-                  Dashboard
-                </span>
-              )}
-            </Link>
-
-            <Link
-              href="/rosa"
-              className="flex items-center h-11 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
-            >
-              <Shield className="w-4 h-4 shrink-0 text-emerald-400" />
-
-              {isSidebarOpen && (
-                <span>
-                  La Mia Squadra
-                </span>
-              )}
-            </Link>
-
-            <Link
-              href="/obiettivi"
-              className="flex items-center h-11 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
-            >
-              <Target className="w-4 h-4 shrink-0 text-amber-400" />
-
-              {isSidebarOpen && (
-                <span>
-                  I Miei Obiettivi
-                </span>
-              )}
-            </Link>
-
-            <Link
-              href="/listone"
-              className="flex items-center h-11 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
-            >
-              <ClipboardList className="w-4 h-4 shrink-0" />
-
-              {isSidebarOpen && (
-                <span>
-                  Listone
-                </span>
-              )}
-            </Link>
-
-            {isAdmin && (
-              <div className="pt-4 mt-4 border-t border-slate-800">
-
-                {isSidebarOpen && (
-                  <span className="px-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
-                    Pannello Admin
-                  </span>
-                )}
-
-                <Link
-                  href="/admin/import-listone"
-                  className="flex items-center h-10 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
-                >
-                  <Inbox className="w-4 h-4 shrink-0" />
-
-                  {isSidebarOpen && (
-                    <span>
-                      Importa Listone
-                    </span>
-                  )}
-                </Link>
-
-                <Link
-                  href="/admin/users"
-                  className="flex items-center h-10 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
-                >
-                  <Users className="w-4 h-4 shrink-0" />
-
-                  {isSidebarOpen && (
-                    <span>
-                      Gestione Partecipanti
-                    </span>
-                  )}
-                </Link>
-
-                <Link
-                  href="/admin/settings"
-                  className="flex items-center h-10 rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
-                >
-                  <Settings className="w-4 h-4 shrink-0" />
-
-                  {isSidebarOpen && (
-                    <span>
-                      Configurazione Lega
-                    </span>
-                  )}
-                </Link>
-
-                {isSidebarOpen && (
-                  <span className="px-2 pt-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
-                    Anagrafiche
-                  </span>
-                )}
-
-                <Link
-                  href="/admin/anagrafiche/serie-a"
-                  className="flex items-center h-9 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
-                >
-                  <ScrollText className="w-4 h-4 shrink-0" />
-
-                  {isSidebarOpen && (
-                    <span>
-                      Squadre Serie A
-                    </span>
-                  )}
-                </Link>
-
-                <Link
-                  href="/admin/anagrafiche/squadre_lega"
-                  className="flex items-center h-9 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition-all gap-3 px-3.5"
-                >
-                  <Building2 className="w-4 h-4 shrink-0" />
-
-                  {isSidebarOpen && (
-                    <span>
-                      Squadre Lega
-                    </span>
-                  )}
-                </Link>
-
-              </div>
-            )}
-
-          </div>
-
-        </nav>
-
-        <div className="mt-auto p-3 md:p-4 border-t border-slate-800">
-
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="w-full flex items-center h-11 rounded-xl text-sm font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all gap-3 px-3.5"
-          >
-            <LogOut className="w-4 h-4 shrink-0" />
-
-            {isSidebarOpen && (
-              <span>
-                Esci
-              </span>
-            )}
-          </button>
-
-        </div>
-
-      </aside>
+      {/* Sostituito il vecchio aside con il componente condiviso */}
+      <DashboardSidebar
+        user={{ username: currentUser?.username || 'Utente', role: currentUser?.role || 'user' }}
+        remainingBudget={remainingBudget}
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
+        onLogout={handleLogout}
+      />
 
       {/* =======================================================
           MAIN
@@ -865,14 +453,6 @@ export default function WaitingRoomPage() {
           {/* HEADER */}
 
           <div className="mb-8">
-
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 text-xs font-bold tracking-wider text-slate-400 hover:text-white uppercase transition-colors mb-5"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Dashboard
-            </Link>
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 
