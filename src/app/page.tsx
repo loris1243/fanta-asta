@@ -73,8 +73,8 @@ function AuctionContent({
               isInCorso
                 ? 'bg-amber-400'
                 : isNuova
-                  ? 'bg-blue-400'
-                  : 'bg-slate-500'
+                ? 'bg-blue-400'
+                : 'bg-slate-500'
             }`}
           />
 
@@ -107,8 +107,8 @@ function AuctionContent({
             isInCorso
               ? 'bg-amber-500/10 text-amber-300 border-amber-500/20'
               : isNuova
-                ? 'bg-blue-500/10 text-blue-300 border-blue-500/20'
-                : 'bg-slate-800 text-slate-400 border-slate-700'
+              ? 'bg-blue-500/10 text-blue-300 border-blue-500/20'
+              : 'bg-slate-800 text-slate-400 border-slate-700'
           }`}
         >
           {isInCorso ? 'In corso' : isNuova ? 'Nuova' : item.status}
@@ -134,6 +134,7 @@ function AuctionContent({
 ============================================================ */
 
 export default function DashboardPage() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [season, setSeason] = useState('Stagione in corso')
   const [user, setUser] = useState<UserProfile | null>(null)
 
@@ -361,58 +362,45 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col md:flex-row">
-      
+
       {/* ======================================================
-          SIDEBAR
+          SIDEBAR (Desktop & Mobile Drawer)
       ====================================================== */}
+
+      {/* Overlay scuro per mobile quando il menu è aperto */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
 
       <aside
         className={`
-          relative shrink-0
-          bg-slate-900/95
+          fixed md:static inset-y-0 left-0 z-50
+          bg-slate-900/95 md:bg-slate-900/95
           border-r border-slate-800
           shadow-xl
-          transition-[width] duration-300 ease-in-out
+          transition-all duration-300 ease-in-out
           flex flex-col
-          ${isSidebarOpen ? 'w-full md:w-64' : 'w-full md:w-[76px]'}
+          ${isMobileMenuOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0'}
+          ${isSidebarOpen ? 'md:w-64' : 'md:w-[76px]'}
         `}
       >
         {/* HEADER SIDEBAR */}
-
         <div className="relative p-3 md:p-4">
-          <div
-            className={`
-              relative flex items-center
-              ${isSidebarOpen ? 'justify-between' : 'justify-center'}
-              min-h-10
-            `}
-          >
-            <div
-              className={`
-                flex items-center
-                ${isSidebarOpen ? 'gap-3' : 'justify-center'}
-                min-w-0
-              `}
-            >
-              <div
-                className="
-                  w-10 h-10 shrink-0
-                  rounded-xl
-                  bg-blue-600
-                  text-white
-                  flex items-center justify-center
-                  shadow-lg shadow-blue-600/20
-                "
-              >
+          <div className={`relative flex items-center ${isSidebarOpen ? 'justify-between' : 'md:justify-center'} justify-between min-h-10`}>
+
+            <div className={`flex items-center ${isSidebarOpen ? 'gap-3' : 'md:justify-center'} gap-3 min-w-0`}>
+              <div className="w-10 h-10 shrink-0 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/20">
                 <Gavel className="w-5 h-5" />
               </div>
 
-              {isSidebarOpen && (
+              {(isSidebarOpen || isMobileMenuOpen) && (
                 <div className="min-w-0">
                   <h1 className="font-extrabold text-base tracking-tight text-white leading-tight">
                     FantAsta
                   </h1>
-
                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                     Aste Live
                   </p>
@@ -420,103 +408,55 @@ export default function DashboardPage() {
               )}
             </div>
 
+            {/* Pulsante chiusura drawer su mobile */}
             <button
               type="button"
-              onClick={() => setIsSidebarOpen((prev) => !prev)}
-              aria-label={
-                isSidebarOpen
-                  ? 'Comprimi barra laterale'
-                  : 'Espandi barra laterale'
-              }
-              title={
-                isSidebarOpen
-                  ? 'Comprimi sidebar'
-                  : 'Espandi sidebar'
-              }
-              className={`
-                hidden md:flex
-                items-center justify-center
-                w-7 h-7
-                rounded-lg
-                text-slate-500
-                hover:text-white
-                hover:bg-slate-800
-                transition-all
-                ${
-                  !isSidebarOpen
-                    ? 'absolute -right-2 top-1/2 -translate-y-1/2 z-20 bg-slate-900 border border-slate-700 shadow-lg'
-                    : ''
-                }
-              `}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="md:hidden p-2 text-slate-400 hover:text-white"
             >
-              {isSidebarOpen ? (
-                <PanelLeftClose className="w-4 h-4" />
-              ) : (
-                <PanelLeftOpen className="w-4 h-4" />
-              )}
+              ✕
             </button>
-          </div>
-        </div>
 
-        {/* USER CARD */}
-
-        <div
-          className={`
-            mx-3 md:mx-4
-            mb-5
-            bg-slate-950/70
-            border border-slate-800
-            rounded-xl
-            transition-all duration-300
-            ${isSidebarOpen ? 'p-3' : 'p-2'}
-          `}
-        >
-          <div
-            className={`
-              flex items-center
-              ${isSidebarOpen ? 'gap-3' : 'justify-center'}
-            `}
-          >
-            <div
-              className="
-                w-10 h-10
-                shrink-0
-                rounded-lg
-                bg-blue-500/10
-                text-blue-300
-                border border-blue-500/30
-                flex items-center justify-center
-                font-black text-xs
-              "
-            >
-              {user.username.slice(0, 2).toUpperCase()}
-            </div>
-
+            {/* Pulsante collassa per desktop */}
             {isSidebarOpen && (
-              <div className="min-w-0 overflow-hidden">
-                <p className="text-sm font-bold text-white truncate">
-                  {formatUsername(user.username)}
-                </p>
-
-                <p className="text-xs text-emerald-400 font-extrabold mt-0.5">
-                  {remainingBudget} FM
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen((prev) => !prev)}
+                aria-label="Comprimi barra laterale"
+                className="hidden md:flex items-center justify-center w-7 h-7 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-all"
+              >
+                <PanelLeftClose className="w-4 h-4" />
+              </button>
             )}
           </div>
+
+          {/* Pulsante di apertura quando la sidebar è chiusa */}
+          {!isSidebarOpen && (
+            <div className="hidden md:flex justify-center mt-3">
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen((prev) => !prev)}
+                aria-label="Espandi barra laterale"
+                className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all border border-slate-800"
+              >
+                <PanelLeftOpen className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* NAVIGAZIONE */}
+        {/* RESTO DEL CONTENUTO DELLA SIDEBAR */}
+        <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
 
-        <nav className="flex-1 px-3 md:px-4 overflow-y-auto">
-          <div className="space-y-1.5">
+          {/* NAVIGAZIONE */}
+          <nav className="space-y-1.5">
 
             <Link
               href="/"
               title={!isSidebarOpen ? 'Dashboard' : undefined}
               className={`
                 flex items-center
-                ${isSidebarOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
+                ${isSidebarOpen || isMobileMenuOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
                 h-11
                 rounded-xl
                 text-sm font-semibold
@@ -528,7 +468,7 @@ export default function DashboardPage() {
             >
               <LayoutDashboard className="w-4 h-4 shrink-0" />
 
-              {isSidebarOpen && (
+              {(isSidebarOpen || isMobileMenuOpen) && (
                 <span className="truncate">
                   Dashboard
                 </span>
@@ -540,7 +480,7 @@ export default function DashboardPage() {
               title={!isSidebarOpen ? 'La Mia Squadra' : undefined}
               className={`
                 flex items-center
-                ${isSidebarOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
+                ${isSidebarOpen || isMobileMenuOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
                 h-11
                 rounded-xl
                 text-sm font-semibold
@@ -552,7 +492,7 @@ export default function DashboardPage() {
             >
               <Shield className="w-4 h-4 shrink-0 text-emerald-400" />
 
-              {isSidebarOpen && (
+              {(isSidebarOpen || isMobileMenuOpen) && (
                 <span className="truncate">
                   La Mia Squadra
                 </span>
@@ -564,7 +504,7 @@ export default function DashboardPage() {
               title={!isSidebarOpen ? 'I Miei Obiettivi' : undefined}
               className={`
                 flex items-center
-                ${isSidebarOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
+                ${isSidebarOpen || isMobileMenuOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
                 h-11
                 rounded-xl
                 text-sm font-semibold
@@ -576,7 +516,7 @@ export default function DashboardPage() {
             >
               <Target className="w-4 h-4 shrink-0 text-amber-400" />
 
-              {isSidebarOpen && (
+              {(isSidebarOpen || isMobileMenuOpen) && (
                 <span className="truncate">
                   I Miei Obiettivi
                 </span>
@@ -588,7 +528,7 @@ export default function DashboardPage() {
               title={!isSidebarOpen ? 'Listone' : undefined}
               className={`
                 flex items-center
-                ${isSidebarOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
+                ${isSidebarOpen || isMobileMenuOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
                 h-11
                 rounded-xl
                 text-sm font-semibold
@@ -600,7 +540,7 @@ export default function DashboardPage() {
             >
               <ClipboardList className="w-4 h-4 shrink-0" />
 
-              {isSidebarOpen && (
+              {(isSidebarOpen || isMobileMenuOpen) && (
                 <span className="truncate">
                   Listone
                 </span>
@@ -608,11 +548,10 @@ export default function DashboardPage() {
             </Link>
 
             {/* ADMIN */}
-
             {user.role === 'admin' && (
               <div className="pt-4 mt-4 border-t border-slate-800">
 
-                {isSidebarOpen && (
+                {(isSidebarOpen || isMobileMenuOpen) && (
                   <span className="px-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
                     Pannello Admin
                   </span>
@@ -620,18 +559,10 @@ export default function DashboardPage() {
 
                 <Link
                   href="/admin/import-listone"
-                  title={
-                    !isSidebarOpen
-                      ? 'Importa Listone'
-                      : undefined
-                  }
+                  title={!isSidebarOpen ? 'Importa Listone' : undefined}
                   className={`
                     flex items-center
-                    ${
-                      isSidebarOpen
-                        ? 'gap-3 px-3.5'
-                        : 'justify-center px-0'
-                    }
+                    ${isSidebarOpen || isMobileMenuOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
                     h-10
                     rounded-xl
                     text-sm font-semibold
@@ -643,7 +574,7 @@ export default function DashboardPage() {
                 >
                   <Inbox className="w-4 h-4 shrink-0" />
 
-                  {isSidebarOpen && (
+                  {(isSidebarOpen || isMobileMenuOpen) && (
                     <span className="truncate">
                       Importa Listone
                     </span>
@@ -652,18 +583,10 @@ export default function DashboardPage() {
 
                 <Link
                   href="/admin/users"
-                  title={
-                    !isSidebarOpen
-                      ? 'Gestione Partecipanti'
-                      : undefined
-                  }
+                  title={!isSidebarOpen ? 'Gestione Partecipanti' : undefined}
                   className={`
                     flex items-center
-                    ${
-                      isSidebarOpen
-                        ? 'gap-3 px-3.5'
-                        : 'justify-center px-0'
-                    }
+                    ${isSidebarOpen || isMobileMenuOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
                     h-10
                     rounded-xl
                     text-sm font-semibold
@@ -675,7 +598,7 @@ export default function DashboardPage() {
                 >
                   <Users className="w-4 h-4 shrink-0" />
 
-                  {isSidebarOpen && (
+                  {(isSidebarOpen || isMobileMenuOpen) && (
                     <span className="truncate">
                       Gestione Partecipanti
                     </span>
@@ -684,18 +607,10 @@ export default function DashboardPage() {
 
                 <Link
                   href="/admin/settings"
-                  title={
-                    !isSidebarOpen
-                      ? 'Configurazione Lega'
-                      : undefined
-                  }
+                  title={!isSidebarOpen ? 'Configurazione Lega' : undefined}
                   className={`
                     flex items-center
-                    ${
-                      isSidebarOpen
-                        ? 'gap-3 px-3.5'
-                        : 'justify-center px-0'
-                    }
+                    ${isSidebarOpen || isMobileMenuOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
                     h-10
                     rounded-xl
                     text-sm font-semibold
@@ -707,14 +622,14 @@ export default function DashboardPage() {
                 >
                   <Settings className="w-4 h-4 shrink-0" />
 
-                  {isSidebarOpen && (
+                  {(isSidebarOpen || isMobileMenuOpen) && (
                     <span className="truncate">
                       Configurazione Lega
                     </span>
                   )}
                 </Link>
 
-                {isSidebarOpen && (
+                {(isSidebarOpen || isMobileMenuOpen) && (
                   <span className="px-2 pt-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
                     Anagrafiche
                   </span>
@@ -722,18 +637,10 @@ export default function DashboardPage() {
 
                 <Link
                   href="/admin/anagrafiche/serie-a"
-                  title={
-                    !isSidebarOpen
-                      ? 'Squadre Serie A'
-                      : undefined
-                  }
+                  title={!isSidebarOpen ? 'Squadre Serie A' : undefined}
                   className={`
                     flex items-center
-                    ${
-                      isSidebarOpen
-                        ? 'gap-3 px-3.5'
-                        : 'justify-center px-0'
-                    }
+                    ${isSidebarOpen || isMobileMenuOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
                     h-9
                     rounded-xl
                     text-xs font-semibold
@@ -745,7 +652,7 @@ export default function DashboardPage() {
                 >
                   <ScrollText className="w-4 h-4 shrink-0" />
 
-                  {isSidebarOpen && (
+                  {(isSidebarOpen || isMobileMenuOpen) && (
                     <span className="truncate">
                       Squadre Serie A
                     </span>
@@ -754,18 +661,10 @@ export default function DashboardPage() {
 
                 <Link
                   href="/admin/anagrafiche/squadre_lega"
-                  title={
-                    !isSidebarOpen
-                      ? 'Squadre Lega'
-                      : undefined
-                  }
+                  title={!isSidebarOpen ? 'Squadre Lega' : undefined}
                   className={`
                     flex items-center
-                    ${
-                      isSidebarOpen
-                        ? 'gap-3 px-3.5'
-                        : 'justify-center px-0'
-                    }
+                    ${isSidebarOpen || isMobileMenuOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
                     h-9
                     rounded-xl
                     text-xs font-semibold
@@ -777,7 +676,7 @@ export default function DashboardPage() {
                 >
                   <Building2 className="w-4 h-4 shrink-0" />
 
-                  {isSidebarOpen && (
+                  {(isSidebarOpen || isMobileMenuOpen) && (
                     <span className="truncate">
                       Squadre Lega
                     </span>
@@ -785,11 +684,10 @@ export default function DashboardPage() {
                 </Link>
               </div>
             )}
-          </div>
-        </nav>
+          </nav>
+        </div>
 
         {/* FOOTER */}
-
         <div className="mt-auto p-3 md:p-4 border-t border-slate-800">
           <button
             onClick={handleLogout}
@@ -798,11 +696,7 @@ export default function DashboardPage() {
             className={`
               w-full
               flex items-center
-              ${
-                isSidebarOpen
-                  ? 'gap-3 px-3.5'
-                  : 'justify-center px-0'
-              }
+              ${isSidebarOpen || isMobileMenuOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
               h-11
               rounded-xl
               text-sm font-semibold
@@ -815,13 +709,14 @@ export default function DashboardPage() {
           >
             <LogOut className="w-4 h-4 shrink-0" />
 
-            {isSidebarOpen && (
+            {(isSidebarOpen || isMobileMenuOpen) && (
               <span>
                 Esci
               </span>
             )}
           </button>
         </div>
+
       </aside>
 
       {/* ======================================================
@@ -829,6 +724,21 @@ export default function DashboardPage() {
       ====================================================== */}
 
       <main className="flex-1 min-w-0 overflow-y-auto">
+
+        {/* Topbar Mobile per aprire il menu */}
+        <div className="md:hidden flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="p-2 rounded-xl bg-slate-800 text-slate-200 hover:text-white"
+            >
+              <LayoutDashboard className="w-5 h-5" />
+            </button>
+            <span className="font-extrabold text-sm text-white">FantAsta</span>
+          </div>
+          <span className="text-xs font-bold text-blue-400">{leagueName}</span>
+        </div>
 
         <div className="max-w-[1500px] mx-auto p-5 sm:p-6 lg:p-8 xl:p-10">
 
@@ -873,8 +783,6 @@ export default function DashboardPage() {
 
           <section className="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-xl mb-6">
 
-            {/* Decorative background */}
-
             <div className="absolute -top-32 -right-32 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
             <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-indigo-600/5 rounded-full blur-3xl pointer-events-none" />
@@ -882,8 +790,6 @@ export default function DashboardPage() {
             <div className="relative p-6 sm:p-8 lg:p-10">
 
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
-
-                {/* TEAM */}
 
                 <div className="flex items-center gap-5 sm:gap-6 min-w-0">
 
@@ -922,8 +828,6 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* QUICK BUDGET */}
-
                 <div className="shrink-0 lg:min-w-[230px]">
 
                   <div className="rounded-2xl bg-slate-950/70 border border-slate-800 p-5">
@@ -956,7 +860,7 @@ export default function DashboardPage() {
                               100,
                               (remainingBudget /
                                 Math.max(initialBudget, 1)) *
-                                100
+                              100
                             )
                           )}%`,
                         }}
@@ -987,10 +891,6 @@ export default function DashboardPage() {
           ================================================== */}
 
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
-
-            {/* =================================================
-                AUCTIONS
-            ================================================= */}
 
             <section className="rounded-3xl border border-slate-800 bg-slate-900 shadow-xl overflow-hidden">
 
@@ -1107,8 +1007,8 @@ export default function DashboardPage() {
                               isInCorso
                                 ? 'bg-amber-500/5 border-amber-500/20 hover:border-amber-500/40'
                                 : isNuova
-                                  ? 'bg-blue-500/5 border-blue-500/20 hover:border-blue-500/40'
-                                  : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
+                                ? 'bg-blue-500/5 border-blue-500/20 hover:border-blue-500/40'
+                                : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
                             }
                           `}
                         >
@@ -1164,13 +1064,7 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            {/* =================================================
-                SIDE INFORMATION
-            ================================================= */}
-
             <aside className="space-y-6">
-
-              {/* BUDGET CARD */}
 
               <section className="rounded-3xl border border-slate-800 bg-slate-900 shadow-xl p-6">
 
@@ -1240,8 +1134,6 @@ export default function DashboardPage() {
 
               </section>
 
-              {/* LEAGUE CARD */}
-
               <section className="rounded-3xl border border-slate-800 bg-slate-900 shadow-xl p-6">
 
                 <div className="flex items-center gap-3 mb-5">
@@ -1285,8 +1177,6 @@ export default function DashboardPage() {
                 </div>
 
               </section>
-
-              {/* QUICK LINKS */}
 
               <section className="rounded-3xl border border-slate-800 bg-slate-900 shadow-xl p-5">
 
