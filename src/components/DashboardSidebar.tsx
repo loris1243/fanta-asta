@@ -1,5 +1,6 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import {
   LogOut,
@@ -46,6 +47,11 @@ export default function DashboardSidebar({
   setIsMobileMenuOpen,
   onLogout,
 }: DashboardSidebarProps) {
+  const pathname = usePathname()
+
+  const isActive = (href: string) => {
+    return pathname === href || pathname.startsWith(href + '/')
+  }
   return (
     <>
       {isMobileMenuOpen && (
@@ -139,9 +145,10 @@ export default function DashboardSidebar({
                 h-11
                 rounded-xl
                 text-sm font-semibold
-                text-white
-                bg-blue-600
-                shadow-md shadow-blue-600/20
+                ${isActive('/') && pathname === '/'
+                  ? 'text-white bg-blue-600 shadow-md shadow-blue-600/20'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                }
                 transition-all
               `}
             >
@@ -161,9 +168,10 @@ export default function DashboardSidebar({
                 h-11
                 rounded-xl
                 text-sm font-semibold
-                text-slate-300
-                hover:text-white
-                hover:bg-slate-800
+                ${isActive('/rosa')
+                  ? 'text-white bg-blue-600 shadow-md shadow-blue-600/20'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                }
                 transition-all
               `}
             >
@@ -183,9 +191,10 @@ export default function DashboardSidebar({
                 h-11
                 rounded-xl
                 text-sm font-semibold
-                text-slate-300
-                hover:text-white
-                hover:bg-slate-800
+                ${isActive('/obiettivi')
+                  ? 'text-white bg-blue-600 shadow-md shadow-blue-600/20'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                }
                 transition-all
               `}
             >
@@ -205,9 +214,10 @@ export default function DashboardSidebar({
                 h-11
                 rounded-xl
                 text-sm font-semibold
-                text-slate-300
-                hover:text-white
-                hover:bg-slate-800
+                ${isActive('/listone')
+                  ? 'text-white bg-blue-600 shadow-md shadow-blue-600/20'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                }
                 transition-all
               `}
             >
@@ -235,9 +245,10 @@ export default function DashboardSidebar({
                     h-10
                     rounded-xl
                     text-sm font-semibold
-                    text-slate-300
-                    hover:text-white
-                    hover:bg-slate-800
+                    ${isActive('/admin/import-listone')
+                      ? 'text-blue-300 bg-blue-500/10 border border-blue-500/20'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                    }
                     transition-all
                   `}
                 >
@@ -257,9 +268,10 @@ export default function DashboardSidebar({
                     h-10
                     rounded-xl
                     text-sm font-semibold
-                    text-slate-300
-                    hover:text-white
-                    hover:bg-slate-800
+                    ${isActive('/admin/users')
+                      ? 'text-blue-300 bg-blue-500/10 border border-blue-500/20'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                    }
                     transition-all
                   `}
                 >
@@ -279,9 +291,10 @@ export default function DashboardSidebar({
                     h-10
                     rounded-xl
                     text-sm font-semibold
-                    text-slate-300
-                    hover:text-white
-                    hover:bg-slate-800
+                    ${isActive('/admin/settings')
+                      ? 'text-blue-300 bg-blue-500/10 border border-blue-500/20'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                    }
                     transition-all
                   `}
                 >
@@ -307,9 +320,10 @@ export default function DashboardSidebar({
                     h-9
                     rounded-xl
                     text-xs font-semibold
-                    text-slate-400
-                    hover:text-white
-                    hover:bg-slate-800
+                    ${isActive('/admin/anagrafiche/serie-a')
+                      ? 'text-blue-300 bg-blue-500/10 border border-blue-500/20'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    }
                     transition-all
                   `}
                 >
@@ -329,9 +343,10 @@ export default function DashboardSidebar({
                     h-9
                     rounded-xl
                     text-xs font-semibold
-                    text-slate-400
-                    hover:text-white
-                    hover:bg-slate-800
+                    ${isActive('/admin/anagrafiche/squadre_lega')
+                      ? 'text-blue-300 bg-blue-500/10 border border-blue-500/20'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    }
                     transition-all
                   `}
                 >
