@@ -47,12 +47,14 @@ function AuctionContent({
   item,
   isInCorso,
   isNuova,
+  isTerminata,
   user,
   handleDeleteAuction,
 }: {
   item: AuctionItem
   isInCorso: boolean
   isNuova: boolean
+  isTerminata: boolean
   user: UserProfile
   handleDeleteAuction: (auctionId: string, e: React.MouseEvent) => void
 }) {
@@ -66,7 +68,9 @@ function AuctionContent({
                 ? 'bg-amber-400'
                 : isNuova
                 ? 'bg-blue-400'
-                : 'bg-slate-500'
+                : isTerminata
+                ? 'bg-green-400' 
+                :'bg-slate-500'
             }`}
           />
 
@@ -99,11 +103,13 @@ function AuctionContent({
             isInCorso
               ? 'bg-amber-500/10 text-amber-300 border-amber-500/20'
               : isNuova
-              ? 'bg-blue-500/10 text-blue-300 border-blue-500/20'
+              ? 'bg-blue-500/10 text-blue-300 border-blue-500/20'              
+              : isTerminata
+              ? 'bg-green-500/10 text-blue-300 border-green-500/20'
               : 'bg-slate-800 text-slate-400 border-slate-700'
           }`}
         >
-          {isInCorso ? 'In corso' : isNuova ? 'Nuova' : item.status}
+          {isInCorso ? 'In corso' : isNuova ? 'Nuova' : isTerminata?'Conclusa' : item.status}
         </span>
 
         {user.role === 'admin' && (
@@ -611,6 +617,9 @@ export default function DashboardPage() {
                         item.status === 'nuova' ||
                         item.status === 'da_iniziare'
 
+                      const conclusa =
+                        item.status === 'conclusa'  
+
                       const handleAuctionClick = (
                         e: React.MouseEvent
                       ) => {
@@ -647,6 +656,7 @@ export default function DashboardPage() {
                               item={item}
                               isInCorso={isInCorso}
                               isNuova={isNuova}
+                              isTerminata = {conclusa}
                               user={user}
                               handleDeleteAuction={
                                 handleDeleteAuction
@@ -661,6 +671,7 @@ export default function DashboardPage() {
                                 item={item}
                                 isInCorso={isInCorso}
                                 isNuova={isNuova}
+                                isTerminata = {conclusa}
                                 user={user}
                                 handleDeleteAuction={
                                   handleDeleteAuction
