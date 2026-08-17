@@ -112,7 +112,7 @@ function AuctionContent({
           {isInCorso ? 'In corso' : isNuova ? 'Nuova' : isTerminata?'Conclusa' : item.status}
         </span>
 
-        {user.role === 'admin' && (
+        {user.role === 'admin' && !isTerminata && (
           <button
             onClick={(e) => handleDeleteAuction(item.id, e)}
             type="button"
@@ -577,7 +577,7 @@ export default function DashboardPage() {
                       </button>
                     )}
 
-                    <Link
+                    {/* <Link
                       href="/rosa"
                       className="
                         inline-flex items-center gap-1
@@ -593,7 +593,7 @@ export default function DashboardPage() {
                     >
                       Vedi tutte
                       <ArrowUpRight className="w-3.5 h-3.5" />
-                    </Link>
+                    </Link> */}
 
                   </div>
 

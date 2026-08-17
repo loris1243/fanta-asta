@@ -53,6 +53,36 @@ const ROLE_ORDER: Record<string, number> = {
   A: 3,
 }
 
+const ROLE_NAMES: Record<string, string> = {
+  P: 'Portieri',
+  D: 'Difensori',
+  C: 'Centrocampisti',
+  A: 'Attaccanti',
+}
+
+const ROLE_STYLES: Record<string, { bg: string; text: string; border: string }> = {
+  P: {
+    bg: 'bg-sky-500/10',
+    text: 'text-sky-300',
+    border: 'border-sky-500/20',
+  },
+  D: {
+    bg: 'bg-emerald-500/10',
+    text: 'text-emerald-300',
+    border: 'border-emerald-500/20',
+  },
+  C: {
+    bg: 'bg-amber-500/10',
+    text: 'text-amber-300',
+    border: 'border-amber-500/20',
+  },
+  A: {
+    bg: 'bg-red-500/10',
+    text: 'text-red-300',
+    border: 'border-red-500/20',
+  },
+}
+
 export default function RosaPage() {
   const [user, setUser] =
     useState<UserProfile | null>(null)
@@ -341,6 +371,15 @@ export default function RosaPage() {
         acc + player.price,
       0
     )
+
+  // Raggruppamento giocatori per ruolo ordinati secondo ROLE_ORDER
+  const groupedPlayers = ['P', 'D', 'C', 'A'].reduce((acc, role) => {
+    const rolePlayers = players.filter((p) => p.role === role)
+    if (rolePlayers.length > 0) {
+      acc[role] = rolePlayers
+    }
+    return acc
+  }, {} as Record<string, PlayerInTeam[]>)
 
   // ============================================================
   // LOADING
@@ -1239,220 +1278,239 @@ export default function RosaPage() {
 
           ) : (
 
-            <div className="space-y-3">
-
-              {players.map((p) => {
-
-                const team =
-                  getPlayerTeam(
-                    p.team || ''
-                  )
+            <div className="space-y-6">
+              {Object.entries(groupedPlayers).map(([role, rolePlayers]) => {
+                const style = ROLE_STYLES[role] || {
+                  bg: 'bg-slate-500/10',
+                  text: 'text-slate-300',
+                  border: 'border-slate-500/20',
+                }
 
                 return (
-
-                  <div
-                    key={p.id}
-                    className={`
-                      p-4
-                      rounded-xl
-                      border
-                      flex
-                      justify-between
-                      items-center
-                      gap-4
-                      ${
-                        p.is_out
-                          ? `
-                            bg-red-500/10
-                            border-red-500/50
-                          `
-                          : `
-                            bg-slate-800
-                            border-slate-700
-                          `
-                      }
-                    `}
-                  >
-
-                    {/* INFO */}
-
-                    <div className="min-w-0">
-
-                      <p
+                  <div key={role} className="space-y-3">
+                    {/* INTESTAZIONE SEZIONE RUOLO */}
+                    <div className="flex items-center gap-3">
+                      <span
                         className={`
-                          font-bold
-                          truncate
-                          ${
-                            p.is_out
-                              ? `
-                                line-through
-                                text-slate-500
-                              `
-                              : 'text-white'
-                          }
+                          px-3
+                          py-1
+                          rounded-lg
+                          text-xs
+                          font-black
+                          border
+                          ${style.bg}
+                          ${style.text}
+                          ${style.border}
                         `}
                       >
-                        {p.player_name}
-                      </p>
+                        {ROLE_NAMES[role] || role} ({rolePlayers.length})
+                      </span>
+                      <div className="flex-1 h-px bg-slate-800" />
+                    </div>
 
-                      {/* SQUADRA */}
+                    {/* LISTA GIOCATORI DEL RUOLO */}
+                    <div className="space-y-3">
+                      {rolePlayers.map((p) => {
+                        const team = getPlayerTeam(p.team || '')
 
-                      <div
-                        className="
-                          text-xs
-                          text-slate-400
-                          flex
-                          items-center
-                          gap-2
-                          mt-1
-                        "
-                      >
-
-                        {/* BANDIERINA */}
-
-                        <div
-                          className="
-                            relative
-                            w-7
-                            h-5
-                            shrink-0
-                            rounded-md
-                            overflow-hidden
-                            flex
-                            border-2
-                            border-slate-300/70
-                            bg-slate-800
-                            shadow-lg
-                          "
-                          title={
-                            team?.name ??
-                            p.team ??
-                            'Squadra sconosciuta'
-                          }
-                        >
-
-                          {team?.colors &&
-                          team.colors.length > 0 ? (
-
-                            team.colors.map(
-                              (
-                                color,
-                                index
-                              ) => (
-                                <span
-                                  key={index}
-                                  className="
-                                    flex-1
-                                    h-full
-                                  "
-                                  style={{
-                                    backgroundColor:
-                                      color,
-                                  }}
-                                />
-                              )
-                            )
-
-                          ) : (
-
-                            <span
-                              className="
-                                w-full
-                                h-full
-                              "
-                              style={{
-                                backgroundColor:
-                                  team?.color ??
-                                  '#3b82f6',
-                              }}
-                            />
-
-                          )}
-
-                          {/* EFFETTO LUCE */}
-
-                          <span
-                            className="
-                              absolute
-                              inset-0
-                              bg-white/5
-                              pointer-events-none
-                            "
-                          />
-
-                        </div>
-
-                        {/* NOME SQUADRA */}
-
-                        <span>
-                          {p.team || '-'}
-                        </span>
-
-                        <span>•</span>
-
-                        {/* RUOLO */}
-
-                        <span>
-                          {p.role}
-                        </span>
-
-                      </div>
-
-                      {/* NOME UFFICIALE */}
-
-                      {team?.name &&
-                        team.name !==
-                          p.team && (
-                          <p
-                            className="
-                              text-[10px]
-                              text-slate-500
-                              mt-0.5
-                              truncate
-                            "
+                        return (
+                          <div
+                            key={p.id}
+                            className={`
+                              p-4
+                              rounded-xl
+                              border
+                              flex
+                              justify-between
+                              items-center
+                              gap-4
+                              ${
+                                p.is_out
+                                  ? `
+                                    bg-red-500/10
+                                    border-red-500/50
+                                  `
+                                  : `
+                                    bg-slate-800
+                                    border-slate-700
+                                  `
+                              }
+                            `}
                           >
-                            {team.name}
-                          </p>
-                        )}
 
+                            {/* INFO */}
+
+                            <div className="min-w-0">
+
+                              <p
+                                className={`
+                                  font-bold
+                                  truncate
+                                  ${
+                                    p.is_out
+                                      ? `
+                                        line-through
+                                        text-slate-500
+                                      `
+                                      : 'text-white'
+                                  }
+                                `}
+                              >
+                                {p.player_name}
+                              </p>
+
+                              {/* SQUADRA */}
+
+                              <div
+                                className="
+                                  text-xs
+                                  text-slate-400
+                                  flex
+                                  items-center
+                                  gap-2
+                                  mt-1
+                                "
+                              >
+
+                                {/* BANDIERINA */}
+
+                                <div
+                                  className="
+                                    relative
+                                    w-7
+                                    h-5
+                                    shrink-0
+                                    rounded-md
+                                    overflow-hidden
+                                    flex
+                                    border-2
+                                    border-slate-300/70
+                                    bg-slate-800
+                                    shadow-lg
+                                  "
+                                  title={
+                                    team?.name ??
+                                    p.team ??
+                                    'Squadra sconosciuta'
+                                  }
+                                >
+
+                                  {team?.colors &&
+                                  team.colors.length > 0 ? (
+
+                                    team.colors.map(
+                                      (
+                                        color,
+                                        index
+                                      ) => (
+                                        <span
+                                          key={index}
+                                          className="
+                                            flex-1
+                                            h-full
+                                          "
+                                          style={{
+                                            backgroundColor:
+                                              color,
+                                          }}
+                                        />
+                                      )
+                                    )
+
+                                  ) : (
+
+                                    <span
+                                      className="
+                                        w-full
+                                        h-full
+                                      "
+                                      style={{
+                                        backgroundColor:
+                                          team?.color ??
+                                          '#3b82f6',
+                                      }}
+                                    />
+
+                                  )}
+
+                                  {/* EFFETTO LUCE */}
+
+                                  <span
+                                    className="
+                                      absolute
+                                      inset-0
+                                      bg-white/5
+                                      pointer-events-none
+                                    "
+                                  />
+
+                                </div>
+
+                                {/* NOME SQUADRA */}
+
+                                <span>
+                                  {p.team || '-'}
+                                </span>
+
+                              </div>
+
+                              {/* NOME UFFICIALE */}
+
+                              {team?.name &&
+                                team.name !==
+                                  p.team && (
+                                  <p
+                                    className="
+                                      text-[10px]
+                                      text-slate-500
+                                      mt-0.5
+                                      truncate
+                                    "
+                                  >
+                                    {team.name}
+                                  </p>
+                                )}
+
+                            </div>
+
+                            {/* PREZZO */}
+
+                            <div
+                              className="
+                                text-right
+                                shrink-0
+                              "
+                            >
+
+                              <p
+                                className="
+                                  text-emerald-400
+                                  font-black
+                                "
+                              >
+                                {p.price} FM
+                              </p>
+
+                              <p
+                                className="
+                                  text-xs
+                                  text-slate-400
+                                "
+                              >
+                                FM:{' '}
+                                {p.fanta_media ??
+                                  '-'}
+                              </p>
+
+                            </div>
+
+                          </div>
+                        )
+                      })}
                     </div>
-
-                    {/* PREZZO */}
-
-                    <div
-                      className="
-                        text-right
-                        shrink-0
-                      "
-                    >
-
-                      <p
-                        className="
-                          text-emerald-400
-                          font-black
-                        "
-                      >
-                        {p.price} FM
-                      </p>
-
-                      <p
-                        className="
-                          text-xs
-                          text-slate-400
-                        "
-                      >
-                        FM:{' '}
-                        {p.fanta_media ??
-                          '-'}
-                      </p>
-
-                    </div>
-
                   </div>
-
                 )
               })}
-
             </div>
 
           )}

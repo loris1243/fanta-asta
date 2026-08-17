@@ -243,6 +243,95 @@ export default function LiveAuctionPage() {
         })
     }
 
+    // ============================================================
+    // AVANZAMENTO RUOLO (condiviso tra chiusura asta e acquisti diretti)
+    // Stessa logica di finalizeAuctionItem: se TUTTE le squadre hanno
+    // completato gli slot per il ruolo indicato, si passa al ruolo
+    // successivo ripartendo dalla prima squadra. Va richiamata ogni
+    // volta che un giocatore entra in una rosa fuori dal normale
+    // flusso d'asta (es. acquisto diretto di un portiere extra),
+    // altrimenti il controllo non scatta mai per quello slot.
+    // ============================================================
+
+    const checkAndAdvanceRoleIfComplete = async (completedRole: string) => {
+        const { data: roleRows, error: roleRowsError } = await supabase
+            .from('league_team_players')
+            .select('team_id')
+            .eq('auction_id', id)
+            .eq('role', completedRole)
+
+        if (roleRowsError) {
+            console.error(
+                'Errore conteggio ruoli per avanzamento turno:',
+                roleRowsError
+            )
+            return
+        }
+
+        const roleCountByTeam: Record<string, number> = {}
+            ; (roleRows || []).forEach((row: any) => {
+                roleCountByTeam[row.team_id] =
+                    (roleCountByTeam[row.team_id] || 0) + 1
+            })
+
+        const roleLimit = ROLE_LIMITS[completedRole] || 0
+
+        const allTeamsRoleComplete =
+            teamsData.length > 0 &&
+            teamsData.every(
+                (team) =>
+                    (roleCountByTeam[team.id] || 0) >= roleLimit
+            )
+
+        if (!allTeamsRoleComplete) return
+
+        const currentRoleIndex = ROLE_ORDER.indexOf(completedRole)
+        const upcomingRole = ROLE_ORDER[currentRoleIndex + 1]
+
+        let nextTurnTeamId: string | null = null
+        let nextRequiredRole: string = requiredRole
+
+        if (upcomingRole) {
+            nextRequiredRole = upcomingRole
+            nextTurnTeamId = teamsData[0]?.id || null
+        } else {
+            await fetchAuctionStats()
+
+            await supabase
+                .from('auctions')
+                .update({ status: 'conclusa' })
+                .eq('id', id)
+
+            setIsAuctionEnded(true)
+            return
+        }
+
+        const { error: turnError } = await supabase
+            .from('auctions')
+            .update({
+                current_turn_team_id: nextTurnTeamId,
+                required_role: nextRequiredRole
+            })
+            .eq('id', id)
+
+        if (turnError) {
+            console.error('Errore aggiornamento turno:', turnError)
+            return
+        }
+
+        setCurrentTurnTeamId(nextTurnTeamId)
+        setRequiredRole(nextRequiredRole)
+        setAuction((prev: any) =>
+            prev
+                ? {
+                    ...prev,
+                    current_turn_team_id: nextTurnTeamId,
+                    required_role: nextRequiredRole
+                }
+                : prev
+        )
+    }
+
     const buyExtraGK = async (player: any) => {
         if (!myTeamId || !gkSlotOffer) return
 
@@ -294,6 +383,8 @@ export default function LiveAuctionPage() {
             }
 
             await fetchMyRoleCounts(myTeamId)
+
+            await checkAndAdvanceRoleIfComplete('P')
 
             setGkSlotOffer((prev) => {
                 if (!prev) return prev
