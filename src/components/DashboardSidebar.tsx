@@ -1,6 +1,8 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import { useState } from 'react'
+import {exportRossterExcel} from '../app/actions/export'
 import Link from 'next/link'
 import {
   LogOut,
@@ -16,6 +18,7 @@ import {
   Gavel,
   PanelLeftClose,
   PanelLeftOpen,
+  FileSpreadsheet
 } from 'lucide-react'
 
 interface DashboardSidebarUser {
@@ -48,6 +51,39 @@ export default function DashboardSidebar({
   onLogout,
 }: DashboardSidebarProps) {
   const pathname = usePathname()
+  const [isExporting, setIsExporting] = useState(false) // Stato di caricamento export
+
+  const handleExport = async () => {
+    setIsExporting(true)
+    try {
+      const res = await exportRossterExcel()
+      if (res.success && res.data) {
+        const byteCharacters = atob(res.data)
+        const byteNumbers = new Array(byteCharacters.length)
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i)
+        }
+        const byteArray = new Uint8Array(byteNumbers)
+        const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = res.fileName || 'rose_lega.xlsx'
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+      } else {
+        alert(res.error || "Errore durante l'esportazione.")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Errore di connessione durante l'esportazione.")
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   const isActive = (href: string) => {
     return pathname === href || pathname.startsWith(href + '/')
@@ -235,6 +271,35 @@ export default function DashboardSidebar({
                     Pannello Admin
                   </span>
                 )}
+
+                {/* Pulsante Esporta Rose */}
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={isExporting}
+            title={!isSidebarOpen ? 'Esporta Rose' : undefined}
+            className={`
+              w-full
+              flex items-center
+              ${isSidebarOpen || isMobileMenuOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
+              h-10
+              rounded-xl
+              text-sm font-semibold
+              text-emerald-300 bg-emerald-500/10 border border-emerald-500/20
+              hover:bg-emerald-500/20
+              transition-all
+              cursor-pointer
+              disabled:opacity-50
+            `}
+          >
+            <FileSpreadsheet className="w-4 h-4 shrink-0" />
+
+            {(isSidebarOpen || isMobileMenuOpen) && (
+              <span className="truncate">
+                {isExporting ? 'Esportazione...' : 'Esporta Rose'}
+              </span>
+            )}
+          </button>
 
                 <Link
                   href="/admin/import-listone"
