@@ -18,7 +18,8 @@ import {
   Gavel,
   PanelLeftClose,
   PanelLeftOpen,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ArrowLeftRight
 } from 'lucide-react'
 
 interface DashboardSidebarUser {
@@ -300,6 +301,29 @@ export default function DashboardSidebar({
               </span>
             )}
           </button>
+
+          <Link
+                  href="/admin/gestione-rose"
+                  title={!isSidebarOpen ? 'Gestione Rose' : undefined}
+                  className={`
+                    flex items-center mt-1.5
+                    ${isSidebarOpen || isMobileMenuOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
+                    h-10
+                    rounded-xl
+                    text-sm font-semibold
+                    ${isActive('/admin/gestione-rose')
+                      ? 'text-blue-300 bg-blue-500/10 border border-blue-500/20'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                    }
+                    transition-all
+                  `}
+                >
+                  <ArrowLeftRight className="w-4 h-4 shrink-0" />
+
+                  {(isSidebarOpen || isMobileMenuOpen) && (
+                    <span className="truncate">Gestione Rose</span>
+                  )}
+                </Link>
 
                 <Link
                   href="/admin/import-listone"

@@ -250,7 +250,7 @@ export default function AddLeagueTeamPage() {
         const {
           error: uploadError,
         } = await supabase.storage
-          .from('team-logos')
+          .from('league-logos')
           .upload(filePath, logoFile, {
             cacheControl: '3600',
             upsert: false,
