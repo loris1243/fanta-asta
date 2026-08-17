@@ -57,7 +57,12 @@ export default function LiveAuctionPage() {
     const { id } = useParams()
     const router = useRouter()
 
-    const [slotRequests, setSlotRequests] = useState<any[]>([]);
+    const [gkSlotOffer, setGkSlotOffer] = useState<{
+        realTeam: string
+        freeSlots: number
+        players: any[]
+    } | null>(null)
+    const [isBuyingExtraGK, setIsBuyingExtraGK] = useState(false)
     const [myRoleCounts, setMyRoleCounts] = useState<Record<string, number>>({ P: 0, D: 0, C: 0, A: 0 })
     const [loading, setLoading] = useState(true)
     const [isAdmin, setIsAdmin] = useState(false)
@@ -157,70 +162,164 @@ export default function LiveAuctionPage() {
         )
     }
 
-    const pendingRequests = slotRequests.filter(r => r.status === "pending");
-
-
     // ============================================================
     // SQUADRE PARTECIPANTI
     // ============================================================
 
-    const canCreateSlotCompletionRequest = ({
-        player,
-        teamId,
-        teamRoster,
-        availablePlayers,
-        existingRequests,
-        auctionId
-    }: {
-        player: any;
-        teamId: string;
-        teamRoster: any[];
-        availablePlayers: any[];
-        existingRequests: any[];
-        auctionId: string;
-    }) => {
+    // ============================================================
+    // OFFERTA PORTIERI EXTRA (stesso real_team, 1 credito, opzionale)
+    // Nessuna approvazione admin: viene proposta direttamente al
+    // client della squadra che ha appena vinto un portiere, se ha
+    // ancora slot P liberi e restano altri portieri di quella
+    // squadra reale non ancora assegnati.
+    // ============================================================
 
-        console.log(teamRoster)
+    const checkGkSlotOffer = async (player: any) => {
+        if (!myTeamId || !player?.realTeam) return
 
-        // 1. SOLO PORTIERI
-        if (player.role !== "P") return false;
+        // 1. conteggio portieri gia' in rosa (query fresca, niente stato locale)
+        const { data: myRosterRows, error: myRosterError } = await supabase
+            .from('league_team_players')
+            .select('player_id, role')
+            .eq('auction_id', id)
+            .eq('team_id', myTeamId)
 
-        // 2. slot GK disponibili
-        const currentGK = teamRoster.filter(p => p.role === "P").length;
-        const maxGK = 3; // o da settings se già esiste
-        const freeSlots = maxGK - currentGK;
+        if (myRosterError) {
+            console.error('Errore conteggio portieri rosa:', myRosterError)
+            return
+        }
 
-        console.log("currentGK -> " + currentGK)
+        const currentGK = (myRosterRows || []).filter(
+            (r: any) => r.role === 'P'
+        ).length
 
-        if (freeSlots <= 0) return false;
+        const maxGK = ROLE_LIMITS.P
+        const freeSlots = maxGK - currentGK
 
-        // 3. altri GK dello stesso real_team disponibili
-        const otherGKAvailable = availablePlayers.filter(p =>
-            p.role === "P" &&
-            p.team === player.realTeam &&
-            p.id !== player.id
-        );
+        if (freeSlots <= 0) return
 
-        console.log("availablePlayers -> " + availablePlayers)
-        console.log("player.realTeam -> " + player.realTeam)
-        console.log("otherGKAvailable -> " + otherGKAvailable)
+        // 2. tutti i giocatori gia' assegnati nell'asta (di qualunque squadra),
+        // per non riproporre portieri gia' presi da altri
+        const { data: allAssignedRows, error: allAssignedError } =
+            await supabase
+                .from('league_team_players')
+                .select('player_id')
+                .eq('auction_id', id)
 
-        if (otherGKAvailable.length === 0) return false;
+        if (allAssignedError) {
+            console.error('Errore recupero giocatori assegnati:', allAssignedError)
+            return
+        }
 
-        // 4. già esiste request pending?
-        const hasPendingRequest = existingRequests.some(r =>
-            r.auction_id === auctionId &&
-            r.team_id === teamId &&
-            r.status === "pending"
-        );
+        const assignedPlayerIds = new Set(
+            (allAssignedRows || [])
+                .map((r: any) => r.player_id)
+                .filter(Boolean)
+        )
 
-        if (hasPendingRequest) return false;
+        // 3. altri portieri della stessa squadra reale, ancora disponibili
+        const { data: teamGKs, error: teamGKsError } = await supabase
+            .from('players')
+            .select('id, name, team, role')
+            .eq('role', 'P')
+            .eq('team', player.realTeam)
+            .eq('is_out', false)
 
-        return {
+        if (teamGKsError) {
+            console.error('Errore recupero portieri squadra reale:', teamGKsError)
+            return
+        }
+
+        const otherGKAvailable = (teamGKs || []).filter(
+            (p: any) => !assignedPlayerIds.has(p.id)
+        )
+
+        if (!otherGKAvailable.length) return
+
+        setGkSlotOffer({
+            realTeam: player.realTeam,
             freeSlots,
-            availableToFill: Math.min(freeSlots, otherGKAvailable.length)
-        };
-    };
+            players: otherGKAvailable
+        })
+    }
+
+    const buyExtraGK = async (player: any) => {
+        if (!myTeamId || !gkSlotOffer) return
+
+        setIsBuyingExtraGK(true)
+
+        try {
+            const { error: txError } = await supabase
+                .from('auction_transactions')
+                .insert({
+                    auction_id: id,
+                    team_id: myTeamId,
+                    player_id: player.id,
+                    player_name: player.name,
+                    role: 'P',
+                    price: 1
+                })
+
+            if (txError) throw txError
+
+            const { error: insertError } = await supabase
+                .from('league_team_players')
+                .insert({
+                    auction_id: id,
+                    team_id: myTeamId,
+                    player_id: player.id,
+                    player_name: player.name,
+                    role: 'P',
+                    price: 1
+                })
+
+            if (insertError) throw insertError
+
+            const targetTeam = teamsData.find((t) => t.id === myTeamId)
+
+            if (targetTeam) {
+                const newBudget = Math.max(
+                    0,
+                    (targetTeam.budget || 0) - 1
+                )
+
+                const { error: budgetError } = await supabase
+                    .from('league_teams')
+                    .update({ budget: newBudget })
+                    .eq('id', myTeamId)
+
+                if (budgetError) {
+                    console.error('Errore aggiornamento budget:', budgetError)
+                }
+            }
+
+            await fetchMyRoleCounts(myTeamId)
+
+            setGkSlotOffer((prev) => {
+                if (!prev) return prev
+
+                const remainingPlayers = prev.players.filter(
+                    (p: any) => p.id !== player.id
+                )
+
+                const newFreeSlots = prev.freeSlots - 1
+
+                if (newFreeSlots <= 0 || remainingPlayers.length === 0) {
+                    return null
+                }
+
+                return {
+                    ...prev,
+                    freeSlots: newFreeSlots,
+                    players: remainingPlayers
+                }
+            })
+        } catch (err) {
+            console.error('Errore acquisto portiere extra:', err)
+        } finally {
+            setIsBuyingExtraGK(false)
+        }
+    }
 
     const handlePassTurn = async () => {
         try {
@@ -460,19 +559,6 @@ export default function LiveAuctionPage() {
             setMyRoleSpent(0)
         }
     }
-
-    const handleApproveRequest = async (request: any) => {
-    const { error } = await supabase
-        .from("slot_completion_requests")
-        .update({
-            status: "approved",
-        })
-        .eq("id", request.id);
-
-    if (error) {
-        console.error("Errore approvazione:", error);
-    }
-};
 
     const fetchMyRoleCounts = async (teamId: string) => {
         if (!teamId) return
@@ -856,6 +942,7 @@ export default function LiveAuctionPage() {
         }
 
         setCongratulatedPlayer({
+            playerId: nomination.player_id,
             name:
                 playerData?.name ||
                 'Giocatore',
@@ -2782,27 +2869,12 @@ export default function LiveAuctionPage() {
     // ============================================================
 
     useEffect(() => {
-        const channel = supabase
-            .channel('slot_completion_realtime')
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'slot_completion_requests'
-                },
-                (payload) => {
-                    setSlotRequests(prev => [payload.new, ...prev]);
+        if (!congratulatedPlayer) return
+        if (!congratulatedPlayer.isMyTeam) return
+        if (congratulatedPlayer.role !== 'P') return
 
-                    // QUI step successivo: UI banner
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, []);
+        checkGkSlotOffer(congratulatedPlayer)
+    }, [congratulatedPlayer])
 
     useEffect(() => {
         async function loadPlayers() {
@@ -4118,59 +4190,25 @@ export default function LiveAuctionPage() {
                             {isAdmin ? (
                                 <button
                                     onClick={async () => {
-                                        setIsCongratulationModalOpen(false)
-                                        setCongratulatedPlayer(null)
-                                        if (congratulatedPlayer.winningTeamId && congratulatedPlayer?.role === "P") {
+                                        setIsCongratulationModalOpen(false);
+                                        setCongratulatedPlayer(null);
 
-                                            let currentRoster = teamRosters[congratulatedPlayer.winningTeamId];
-                                            if (!currentRoster) {
-                                                const { data: fetchedRoster } = await supabase
-                                                    .from('league_team_players')
-                                                    .select('player_id, player_name, role, price')
-                                                    .eq('auction_id', id)
-                                                    .eq('team_id', congratulatedPlayer.winningTeamId);
-
-                                                currentRoster = fetchedRoster || [];
-                                            }
-
-                                            const check = canCreateSlotCompletionRequest({
-                                                player: congratulatedPlayer,
-                                                teamId: congratulatedPlayer.winningTeamId,
-                                                teamRoster: currentRoster, // o stato equivalente nel tuo file
-                                                availablePlayers,
-                                                existingRequests: slotRequests,
-                                                auctionId: id as string
-                                            });
-
-                                            if (check && typeof check !== "boolean") {
-                                                await supabase.from("slot_completion_requests").insert({
-                                                    auction_id: id as string,
-                                                    team_id: congratulatedPlayer.winningTeamId as string,
-                                                    real_team: congratulatedPlayer.realTeam,
-                                                    requested_players_count: check.availableToFill,
-                                                    status: "pending",
-                                                    player_ids: [congratulatedPlayer.player_id ?? congratulatedPlayer.id]
-                                                });
-                                            }
-                                        }
-
-                                        const channel =
-                                            auctionChannelRef.current
+                                        const channel = auctionChannelRef.current;
 
                                         if (channel) {
                                             await channel.send({
-                                                type: 'broadcast',
-                                                event: 'auction_continue',
+                                                type: "broadcast",
+                                                event: "auction_continue",
                                                 payload: {
-                                                    auctionId: id
-                                                }
-                                            })
+                                                    auctionId: id,
+                                                },
+                                            });
                                         }
 
-                                        await fetchCurrentNomination()
+                                        await fetchCurrentNomination();
 
                                         if (myTeamId) {
-                                            await fetchMyRoleCounts(myTeamId)
+                                            await fetchMyRoleCounts(myTeamId);
                                         }
                                     }}
                                     className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition"
@@ -4179,17 +4217,13 @@ export default function LiveAuctionPage() {
                                 </button>
                             ) : (
                                 <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-3">
-
                                     <p className="text-xs font-black uppercase text-slate-400">
                                         In attesa dell'amministratore
                                     </p>
 
                                     <p className="text-[10px] text-slate-500 mt-1">
-                                        L'asta continuerà quando
-                                        l'amministratore
-                                        procederà.
+                                        L'asta continuerà quando l'amministratore procederà.
                                     </p>
-
                                 </div>
                             )}
 
@@ -4454,30 +4488,64 @@ export default function LiveAuctionPage() {
 
                 </div>
             )}
-            {isAdmin && pendingRequests.length > 0 && (
-    <div className="fixed bottom-4 right-4 bg-slate-900 text-white p-4 rounded-xl z-50 w-80 shadow-xl">
-        <h3 className="font-bold mb-3">Richieste Slot</h3>
+            {/* ===================================================
+                MODALE OFFERTA PORTIERI EXTRA
+                Proposto solo al client della squadra che ha appena
+                vinto un portiere, se ha ancora slot P liberi.
+                Nessuna approvazione admin: acquisto facoltativo,
+                1 credito a portiere.
+            =================================================== */}
 
-        {pendingRequests.map(r => (
-            <div key={r.id} className="mb-3 border-b border-slate-700 pb-2">
-                
-                <div className="text-sm">
-                    <span className="font-semibold">{r.real_team}</span>
-                    {" - "}
-                    {r.requested_players_count} portieri
+            {gkSlotOffer && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+
+                        <h2 className="text-xl font-black uppercase text-white mb-1">
+                            Completa il reparto portieri
+                        </h2>
+
+                        <p className="text-slate-400 text-sm mb-4">
+                            Hai ancora {gkSlotOffer.freeSlots} slot
+                            {gkSlotOffer.freeSlots > 1 ? ' liberi' : ' libero'} per portieri.
+                            Puoi acquistare, se vuoi, gli altri portieri del{' '}
+                            {gkSlotOffer.realTeam} ancora disponibili, a 1 credito ciascuno.
+                            Non sei obbligato a prenderli.
+                        </p>
+
+                        <div className="space-y-2 max-h-72 overflow-y-auto mb-4 pr-1">
+                            {gkSlotOffer.players.map((p: any) => (
+                                <div
+                                    key={p.id}
+                                    className="flex justify-between items-center bg-slate-800/80 border border-slate-700/60 rounded-xl p-3"
+                                >
+                                    <span className="font-bold text-sm text-white">
+                                        {p.name.toUpperCase()}
+                                    </span>
+
+                                    <button
+                                        disabled={isBuyingExtraGK}
+                                        onClick={() => buyExtraGK(p)}
+                                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg text-xs font-black uppercase transition"
+                                    >
+                                        Compra (1 CR)
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        <button
+                            disabled={isBuyingExtraGK}
+                            onClick={() => setGkSlotOffer(null)}
+                            className="w-full py-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl transition border border-slate-700"
+                        >
+                            No, grazie
+                        </button>
+
+                    </div>
+
                 </div>
-
-                <button
-                    onClick={() => handleApproveRequest(r)}
-                    className="mt-2 w-full bg-green-600 hover:bg-green-500 px-2 py-1 rounded text-xs font-bold"
-                >
-                    Approva
-                </button>
-
-            </div>
-        ))}
-    </div>
-)}
+            )}
         </div>
     )
 }
