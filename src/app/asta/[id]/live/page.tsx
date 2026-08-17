@@ -2478,6 +2478,7 @@ export default function LiveAuctionPage() {
                         'players'
                     )
                     .select('*')
+                    .eq('is_out',false)
                     .order(
                         'name',
                         {
