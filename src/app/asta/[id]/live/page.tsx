@@ -3108,7 +3108,7 @@ export default function LiveAuctionPage() {
 
                     <div className="pt-4 border-t border-slate-700/60 flex gap-3">
                         <button
-                            onClick={() => router.push('/dashboard')}
+                            onClick={() => router.push('/')}
                             className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-wider transition"
                         >
                             Torna alla dashboard
