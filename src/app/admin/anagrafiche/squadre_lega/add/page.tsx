@@ -265,7 +265,7 @@ export default function AddLeagueTeamPage() {
         const {
           data: publicUrlData,
         } = supabase.storage
-          .from('team-logos')
+          .from('league-logos')
           .getPublicUrl(filePath)
 
         logoUrl =
