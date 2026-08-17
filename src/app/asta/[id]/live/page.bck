@@ -21,8 +21,6 @@ const ROLE_LIMITS: Record<string, number> = {
     A: 6
 }
 
-const ROLE_ORDER: string[] = ['P', 'D', 'C', 'A']
-
 const ROLE_NAMES: Record<string, string> = {
     P: 'Portiere',
     D: 'Difensore',
@@ -925,6 +923,12 @@ export default function LiveAuctionPage() {
                         1
                 }
 
+                const nextTurnTeamId =
+                    getNextTurnTeamId(
+                        currentTurnTeamId,
+                        teamsData
+                    )
+
                 const {
                     error:
                     closeError
@@ -1094,72 +1098,7 @@ export default function LiveAuctionPage() {
                     }
                 }
 
-                // ============================================================
-                // AVANZAMENTO TURNO E RUOLO
-                // Se TUTTE le squadre hanno completato gli slot per il ruolo
-                // corrente, si passa al ruolo successivo ripartendo dalla
-                // prima squadra. Altrimenti si mantiene la logica esistente
-                // di rotazione al turno successivo.
-                // ============================================================
-
-                let nextTurnTeamId: string | null = null
-                let nextRequiredRole: string = requiredRole
-
-                const {
-                    data: roleRows,
-                    error: roleRowsError
-                } = await supabase
-                    .from('league_team_players')
-                    .select('team_id')
-                    .eq('auction_id', id)
-                    .eq('role', playerRole)
-
-                if (roleRowsError) {
-                    console.error(
-                        'Errore conteggio ruoli per avanzamento turno:',
-                        roleRowsError
-                    )
-                }
-
-                const roleCountByTeam: Record<string, number> = {}
-                ;(roleRows || []).forEach((row: any) => {
-                    roleCountByTeam[row.team_id] =
-                        (roleCountByTeam[row.team_id] || 0) + 1
-                })
-
-                const roleLimit = ROLE_LIMITS[playerRole] || 0
-
-                const allTeamsRoleComplete =
-                    teamsData.length > 0 &&
-                    teamsData.every(
-                        (team) =>
-                            (roleCountByTeam[team.id] || 0) >= roleLimit
-                    )
-
-                if (allTeamsRoleComplete) {
-                    const currentRoleIndex = ROLE_ORDER.indexOf(playerRole)
-                    const upcomingRole = ROLE_ORDER[currentRoleIndex + 1]
-
-                    if (upcomingRole) {
-                        nextRequiredRole = upcomingRole
-                        nextTurnTeamId = teamsData[0]?.id || null
-                    } else {
-                        alert(
-                            'Tutte le squadre hanno completato tutti i ruoli disponibili. L’asta è conclusa.'
-                        )
-
-                        nextRequiredRole = requiredRole
-                        nextTurnTeamId = null
-                    }
-                } else {
-                    nextTurnTeamId =
-                        getNextTurnTeamId(
-                            currentTurnTeamId,
-                            teamsData
-                        )
-                }
-
-                if (nextTurnTeamId || allTeamsRoleComplete) {
+                if (nextTurnTeamId) {
                     const {
                         error:
                         turnError
@@ -1170,9 +1109,7 @@ export default function LiveAuctionPage() {
                             )
                             .update({
                                 current_turn_team_id:
-                                    nextTurnTeamId,
-                                required_role:
-                                    nextRequiredRole
+                                    nextTurnTeamId
                             })
                             .eq(
                                 'id',
@@ -1189,19 +1126,13 @@ export default function LiveAuctionPage() {
                             nextTurnTeamId
                         )
 
-                        setRequiredRole(
-                            nextRequiredRole
-                        )
-
                         setAuction(
                             (prev: any) =>
                                 prev
                                     ? {
                                         ...prev,
                                         current_turn_team_id:
-                                            nextTurnTeamId,
-                                        required_role:
-                                            nextRequiredRole
+                                            nextTurnTeamId
                                     }
                                     : prev
                         )
