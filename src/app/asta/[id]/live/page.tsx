@@ -1238,7 +1238,7 @@ export default function LiveAuctionPage() {
     // ============================================================
 
     const handleWithdraw =
-        async () => {
+        async (options?: { silent?: boolean }) => {
             if (
                 !currentNomination ||
                 !myTeamId ||
@@ -1255,13 +1255,15 @@ export default function LiveAuctionPage() {
                 return
             }
 
-            const confirmed =
-                window.confirm(
-                    'Vuoi davvero ritirarti da questa asta? Non potrai più fare offerte su questo giocatore.'
-                )
+            if (!options?.silent) {
+                const confirmed =
+                    window.confirm(
+                        'Vuoi davvero ritirarti da questa asta? Non potrai più fare offerte su questo giocatore.'
+                    )
 
-            if (!confirmed) {
-                return
+                if (!confirmed) {
+                    return
+                }
             }
 
             setIsWithdrawing(true)
@@ -2632,6 +2634,28 @@ export default function LiveAuctionPage() {
     const currentRoleLimit = ROLE_LIMITS[currentRoleCode] || 99
     const isRoleFull = currentRoleCount >= currentRoleLimit
 
+    // ============================================================
+    // RITIRO AUTOMATICO SE RUOLO GIÀ ESAURITO
+    // Se la mia squadra ha già completato gli slot per il ruolo
+    // della chiamata in corso, non sono un partecipante attivo per
+    // questa nomination: mi ritiro in automatico (stesso meccanismo
+    // del ritiro manuale) invece di dover cliccare "Ritirati dall'asta".
+    // ============================================================
+
+    useEffect(() => {
+        if (!currentNomination || !myTeamId) {
+            return
+        }
+
+        if (withdrawnTeamIds.has(myTeamId)) {
+            return
+        }
+
+        if (isRoleFull) {
+            handleWithdraw({ silent: true })
+        }
+    }, [currentNomination?.id, myTeamId, isRoleFull, withdrawnTeamIds])
+
     const canNominate =
         !!myTeamId &&
         !!currentTurnTeamId &&
@@ -3076,7 +3100,7 @@ export default function LiveAuctionPage() {
 
                                     <button
                                         onClick={
-                                            handleWithdraw
+                                            () => handleWithdraw()
                                         }
                                         disabled={
                                             isWithdrawing
