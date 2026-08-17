@@ -68,6 +68,8 @@ export default function LiveAuctionPage() {
 
     const [isAuctionEnded, setIsAuctionEnded] = useState(false);
     const [auctionSummaryData, setAuctionSummaryData] = useState<any[]>([]);
+    const [auctionStats, setAuctionStats] = useState<any>(null);
+    const [isLoadingAuctionStats, setIsLoadingAuctionStats] = useState(false);
 
     // ============================================================
     // ROSE SQUADRE (accordion "a scomparsa" nella card Partecipanti)
@@ -819,6 +821,160 @@ export default function LiveAuctionPage() {
     }
 
     // ============================================================
+    // STATISTICHE FINE ASTA
+    // Interroga auction_transactions (gia' persistita da ogni chiamata
+    // andata a buon fine) cosi' ogni client puo' ricalcolare le stesse
+    // statistiche in autonomia, senza doverle propagare via realtime.
+    // ============================================================
+
+    const fetchAuctionStats = async () => {
+        setIsLoadingAuctionStats(true)
+
+        try {
+            const { data: transactions, error: txError } = await supabase
+                .from('auction_transactions')
+                .select('team_id, player_id, player_name, role, price')
+                .eq('auction_id', id)
+
+            if (txError) {
+                console.error('Errore recupero transazioni asta:', txError)
+                return
+            }
+
+            const { data: participants, error: partError } = await supabase
+                .from('auction_participants')
+                .select('team_id')
+                .eq('auction_id', id)
+
+            if (partError) {
+                console.error('Errore recupero partecipanti asta:', partError)
+                return
+            }
+
+            const teamIds = Array.from(
+                new Set(
+                    (participants || [])
+                        .map((p: any) => p.team_id)
+                        .filter(Boolean)
+                )
+            )
+
+            const { data: teams, error: teamsError } = await supabase
+                .from('league_teams')
+                .select('id, name, budget')
+                .in('id', teamIds.length > 0 ? teamIds : ['__none__'])
+
+            if (teamsError) {
+                console.error('Errore recupero squadre asta:', teamsError)
+                return
+            }
+
+            const rows = transactions || []
+
+            const teamNameById: Record<string, string> = {}
+            const teamBudgetById: Record<string, number> = {}
+            ;(teams || []).forEach((t: any) => {
+                teamNameById[t.id] = t.name
+                teamBudgetById[t.id] = t.budget || 0
+            })
+
+            const pickLabel = (tx: any) => ({
+                playerName: tx.player_name,
+                role: tx.role,
+                price: tx.price,
+                teamId: tx.team_id,
+                teamName: teamNameById[tx.team_id] || 'Squadra'
+            })
+
+            // Colpo piu' caro dell'asta (in assoluto)
+            const topPickOverall = rows.reduce(
+                (best: any, tx: any) =>
+                    !best || tx.price > best.price ? tx : best,
+                null
+            )
+
+            // Spesa totale per squadra
+            const spentByTeam: Record<string, number> = {}
+            rows.forEach((tx: any) => {
+                spentByTeam[tx.team_id] =
+                    (spentByTeam[tx.team_id] || 0) + (tx.price || 0)
+            })
+
+            const spendingEntries = teamIds.map((tid) => ({
+                teamId: tid,
+                teamName: teamNameById[tid] || 'Squadra',
+                spent: spentByTeam[tid] || 0
+            }))
+
+            const topSpender = spendingEntries.reduce(
+                (best: any, t) => (!best || t.spent > best.spent ? t : best),
+                null
+            )
+
+            const lowestSpender = spendingEntries.reduce(
+                (best: any, t) => (!best || t.spent < best.spent ? t : best),
+                null
+            )
+
+            // Budget residuo per squadra, ordinato dal piu' ricco al piu' povero
+            const residualBudgets = teamIds
+                .map((tid) => ({
+                    teamId: tid,
+                    teamName: teamNameById[tid] || 'Squadra',
+                    budget: teamBudgetById[tid] ?? 0
+                }))
+                .sort((a, b) => b.budget - a.budget)
+
+            // Colpo piu' caro per ruolo, in assoluto (tra tutte le squadre)
+            const topPickByRole: Record<string, any> = {}
+            ROLE_ORDER.forEach((role) => {
+                const picksForRole = rows.filter(
+                    (tx: any) => tx.role === role
+                )
+                const best = picksForRole.reduce(
+                    (acc: any, tx: any) =>
+                        !acc || tx.price > acc.price ? tx : acc,
+                    null
+                )
+                if (best) {
+                    topPickByRole[role] = pickLabel(best)
+                }
+            })
+
+            // Colpo piu' caro per squadra (il miglior acquisto di ciascuna)
+            const topPickByTeam: Record<string, any> = {}
+            teamIds.forEach((tid) => {
+                const picksForTeam = rows.filter(
+                    (tx: any) => tx.team_id === tid
+                )
+                const best = picksForTeam.reduce(
+                    (acc: any, tx: any) =>
+                        !acc || tx.price > acc.price ? tx : acc,
+                    null
+                )
+                if (best) {
+                    topPickByTeam[tid] = pickLabel(best)
+                }
+            })
+
+            setAuctionStats({
+                topPickOverall: topPickOverall
+                    ? pickLabel(topPickOverall)
+                    : null,
+                topSpender,
+                lowestSpender,
+                residualBudgets,
+                topPickByRole,
+                topPickByTeam
+            })
+        } catch (err) {
+            console.error('Errore calcolo statistiche asta:', err)
+        } finally {
+            setIsLoadingAuctionStats(false)
+        }
+    }
+
+    // ============================================================
     // CHIUSURA ASTA
     // ============================================================
 
@@ -1207,12 +1363,15 @@ export default function LiveAuctionPage() {
                         nextRequiredRole = upcomingRole
                         nextTurnTeamId = teamsData[0]?.id || null
                     } else {
-                    await supabase
-                        .from('auctions')
-                        .update({ status: 'conclusa' })
-                        .eq('id', id)
-                        setIsAuctionEnded(true);
-                        return;
+                        await fetchAuctionStats()
+
+                        await supabase
+                            .from('auctions')
+                            .update({ status: 'conclusa' })
+                            .eq('id', id)
+
+                        setIsAuctionEnded(true)
+                        return
                     }
                 } else {
                     nextTurnTeamId =
@@ -1966,6 +2125,7 @@ export default function LiveAuctionPage() {
 
             if (auctionData.status === 'conclusa') {
                 setIsAuctionEnded(true)
+                fetchAuctionStats()
             }
 
             const initialRole =
@@ -2147,6 +2307,7 @@ export default function LiveAuctionPage() {
 
                             if (payload.new.status === 'conclusa') {
                                 setIsAuctionEnded(true)
+                                await fetchAuctionStats()
                             }
 
                             const newRole =
@@ -2790,19 +2951,160 @@ export default function LiveAuctionPage() {
     }
 
     if (isAuctionEnded) {
+        const stats = auctionStats
+
         return (
             <div className="min-h-screen bg-slate-900 text-slate-100 font-sans p-4 md:p-8 flex items-center justify-center">
-                <div className="max-w-xl w-full bg-slate-800/80 border border-slate-700 rounded-2xl p-8 text-center space-y-6 shadow-2xl">
+                <div className="max-w-3xl w-full bg-slate-800/80 border border-slate-700 rounded-2xl p-8 text-center space-y-6 shadow-2xl">
                     <div className="w-16 h-16 bg-amber-500/15 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto text-amber-400">
                         <Trophy className="w-8 h-8" />
                     </div>
-                    
+
                     <div className="space-y-2">
                         <h1 className="text-2xl font-black uppercase text-white">Asta Conclusa!</h1>
                         <p className="text-sm text-slate-400">
                             Tutti i ruoli e le chiamate sono stati completati con successo.
                         </p>
                     </div>
+
+                    {isLoadingAuctionStats && !stats && (
+                        <div className="flex items-center justify-center gap-2 text-slate-400 text-sm py-6">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Calcolo statistiche...
+                        </div>
+                    )}
+
+                    {stats && (
+                        <div className="text-left space-y-4">
+
+                            {/* COLPO PIU' CARO DELL'ASTA */}
+                            {stats.topPickOverall && (
+                                <div className="bg-slate-900/60 border border-amber-500/30 rounded-xl p-4">
+                                    <p className="text-[11px] font-black uppercase tracking-wider text-amber-400 mb-1">
+                                        Colpo più caro dell'asta
+                                    </p>
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <span className="font-bold text-white mr-5">
+                                                {stats.topPickOverall.playerName}&nbsp;
+                                            </span>
+                                            <span className="text-xs text-slate-400 ml-5">
+                                                 &nbsp;{ROLE_NAMES[stats.topPickOverall.role] || stats.topPickOverall.role} · {stats.topPickOverall.teamName}
+                                            </span>
+                                        </div>
+                                        <span className="font-black text-amber-400">
+                                            {stats.topPickOverall.price} CR
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* SPESA: CHI PIU' CHI MENO */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {stats.topSpender && (
+                                    <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-4">
+                                        <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                                            Ha speso di più
+                                        </p>
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-bold text-white text-sm">
+                                                {stats.topSpender.teamName}
+                                            </span>
+                                            <span className="font-black text-emerald-400 text-sm">
+                                                {stats.topSpender.spent} CR
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {stats.lowestSpender && (
+                                    <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-4">
+                                        <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                                            Ha speso di meno
+                                        </p>
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-bold text-white text-sm">
+                                                {stats.lowestSpender.teamName}
+                                            </span>
+                                            <span className="font-black text-emerald-400 text-sm">
+                                                {stats.lowestSpender.spent} CR
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* COLPO PIU' CARO PER RUOLO */}
+                            {Object.keys(stats.topPickByRole || {}).length > 0 && (
+                                <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-4">
+                                    <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
+                                        Colpo più caro per ruolo
+                                    </p>
+                                    <div className="space-y-1.5">
+                                        {ROLE_ORDER.filter((role) => stats.topPickByRole[role]).map((role) => {
+                                            const pick = stats.topPickByRole[role]
+                                            return (
+                                                <div key={role} className="flex items-center justify-between text-sm">
+                                                    <span className="text-slate-300">
+                                                        <span className="text-slate-500 mr-1">{ROLE_NAMES[role]}: </span>
+                                                        <span className="text-white font-semibold">{pick.playerName}</span>
+                                                        <span className="text-slate-500 ml-1">({pick.teamName})</span>
+                                                    </span>
+                                                    <span className="font-black text-amber-400 shrink-0 ml-2">
+                                                        {pick.price} CR
+                                                    </span>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* COLPO PIU' CARO PER SQUADRA */}
+                            {Object.keys(stats.topPickByTeam || {}).length > 0 && (
+                                <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-4">
+                                    <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
+                                        Acquisto più caro per squadra
+                                    </p>
+                                    <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                                        {Object.values(stats.topPickByTeam)
+                                            .sort((a: any, b: any) => b.price - a.price)
+                                            .map((pick: any) => (
+                                                <div key={pick.teamId} className="flex items-center justify-between text-sm">
+                                                    <span className="text-slate-300">
+                                                        <span className="text-white font-semibold">{pick.teamName}</span>
+                                                        <span className="text-slate-500 ml-1">— {pick.playerName}</span>
+                                                    </span>
+                                                    <span className="font-black text-amber-400 shrink-0 ml-2">
+                                                        {pick.price} CR
+                                                    </span>
+                                                </div>
+                                            ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* BUDGET RESIDUO PER SQUADRA */}
+                            {stats.residualBudgets?.length > 0 && (
+                                <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-4">
+                                    <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
+                                        Budget residuo per squadra
+                                    </p>
+                                    <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                                        {stats.residualBudgets.map((t: any) => (
+                                            <div key={t.teamId} className="flex items-center justify-between text-sm">
+                                                <span className="text-slate-300">{t.teamName}</span>
+                                                <span className="font-black text-slate-200 shrink-0 ml-2">
+                                                    {t.budget} CR
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                        </div>
+                    )}
 
                     <div className="pt-4 border-t border-slate-700/60 flex gap-3">
                         <button
@@ -2902,6 +3204,14 @@ export default function LiveAuctionPage() {
                                                 currentNomination
                                                     .players
                                                     ?.role
+                                            }
+                                        </span>
+
+                                                                                <span className="text-xs font-bold uppercase px-3 py-1 bg-white-500/10 text-white-400 border border-white-500/20 rounded-lg">
+                                            {
+                                                currentNomination
+                                                    .players
+                                                    ?.team
                                             }
                                         </span>
 

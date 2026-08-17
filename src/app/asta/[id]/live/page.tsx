@@ -14,6 +14,7 @@ import {
     LogOut,
     ChevronDown
 } from 'lucide-react'
+import { AnyCaaRecord } from 'dns'
 
 const ROLE_LIMITS: Record<string, number> = {
     P: 3,
@@ -56,6 +57,7 @@ export default function LiveAuctionPage() {
     const { id } = useParams()
     const router = useRouter()
 
+    const [slotRequests, setSlotRequests] = useState<any[]>([]);
     const [myRoleCounts, setMyRoleCounts] = useState<Record<string, number>>({ P: 0, D: 0, C: 0, A: 0 })
     const [loading, setLoading] = useState(true)
     const [isAdmin, setIsAdmin] = useState(false)
@@ -67,7 +69,6 @@ export default function LiveAuctionPage() {
     const [realTeamsData, setRealTeamsData] = useState<any[]>([])
 
     const [isAuctionEnded, setIsAuctionEnded] = useState(false);
-    const [auctionSummaryData, setAuctionSummaryData] = useState<any[]>([]);
     const [auctionStats, setAuctionStats] = useState<any>(null);
     const [isLoadingAuctionStats, setIsLoadingAuctionStats] = useState(false);
 
@@ -79,6 +80,7 @@ export default function LiveAuctionPage() {
     const [loadingRosterTeamId, setLoadingRosterTeamId] = useState<string | null>(null)
 
     const [myTeamId, setMyTeamId] = useState<string | null>(null)
+    const myTeamIdRef = useRef(null); // Aggiungi questa riga
     const [myBudget, setMyBudget] = useState<number>(0)
 
     const [myRoleBudget, setMyRoleBudget] =
@@ -155,10 +157,70 @@ export default function LiveAuctionPage() {
         )
     }
 
+    const pendingRequests = slotRequests.filter(r => r.status === "pending");
+
 
     // ============================================================
     // SQUADRE PARTECIPANTI
     // ============================================================
+
+    const canCreateSlotCompletionRequest = ({
+        player,
+        teamId,
+        teamRoster,
+        availablePlayers,
+        existingRequests,
+        auctionId
+    }: {
+        player: any;
+        teamId: string;
+        teamRoster: any[];
+        availablePlayers: any[];
+        existingRequests: any[];
+        auctionId: string;
+    }) => {
+
+        console.log(teamRoster)
+
+        // 1. SOLO PORTIERI
+        if (player.role !== "P") return false;
+
+        // 2. slot GK disponibili
+        const currentGK = teamRoster.filter(p => p.role === "P").length;
+        const maxGK = 3; // o da settings se già esiste
+        const freeSlots = maxGK - currentGK;
+
+        console.log("currentGK -> " + currentGK)
+
+        if (freeSlots <= 0) return false;
+
+        // 3. altri GK dello stesso real_team disponibili
+        const otherGKAvailable = availablePlayers.filter(p =>
+            p.role === "P" &&
+            p.team === player.realTeam &&
+            p.id !== player.id
+        );
+
+        console.log("availablePlayers -> " + availablePlayers)
+        console.log("player.realTeam -> " + player.realTeam)
+        console.log("otherGKAvailable -> " + otherGKAvailable)
+
+        if (otherGKAvailable.length === 0) return false;
+
+        // 4. già esiste request pending?
+        const hasPendingRequest = existingRequests.some(r =>
+            r.auction_id === auctionId &&
+            r.team_id === teamId &&
+            r.status === "pending"
+        );
+
+        if (hasPendingRequest) return false;
+
+        return {
+            freeSlots,
+            availableToFill: Math.min(freeSlots, otherGKAvailable.length)
+        };
+    };
 
     const handlePassTurn = async () => {
         try {
@@ -398,6 +460,19 @@ export default function LiveAuctionPage() {
             setMyRoleSpent(0)
         }
     }
+
+    const handleApproveRequest = async (request: any) => {
+    const { error } = await supabase
+        .from("slot_completion_requests")
+        .update({
+            status: "approved",
+        })
+        .eq("id", request.id);
+
+    if (error) {
+        console.error("Errore approvazione:", error);
+    }
+};
 
     const fetchMyRoleCounts = async (teamId: string) => {
         if (!teamId) return
@@ -746,11 +821,9 @@ export default function LiveAuctionPage() {
     ) => {
         if (!nomination) return
 
-        const playerData =
-            nomination.players
-
-        const winningTeamId =
-            nomination.highest_bidder_team_id
+        const currentTeamId = myTeamIdRef.current;
+        const playerData = nomination.players
+        const winningTeamId = nomination.highest_bidder_team_id
 
         const winningAmount =
             nomination.current_bid ??
@@ -795,7 +868,9 @@ export default function LiveAuctionPage() {
                 winningTeamName,
             isMyTeam:
                 winningTeamId ===
-                myTeamId
+                currentTeamId,
+            realTeam: playerData.team,
+            winningTeamId: winningTeamId
         })
 
         setIsCongratulationModalOpen(
@@ -804,19 +879,19 @@ export default function LiveAuctionPage() {
 
         if (
             winningTeamId ===
-            myTeamId
+            currentTeamId
         ) {
             await refreshMyTeamData(
-                myTeamId
+                currentTeamId
             )
 
             if (playerData?.role) {
                 await fetchRoleBudgetInfo(
-                    myTeamId!,
+                    currentTeamId!,
                     playerData.role
                 )
             }
-            await fetchMyRoleCounts(myTeamId!)
+            await fetchMyRoleCounts(currentTeamId!)
         }
     }
 
@@ -873,10 +948,10 @@ export default function LiveAuctionPage() {
 
             const teamNameById: Record<string, string> = {}
             const teamBudgetById: Record<string, number> = {}
-            ;(teams || []).forEach((t: any) => {
-                teamNameById[t.id] = t.name
-                teamBudgetById[t.id] = t.budget || 0
-            })
+                ; (teams || []).forEach((t: any) => {
+                    teamNameById[t.id] = t.name
+                    teamBudgetById[t.id] = t.budget || 0
+                })
 
             const pickLabel = (tx: any) => ({
                 playerName: tx.player_name,
@@ -1254,13 +1329,33 @@ export default function LiveAuctionPage() {
                     }
 
                     setTeamRosters((prev) => {
-                        if (!finalWinningTeamId || !prev[finalWinningTeamId]) {
+                        if (!finalWinningTeamId) {
                             return prev
                         }
 
-                        const next = { ...prev }
-                        delete next[finalWinningTeamId]
-                        return next
+                        // Se la squadra non era ancora stata aperta/caricata in memoria, 
+                        // lasciamo com'è (verrà caricata la prima volta che l'utente aprirà l'accordion)
+                        if (!prev[finalWinningTeamId]) {
+                            return prev
+                        }
+
+                        const currentTeamRoster = prev[finalWinningTeamId]
+
+                        // Evitiamo duplicati nel caso di eventi doppi
+                        const alreadyExists = currentTeamRoster.some(p => p.player_id === playerId)
+                        if (alreadyExists) return prev
+
+                        const newPlayerEntry = {
+                            player_id: playerId,
+                            player_name: playerName,
+                            role: playerRole,
+                            price: finalWinningAmount
+                        }
+
+                        return {
+                            ...prev,
+                            [finalWinningTeamId]: [...currentTeamRoster, newPlayerEntry]
+                        }
                     })
 
                     if (finalWinningTeamId === myTeamId) {
@@ -1341,10 +1436,10 @@ export default function LiveAuctionPage() {
                 }
 
                 const roleCountByTeam: Record<string, number> = {}
-                ;(roleRows || []).forEach((row: any) => {
-                    roleCountByTeam[row.team_id] =
-                        (roleCountByTeam[row.team_id] || 0) + 1
-                })
+                    ; (roleRows || []).forEach((row: any) => {
+                        roleCountByTeam[row.team_id] =
+                            (roleCountByTeam[row.team_id] || 0) + 1
+                    })
 
                 const roleLimit = ROLE_LIMITS[playerRole] || 0
 
@@ -2182,9 +2277,8 @@ export default function LiveAuctionPage() {
                 teamData &&
                 isMounted
             ) {
-                setMyTeamId(
-                    teamData.id
-                )
+                setMyTeamId(teamData.id)
+                myTeamIdRef.current = teamData.id;
 
                 setMyBudget(
                     teamData.budget ||
@@ -2688,6 +2782,29 @@ export default function LiveAuctionPage() {
     // ============================================================
 
     useEffect(() => {
+        const channel = supabase
+            .channel('slot_completion_realtime')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'slot_completion_requests'
+                },
+                (payload) => {
+                    setSlotRequests(prev => [payload.new, ...prev]);
+
+                    // QUI step successivo: UI banner
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, []);
+
+    useEffect(() => {
         async function loadPlayers() {
             if (
                 !isNominateModalOpen
@@ -2733,7 +2850,7 @@ export default function LiveAuctionPage() {
                         'players'
                     )
                     .select('*')
-                    .eq('is_out',false)
+                    .eq('is_out', false)
                     .order(
                         'name',
                         {
@@ -2989,7 +3106,7 @@ export default function LiveAuctionPage() {
                                                 {stats.topPickOverall.playerName}&nbsp;
                                             </span>
                                             <span className="text-xs text-slate-400 ml-5">
-                                                 &nbsp;{ROLE_NAMES[stats.topPickOverall.role] || stats.topPickOverall.role} · {stats.topPickOverall.teamName}
+                                                &nbsp;{ROLE_NAMES[stats.topPickOverall.role] || stats.topPickOverall.role} · {stats.topPickOverall.teamName}
                                             </span>
                                         </div>
                                         <span className="font-black text-amber-400">
@@ -3119,8 +3236,8 @@ export default function LiveAuctionPage() {
         )
     }
 
-    return (     
-        
+    return (
+
         <div className="min-h-screen bg-slate-900 text-slate-100 font-sans p-4 md:p-8 flex flex-col">
 
             {/* HEADER */}
@@ -3207,7 +3324,7 @@ export default function LiveAuctionPage() {
                                             }
                                         </span>
 
-                                                                                <span className="text-xs font-bold uppercase px-3 py-1 bg-white-500/10 text-white-400 border border-white-500/20 rounded-lg">
+                                        <span className="text-xs font-bold uppercase px-3 py-1 bg-white-500/10 text-white-400 border border-white-500/20 rounded-lg">
                                             {
                                                 currentNomination
                                                     .players
@@ -4003,6 +4120,39 @@ export default function LiveAuctionPage() {
                                     onClick={async () => {
                                         setIsCongratulationModalOpen(false)
                                         setCongratulatedPlayer(null)
+                                        if (congratulatedPlayer.winningTeamId && congratulatedPlayer?.role === "P") {
+
+                                            let currentRoster = teamRosters[congratulatedPlayer.winningTeamId];
+                                            if (!currentRoster) {
+                                                const { data: fetchedRoster } = await supabase
+                                                    .from('league_team_players')
+                                                    .select('player_id, player_name, role, price')
+                                                    .eq('auction_id', id)
+                                                    .eq('team_id', congratulatedPlayer.winningTeamId);
+
+                                                currentRoster = fetchedRoster || [];
+                                            }
+
+                                            const check = canCreateSlotCompletionRequest({
+                                                player: congratulatedPlayer,
+                                                teamId: congratulatedPlayer.winningTeamId,
+                                                teamRoster: currentRoster, // o stato equivalente nel tuo file
+                                                availablePlayers,
+                                                existingRequests: slotRequests,
+                                                auctionId: id as string
+                                            });
+
+                                            if (check && typeof check !== "boolean") {
+                                                await supabase.from("slot_completion_requests").insert({
+                                                    auction_id: id as string,
+                                                    team_id: congratulatedPlayer.winningTeamId as string,
+                                                    real_team: congratulatedPlayer.realTeam,
+                                                    requested_players_count: check.availableToFill,
+                                                    status: "pending",
+                                                    player_ids: [congratulatedPlayer.player_id ?? congratulatedPlayer.id]
+                                                });
+                                            }
+                                        }
 
                                         const channel =
                                             auctionChannelRef.current
@@ -4304,7 +4454,30 @@ export default function LiveAuctionPage() {
 
                 </div>
             )}
+            {isAdmin && pendingRequests.length > 0 && (
+    <div className="fixed bottom-4 right-4 bg-slate-900 text-white p-4 rounded-xl z-50 w-80 shadow-xl">
+        <h3 className="font-bold mb-3">Richieste Slot</h3>
 
+        {pendingRequests.map(r => (
+            <div key={r.id} className="mb-3 border-b border-slate-700 pb-2">
+                
+                <div className="text-sm">
+                    <span className="font-semibold">{r.real_team}</span>
+                    {" - "}
+                    {r.requested_players_count} portieri
+                </div>
+
+                <button
+                    onClick={() => handleApproveRequest(r)}
+                    className="mt-2 w-full bg-green-600 hover:bg-green-500 px-2 py-1 rounded text-xs font-bold"
+                >
+                    Approva
+                </button>
+
+            </div>
+        ))}
+    </div>
+)}
         </div>
     )
 }
