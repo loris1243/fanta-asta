@@ -358,7 +358,11 @@ export default function LiveAuctionPage() {
                     )
                     : rawVal
 
-            setMyRoleBudget(calculatedBudget)
+            if (calculatedBudget > 0) {
+                setMyRoleBudget(calculatedBudget)
+            } else {
+                setMyRoleBudget(null)
+            }
 
             const { data: spentData } =
                 await supabase

@@ -11,7 +11,8 @@ import {
     Trophy,
     Wallet,
     Star,
-    LogOut
+    LogOut,
+    ChevronDown
 } from 'lucide-react'
 
 const ROLE_LIMITS: Record<string, number> = {
@@ -64,6 +65,13 @@ export default function LiveAuctionPage() {
 
     const [teamsData, setTeamsData] = useState<any[]>([])
     const [realTeamsData, setRealTeamsData] = useState<any[]>([])
+
+    // ============================================================
+    // ROSE SQUADRE (accordion "a scomparsa" nella card Partecipanti)
+    // ============================================================
+    const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null)
+    const [teamRosters, setTeamRosters] = useState<Record<string, any[]>>({})
+    const [loadingRosterTeamId, setLoadingRosterTeamId] = useState<string | null>(null)
 
     const [myTeamId, setMyTeamId] = useState<string | null>(null)
     const [myBudget, setMyBudget] = useState<number>(0)
@@ -408,6 +416,44 @@ export default function LiveAuctionPage() {
         })
 
         setMyRoleCounts(counts)
+    }
+
+    // ============================================================
+    // TOGGLE ROSA SQUADRA (accordion nella card Partecipanti)
+    // ============================================================
+
+    const toggleTeamRoster = async (teamId: string) => {
+        if (expandedTeamId === teamId) {
+            setExpandedTeamId(null)
+            return
+        }
+
+        setExpandedTeamId(teamId)
+
+        if (teamRosters[teamId]) {
+            return
+        }
+
+        setLoadingRosterTeamId(teamId)
+
+        const { data, error } = await supabase
+            .from('league_team_players')
+            .select('player_id, player_name, role, price')
+            .eq('auction_id', id)
+            .eq('team_id', teamId)
+            .order('role', { ascending: true })
+
+        setLoadingRosterTeamId(null)
+
+        if (error) {
+            console.error('Errore caricamento rosa squadra:', error)
+            return
+        }
+
+        setTeamRosters((prev) => ({
+            ...prev,
+            [teamId]: data || []
+        }))
     }
 
     // ============================================================
@@ -1047,6 +1093,16 @@ export default function LiveAuctionPage() {
                     ) {
                         throw playerError
                     }
+
+                    setTeamRosters((prev) => {
+                        if (!finalWinningTeamId || !prev[finalWinningTeamId]) {
+                            return prev
+                        }
+
+                        const next = { ...prev }
+                        delete next[finalWinningTeamId]
+                        return next
+                    })
 
                     if (finalWinningTeamId === myTeamId) {
                         await fetchMyRoleCounts(myTeamId!);
@@ -2174,6 +2230,19 @@ export default function LiveAuctionPage() {
                                     await showAuctionResult(
                                         closedNomination
                                     )
+
+                                    const wonTeamId =
+                                        closedNomination.highest_bidder_team_id
+
+                                    setTeamRosters((prev) => {
+                                        if (!prev[wonTeamId]) {
+                                            return prev
+                                        }
+
+                                        const next = { ...prev }
+                                        delete next[wonTeamId]
+                                        return next
+                                    })
                                 }
 
                                 setCurrentNomination(
@@ -3271,12 +3340,21 @@ export default function LiveAuctionPage() {
                                     team.id
                                 )
 
+                            const isExpanded =
+                                expandedTeamId === team.id
+
+                            const isLoadingRoster =
+                                loadingRosterTeamId === team.id
+
+                            const roster =
+                                teamRosters[team.id] || []
+
                             return (
                                 <div
                                     key={
                                         team.id
                                     }
-                                    className={`p-3 rounded-xl border flex justify-between items-center ${withdrawn
+                                    className={`rounded-xl border overflow-hidden ${withdrawn
                                         ? 'bg-red-500/5 border-red-500/20 opacity-60'
                                         : team.id ===
                                             currentTurnTeamId
@@ -3285,35 +3363,110 @@ export default function LiveAuctionPage() {
                                         }`}
                                 >
 
-                                    <div>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            toggleTeamRoster(team.id)
+                                        }
+                                        className="w-full p-3 flex justify-between items-center text-left"
+                                    >
 
-                                        <span className="font-bold text-xs">
+                                        <div className="flex items-center gap-2">
+
+                                            <ChevronDown
+                                                className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''
+                                                    }`}
+                                            />
+
+                                            <div>
+
+                                                <span className="font-bold text-xs">
+                                                    {
+                                                        team.name
+                                                    }
+                                                </span>
+
+                                                {withdrawn && (
+                                                    <span className="text-[10px] uppercase font-black text-red-400 block mt-1">
+                                                        Ritirata
+                                                    </span>
+                                                )}
+
+                                                {team.id ===
+                                                    currentTurnTeamId && (
+                                                        <span className="text-[10px] uppercase font-black text-amber-400 block mt-1">
+                                                            Turno di chiamata
+                                                        </span>
+                                                    )}
+
+                                            </div>
+
+                                        </div>
+
+                                        <span className="text-xs font-black text-amber-400">
                                             {
-                                                team.name
-                                            }
+                                                team.budget
+                                            }{' '}
+                                            CR
                                         </span>
 
-                                        {withdrawn && (
-                                            <span className="text-[10px] uppercase font-black text-red-400 block mt-1">
-                                                Ritirata
-                                            </span>
-                                        )}
+                                    </button>
 
-                                        {team.id ===
-                                            currentTurnTeamId && (
-                                                <span className="text-[10px] uppercase font-black text-amber-400 block mt-1">
-                                                    Turno di chiamata
-                                                </span>
+                                    {isExpanded && (
+                                        <div className="px-3 pb-3 pt-1 border-t border-slate-700/60">
+
+                                            {isLoadingRoster ? (
+                                                <div className="flex items-center gap-2 text-xs text-slate-500 py-2">
+                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                    Caricamento rosa...
+                                                </div>
+                                            ) : roster.length === 0 ? (
+                                                <p className="text-xs text-slate-500 py-2">
+                                                    Nessun giocatore acquistato finora.
+                                                </p>
+                                            ) : (
+                                                <div className="space-y-1 pt-2">
+                                                    {ROLE_ORDER.map((role) => {
+                                                        const playersForRole =
+                                                            roster.filter(
+                                                                (p: any) => p.role === role
+                                                            )
+
+                                                        if (playersForRole.length === 0) {
+                                                            return null
+                                                        }
+
+                                                        return (
+                                                            <div key={role} className="mb-2">
+
+                                                                <span className="text-[10px] uppercase font-black text-slate-500">
+                                                                    {ROLE_NAMES[role]}
+                                                                </span>
+
+                                                                <div className="space-y-1 mt-1">
+                                                                    {playersForRole.map((p: any) => (
+                                                                        <div
+                                                                            key={p.player_id}
+                                                                            className="flex justify-between items-center text-xs px-2 py-1.5 rounded-lg bg-slate-900/60"
+                                                                        >
+                                                                            <span className="text-slate-200">
+                                                                                {p.player_name}
+                                                                            </span>
+                                                                            <span className="text-emerald-400 font-bold">
+                                                                                {p.price} CR
+                                                                            </span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
                                             )}
 
-                                    </div>
-
-                                    <span className="text-xs font-black text-amber-400">
-                                        {
-                                            team.budget
-                                        }{' '}
-                                        CR
-                                    </span>
+                                        </div>
+                                    )}
 
                                 </div>
                             )
