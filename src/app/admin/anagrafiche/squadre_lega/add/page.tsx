@@ -245,7 +245,7 @@ export default function AddLeagueTeamPage() {
 
         const fileName = `${crypto.randomUUID()}.${extension}`
 
-        const filePath = `league-teams/${fileName}`
+        const filePath = `league-logos/${fileName}`
 
         const {
           error: uploadError,
