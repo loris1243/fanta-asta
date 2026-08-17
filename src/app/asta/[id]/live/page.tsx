@@ -1255,6 +1255,16 @@ export default function LiveAuctionPage() {
                 return
             }
 
+            if (highestTeamId === myTeamId) {
+                if (!options?.silent) {
+                    alert(
+                        'Sei in vantaggio con l’offerta più alta: non puoi ritirarti da questa asta.'
+                    )
+                }
+
+                return
+            }
+
             if (!options?.silent) {
                 const confirmed =
                     window.confirm(
@@ -3099,21 +3109,23 @@ export default function LiveAuctionPage() {
                                         </>
                                     )}
 
-                                    <button
-                                        onClick={
-                                            () => handleWithdraw()
-                                        }
-                                        disabled={
-                                            isWithdrawing
-                                        }
-                                        className="w-full py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-300 rounded-xl font-black text-xs uppercase transition flex items-center justify-center gap-2"
-                                    >
-                                        <LogOut className="w-4 h-4" />
+                                    {!amHighestBidder && (
+                                        <button
+                                            onClick={
+                                                () => handleWithdraw()
+                                            }
+                                            disabled={
+                                                isWithdrawing
+                                            }
+                                            className="w-full py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-300 rounded-xl font-black text-xs uppercase transition flex items-center justify-center gap-2"
+                                        >
+                                            <LogOut className="w-4 h-4" />
 
-                                        {isWithdrawing
-                                            ? 'Ritiro...'
-                                            : "Ritirati dall'asta"}
-                                    </button>
+                                            {isWithdrawing
+                                                ? 'Ritiro...'
+                                                : "Ritirati dall'asta"}
+                                        </button>
+                                    )}
 
                                 </>
                             ) : (
