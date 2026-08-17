@@ -66,6 +66,9 @@ export default function LiveAuctionPage() {
     const [teamsData, setTeamsData] = useState<any[]>([])
     const [realTeamsData, setRealTeamsData] = useState<any[]>([])
 
+    const [isAuctionEnded, setIsAuctionEnded] = useState(false);
+    const [auctionSummaryData, setAuctionSummaryData] = useState<any[]>([]);
+
     // ============================================================
     // ROSE SQUADRE (accordion "a scomparsa" nella card Partecipanti)
     // ============================================================
@@ -1204,12 +1207,12 @@ export default function LiveAuctionPage() {
                         nextRequiredRole = upcomingRole
                         nextTurnTeamId = teamsData[0]?.id || null
                     } else {
-                        alert(
-                            'Tutte le squadre hanno completato tutti i ruoli disponibili. L’asta è conclusa.'
-                        )
-
-                        nextRequiredRole = requiredRole
-                        nextTurnTeamId = null
+                    await supabase
+                        .from('auctions')
+                        .update({ status: 'conclusa' })
+                        .eq('id', id)
+                        setIsAuctionEnded(true);
+                        return;
                     }
                 } else {
                     nextTurnTeamId =
@@ -1961,6 +1964,10 @@ export default function LiveAuctionPage() {
                 auctionData
             )
 
+            if (auctionData.status === 'conclusa') {
+                setIsAuctionEnded(true)
+            }
+
             const initialRole =
                 auctionData.required_role ||
                 'P'
@@ -2137,6 +2144,10 @@ export default function LiveAuctionPage() {
                             setCurrentTurnTeamId(
                                 newTurn
                             )
+
+                            if (payload.new.status === 'conclusa') {
+                                setIsAuctionEnded(true)
+                            }
 
                             const newRole =
                                 payload.new
@@ -2778,7 +2789,36 @@ export default function LiveAuctionPage() {
         )
     }
 
-    return (
+    if (isAuctionEnded) {
+        return (
+            <div className="min-h-screen bg-slate-900 text-slate-100 font-sans p-4 md:p-8 flex items-center justify-center">
+                <div className="max-w-xl w-full bg-slate-800/80 border border-slate-700 rounded-2xl p-8 text-center space-y-6 shadow-2xl">
+                    <div className="w-16 h-16 bg-amber-500/15 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto text-amber-400">
+                        <Trophy className="w-8 h-8" />
+                    </div>
+                    
+                    <div className="space-y-2">
+                        <h1 className="text-2xl font-black uppercase text-white">Asta Conclusa!</h1>
+                        <p className="text-sm text-slate-400">
+                            Tutti i ruoli e le chiamate sono stati completati con successo.
+                        </p>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-700/60 flex gap-3">
+                        <button
+                            onClick={() => router.push('/')}
+                            className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-wider transition"
+                        >
+                            Torna alla dashboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    return (     
+        
         <div className="min-h-screen bg-slate-900 text-slate-100 font-sans p-4 md:p-8 flex flex-col">
 
             {/* HEADER */}
