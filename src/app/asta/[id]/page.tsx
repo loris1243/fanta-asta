@@ -65,7 +65,7 @@ export default function WaitingRoomPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'offline'>('all')
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 5
+  const itemsPerPage = 10
 
   // Stati per filtri e paginazione (RISULTATI ASTA, solo a asta conclusa)
   const [resultsSearchQuery, setResultsSearchQuery] = useState('')
