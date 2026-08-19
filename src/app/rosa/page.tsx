@@ -63,24 +63,24 @@ const ROLE_NAMES: Record<string, string> = {
 
 const ROLE_STYLES: Record<string, { bg: string; text: string; border: string }> = {
   P: {
-    bg: 'bg-sky-500/10',
-    text: 'text-sky-300',
-    border: 'border-sky-500/20',
+    bg: 'bg-role-p-bg',
+    text: 'text-role-p',
+    border: 'border-role-p/20',
   },
   D: {
-    bg: 'bg-emerald-500/10',
-    text: 'text-emerald-300',
-    border: 'border-emerald-500/20',
+    bg: 'bg-role-d-bg',
+    text: 'text-role-d',
+    border: 'border-role-d/20',
   },
   C: {
-    bg: 'bg-amber-500/10',
-    text: 'text-amber-300',
-    border: 'border-amber-500/20',
+    bg: 'bg-role-c-bg',
+    text: 'text-role-c',
+    border: 'border-role-c/20',
   },
   A: {
-    bg: 'bg-red-500/10',
-    text: 'text-red-300',
-    border: 'border-red-500/20',
+    bg: 'bg-role-a-bg',
+    text: 'text-role-a',
+    border: 'border-role-a/20',
   },
 }
 
@@ -395,8 +395,8 @@ export default function RosaPage() {
         flex
         items-center
         justify-center
-        bg-slate-900
-        text-white
+        bg-background
+        text-foreground
       ">
         Caricamento rosa...
       </div>
@@ -412,7 +412,7 @@ export default function RosaPage() {
           SIDEBAR
       ====================================================== */}
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col md:flex-row">
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col md:flex-row">
       <DashboardSidebar
         user={{ username: user.username, role: user.role }}
         remainingBudget={remainingBudget}
@@ -466,7 +466,7 @@ export default function RosaPage() {
               className="
                 mt-1.5
                 text-sm
-                text-slate-400
+                text-muted
               "
             >
               Giocatori acquistati all'asta
@@ -518,9 +518,9 @@ export default function RosaPage() {
 
             <div
               className="
-                bg-slate-800/80
+                bg-surface-elevated/80
                 border
-                border-slate-700/80
+                border-border/80
                 rounded-2xl
                 p-10
                 text-center
@@ -531,7 +531,7 @@ export default function RosaPage() {
                 className="
                   w-8
                   h-8
-                  text-slate-600
+                  text-muted-2
                   mx-auto
                   mb-3
                 "
@@ -540,7 +540,7 @@ export default function RosaPage() {
               <p
                 className="
                   text-sm
-                  text-slate-400
+                  text-muted
                 "
               >
                 Nessun giocatore acquistato.
@@ -553,9 +553,9 @@ export default function RosaPage() {
             <div className="space-y-6">
               {Object.entries(groupedPlayers).map(([role, rolePlayers]) => {
                 const style = ROLE_STYLES[role] || {
-                  bg: 'bg-slate-500/10',
-                  text: 'text-slate-300',
-                  border: 'border-slate-500/20',
+                  bg: 'bg-muted/10',
+                  text: 'text-muted',
+                  border: 'border-muted/20',
                 }
 
                 return (
@@ -577,7 +577,7 @@ export default function RosaPage() {
                       >
                         {ROLE_NAMES[role] || role} ({rolePlayers.length})
                       </span>
-                      <div className="flex-1 h-px bg-slate-800" />
+                      <div className="flex-1 h-px bg-border" />
                     </div>
 
                     {/* LISTA GIOCATORI DEL RUOLO */}
@@ -599,12 +599,12 @@ export default function RosaPage() {
                               ${
                                 p.is_out
                                   ? `
-                                    bg-red-500/10
-                                    border-red-500/50
+                                    bg-danger/10
+                                    border-danger/50
                                   `
                                   : `
-                                    bg-slate-800
-                                    border-slate-700
+                                    bg-surface-elevated
+                                    border-border
                                   `
                               }
                             `}
@@ -622,7 +622,7 @@ export default function RosaPage() {
                                     p.is_out
                                       ? `
                                         line-through
-                                        text-slate-500
+                                        text-muted-2
                                       `
                                       : 'text-white'
                                   }
@@ -636,7 +636,7 @@ export default function RosaPage() {
                               <div
                                 className="
                                   text-xs
-                                  text-slate-400
+                                  text-muted
                                   flex
                                   items-center
                                   gap-2
@@ -656,8 +656,8 @@ export default function RosaPage() {
                                     overflow-hidden
                                     flex
                                     border-2
-                                    border-slate-300/70
-                                    bg-slate-800
+                                    border-border-strong
+                                    bg-surface-elevated
                                     shadow-lg
                                   "
                                   title={
@@ -734,7 +734,7 @@ export default function RosaPage() {
                                   <p
                                     className="
                                       text-[10px]
-                                      text-slate-500
+                                      text-muted-2
                                       mt-0.5
                                       truncate
                                     "
@@ -756,7 +756,7 @@ export default function RosaPage() {
 
                               <p
                                 className="
-                                  text-emerald-400
+                                  text-success
                                   font-black
                                 "
                               >
@@ -766,7 +766,7 @@ export default function RosaPage() {
                               <p
                                 className="
                                   text-xs
-                                  text-slate-400
+                                  text-muted
                                 "
                               >
                                 FM:{' '}
@@ -809,18 +809,18 @@ function Stat({
   return (
     <div
       className="
-        bg-slate-800
+        bg-surface-elevated
         p-4
         rounded-xl
         border
-        border-slate-700
+        border-border
       "
     >
 
       <p
         className="
           text-xs
-          text-slate-400
+          text-muted
         "
       >
         {label}

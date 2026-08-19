@@ -65,17 +65,17 @@ function AuctionContent({
           <div
             className={`w-2.5 h-2.5 rounded-full ${
               isInCorso
-                ? 'bg-amber-400'
+                ? 'bg-accent'
                 : isNuova
-                ? 'bg-blue-400'
+                ? 'bg-primary'
                 : isTerminata
-                ? 'bg-green-400' 
-                :'bg-slate-500'
+                ? 'bg-success' 
+                :'bg-muted-2'
             }`}
           />
 
           {isInCorso && (
-            <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping opacity-60" />
+            <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-accent animate-ping opacity-60" />
           )}
         </div>
 
@@ -84,7 +84,7 @@ function AuctionContent({
             Asta #{item.id.slice(0, 6)}
           </p>
 
-          <p className="text-[10px] text-slate-500 truncate">
+          <p className="text-[10px] text-muted-2 truncate">
             Creata il{' '}
             {new Date(item.created_at).toLocaleDateString('it-IT', {
               day: '2-digit',
@@ -101,12 +101,12 @@ function AuctionContent({
         <span
           className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border ${
             isInCorso
-              ? 'bg-amber-500/10 text-amber-300 border-amber-500/20'
+              ? 'bg-accent/10 text-accent border-accent/20'
               : isNuova
-              ? 'bg-blue-500/10 text-blue-300 border-blue-500/20'              
+              ? 'bg-primary/10 text-primary-hover border-primary/20'              
               : isTerminata
-              ? 'bg-green-500/10 text-blue-300 border-green-500/20'
-              : 'bg-slate-800 text-slate-400 border-slate-700'
+              ? 'bg-success/10 text-success border-success/20'
+              : 'bg-surface-elevated text-muted border-border'
           }`}
         >
           {isInCorso ? 'In corso' : isNuova ? 'Nuova' : isTerminata?'Conclusa' : item.status}
@@ -116,7 +116,7 @@ function AuctionContent({
           <button
             onClick={(e) => handleDeleteAuction(item.id, e)}
             type="button"
-            className="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition cursor-pointer"
+            className="p-2 rounded-lg text-muted-2 hover:text-danger hover:bg-danger/10 transition cursor-pointer"
             title="Elimina asta"
           >
             <Trash2 className="w-4 h-4" />
@@ -338,11 +338,11 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center font-sans">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-sans">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
 
-          <p className="text-xs text-slate-500 font-bold tracking-widest uppercase">
+          <p className="text-xs text-muted-2 font-bold tracking-widest uppercase">
             Caricamento FantAsta...
           </p>
         </div>
@@ -359,7 +359,7 @@ export default function DashboardPage() {
   ========================================================== */
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col md:flex-row">
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col md:flex-row">
       <DashboardSidebar
         user={{ username: user.username, role: user.role }}
         remainingBudget={remainingBudget}
@@ -385,7 +385,7 @@ export default function DashboardPage() {
           <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-7">
 
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400 mb-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-1">
                 Dashboard
               </p>
 
@@ -396,16 +396,16 @@ export default function DashboardPage() {
 
             <div className="flex items-center gap-2">
 
-              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 border border-slate-800">
-                <Trophy className="w-4 h-4 text-amber-400" />
+              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-surface border border-border">
+                <Trophy className="w-4 h-4 text-accent" />
 
-                <span className="text-xs font-bold text-slate-300">
+                <span className="text-xs font-bold text-muted">
                   {leagueName}
                 </span>
               </div>
 
-              <div className="px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                <span className="text-xs font-bold text-blue-300">
+              <div className="px-3 py-2 rounded-xl bg-primary/10 border border-primary/20">
+                <span className="text-xs font-bold text-primary-hover">
                   {season}
                 </span>
               </div>
@@ -417,11 +417,11 @@ export default function DashboardPage() {
               TEAM HERO
           ================================================== */}
 
-          <section className="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-xl mb-6">
+          <section className="relative overflow-hidden rounded-3xl border border-border bg-surface shadow-xl mb-6">
 
-            <div className="absolute -top-32 -right-32 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -top-32 -right-32 w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-indigo-600/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-info/5 rounded-full blur-3xl pointer-events-none" />
 
             <div className="relative p-6 sm:p-8 lg:p-10">
 
@@ -430,7 +430,7 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-5 sm:gap-6 min-w-0">
 
                   {team.logo_url ? (
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-slate-950/80 border border-slate-700 flex items-center justify-center p-2 shrink-0 shadow-lg">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-background/80 border border-border-strong flex items-center justify-center p-2 shrink-0 shadow-lg">
                       <img
                         src={team.logo_url}
                         alt="Logo Squadra"
@@ -438,14 +438,14 @@ export default function DashboardPage() {
                       />
                     </div>
                   ) : (
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center shrink-0 shadow-lg">
-                      <Shield className="w-10 h-10 sm:w-12 sm:h-12 text-blue-400" />
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 shadow-lg">
+                      <Shield className="w-10 h-10 sm:w-12 sm:h-12 text-primary" />
                     </div>
                   )}
 
                   <div className="min-w-0">
 
-                    <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-blue-400 mb-2">
+                    <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-primary mb-2">
                       La tua squadra
                     </p>
 
@@ -455,7 +455,7 @@ export default function DashboardPage() {
 
                     <Link
                       href="/rosa"
-                      className="inline-flex items-center gap-1.5 mt-3 text-xs font-bold text-slate-400 hover:text-white transition"
+                      className="inline-flex items-center gap-1.5 mt-3 text-xs font-bold text-muted hover:text-foreground transition"
                     >
                       Gestisci la rosa
                       <ChevronRight className="w-3.5 h-3.5" />
@@ -466,29 +466,29 @@ export default function DashboardPage() {
 
                 <div className="shrink-0 lg:min-w-[230px]">
 
-                  <div className="rounded-2xl bg-slate-950/70 border border-slate-800 p-5">
+                  <div className="rounded-2xl bg-background/70 border border-border p-5">
 
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] uppercase tracking-[0.15em] font-black text-slate-500">
+                      <span className="text-[10px] uppercase tracking-[0.15em] font-black text-muted-2">
                         Budget disponibile
                       </span>
 
-                      <Wallet className="w-4 h-4 text-emerald-400" />
+                      <Wallet className="w-4 h-4 text-success" />
                     </div>
 
                     <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-black text-emerald-400">
+                      <span className="text-4xl font-black text-success">
                         {remainingBudget}
                       </span>
 
-                      <span className="text-xs font-bold text-slate-500">
+                      <span className="text-xs font-bold text-muted-2">
                         FM
                       </span>
                     </div>
 
-                    <div className="mt-3 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                    <div className="mt-3 h-1.5 rounded-full bg-surface-elevated overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-emerald-500 transition-all"
+                        className="h-full rounded-full bg-success transition-all"
                         style={{
                           width: `${Math.max(
                             0,
@@ -504,11 +504,11 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="flex items-center justify-between mt-2">
-                      <span className="text-[10px] text-slate-600">
+                      <span className="text-[10px] text-muted-2">
                         Disponibile
                       </span>
 
-                      <span className="text-[10px] font-bold text-slate-500">
+                      <span className="text-[10px] font-bold text-muted-2">
                         {initialBudget} FM iniziali
                       </span>
                     </div>
@@ -528,16 +528,16 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
 
-            <section className="rounded-3xl border border-slate-800 bg-slate-900 shadow-xl overflow-hidden">
+            <section className="rounded-3xl border border-border bg-surface shadow-xl overflow-hidden">
 
-              <div className="p-5 sm:p-6 border-b border-slate-800">
+              <div className="p-5 sm:p-6 border-b border-border">
 
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 
                   <div className="flex items-center gap-3">
 
-                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                      <History className="w-5 h-5 text-blue-400" />
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                      <History className="w-5 h-5 text-primary" />
                     </div>
 
                     <div>
@@ -545,7 +545,7 @@ export default function DashboardPage() {
                         Aste recenti
                       </h3>
 
-                      <p className="text-[11px] text-slate-500 mt-0.5">
+                      <p className="text-[11px] text-muted-2 mt-0.5">
                         Stato delle ultime aste della lega
                       </p>
                     </div>
@@ -561,13 +561,13 @@ export default function DashboardPage() {
                         className="
                           inline-flex items-center gap-1.5
                           px-3.5 py-2
-                          bg-blue-600
-                          hover:bg-blue-500
+                          bg-primary
+                          hover:bg-primary-hover
                           text-white
                           text-xs font-bold
                           rounded-xl
                           transition-all
-                          shadow-md shadow-blue-600/20
+                          shadow-md shadow-primary/20
                           active:scale-[0.98]
                           cursor-pointer
                         "
@@ -583,10 +583,10 @@ export default function DashboardPage() {
                         inline-flex items-center gap-1
                         px-3.5 py-2
                         rounded-xl
-                        bg-slate-800
-                        hover:bg-slate-700
+                        bg-surface-elevated
+                        hover:bg-surface-hover
                         text-xs font-bold
-                        text-slate-300
+                        text-muted
                         hover:text-white
                         transition
                       "
@@ -644,10 +644,10 @@ export default function DashboardPage() {
                             transition-all
                             ${
                               isInCorso
-                                ? 'bg-amber-500/5 border-amber-500/20 hover:border-amber-500/40'
+                                ? 'bg-accent/5 border-accent/20 hover:border-accent/40'
                                 : isNuova
-                                ? 'bg-blue-500/5 border-blue-500/20 hover:border-blue-500/40'
-                                : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
+                                ? 'bg-primary/5 border-primary/20 hover:border-primary/40'
+                                : 'bg-background/50 border-border hover:border-border-strong'
                             }
                           `}
                         >
@@ -685,17 +685,17 @@ export default function DashboardPage() {
 
                   </div>
                 ) : (
-                  <div className="py-14 text-center rounded-2xl border border-dashed border-slate-800 bg-slate-950/30">
+                  <div className="py-14 text-center rounded-2xl border border-dashed border-border bg-background/30">
 
-                    <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-3">
-                      <Gavel className="w-5 h-5 text-slate-600" />
+                    <div className="w-12 h-12 mx-auto rounded-2xl bg-surface border border-border flex items-center justify-center mb-3">
+                      <Gavel className="w-5 h-5 text-muted-2" />
                     </div>
 
-                    <p className="text-sm font-semibold text-slate-400">
+                    <p className="text-sm font-semibold text-muted">
                       Nessuna asta recente
                     </p>
 
-                    <p className="text-xs text-slate-600 mt-1">
+                    <p className="text-xs text-muted-2 mt-1">
                       Le nuove aste compariranno qui.
                     </p>
 
@@ -707,12 +707,12 @@ export default function DashboardPage() {
 
             <aside className="space-y-6">
 
-              <section className="rounded-3xl border border-slate-800 bg-slate-900 shadow-xl p-6">
+              <section className="rounded-3xl border border-border bg-surface shadow-xl p-6">
 
                 <div className="flex items-center justify-between mb-5">
 
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.15em] font-black text-slate-500">
+                    <p className="text-[10px] uppercase tracking-[0.15em] font-black text-muted-2">
                       Situazione
                     </p>
 
@@ -721,8 +721,8 @@ export default function DashboardPage() {
                     </h3>
                   </div>
 
-                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                    <Wallet className="w-4 h-4 text-emerald-400" />
+                  <div className="w-9 h-9 rounded-xl bg-success/10 border border-success/20 flex items-center justify-center">
+                    <Wallet className="w-4 h-4 text-success" />
                   </div>
 
                 </div>
@@ -732,7 +732,7 @@ export default function DashboardPage() {
                     {remainingBudget}
                   </span>
 
-                  <span className="text-xs font-bold text-slate-500 mb-1">
+                  <span className="text-xs font-bold text-muted-2 mb-1">
                     FM
                   </span>
                 </div>
@@ -740,21 +740,21 @@ export default function DashboardPage() {
                 <div className="mt-4 space-y-2">
 
                   <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">
+                    <span className="text-muted-2">
                       Budget iniziale
                     </span>
 
-                    <span className="font-bold text-slate-300">
+                    <span className="font-bold text-muted">
                       {initialBudget} FM
                     </span>
                   </div>
 
                   <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">
+                    <span className="text-muted-2">
                       Speso
                     </span>
 
-                    <span className="font-bold text-slate-300">
+                    <span className="font-bold text-muted">
                       {Math.max(
                         0,
                         initialBudget - remainingBudget
@@ -767,7 +767,7 @@ export default function DashboardPage() {
 
                 <Link
                   href="/rosa"
-                  className="mt-5 flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 hover:text-white transition"
+                  className="mt-5 flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl bg-surface-elevated hover:bg-surface-hover text-xs font-bold text-muted hover:text-foreground transition"
                 >
                   <span>Vai alla rosa</span>
                   <ArrowUpRight className="w-3.5 h-3.5" />
@@ -775,16 +775,16 @@ export default function DashboardPage() {
 
               </section>
 
-              <section className="rounded-3xl border border-slate-800 bg-slate-900 shadow-xl p-6">
+              <section className="rounded-3xl border border-border bg-surface shadow-xl p-6">
 
                 <div className="flex items-center gap-3 mb-5">
 
-                  <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
-                    <Trophy className="w-4 h-4 text-purple-400" />
+                  <div className="w-9 h-9 rounded-xl bg-info/10 border border-info/20 flex items-center justify-center">
+                    <Trophy className="w-4 h-4 text-info" />
                   </div>
 
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.15em] font-black text-slate-500">
+                    <p className="text-[10px] uppercase tracking-[0.15em] font-black text-muted-2">
                       Competizione
                     </p>
 
@@ -795,22 +795,22 @@ export default function DashboardPage() {
 
                 </div>
 
-                <div className="rounded-2xl bg-slate-950/60 border border-slate-800 p-4">
+                <div className="rounded-2xl bg-background/60 border border-border p-4">
 
                   <div className="flex items-center justify-between">
 
                     <div>
-                      <p className="text-[10px] text-slate-600 uppercase font-black tracking-wider">
+                      <p className="text-[10px] text-muted-2 uppercase font-black tracking-wider">
                         Stagione
                       </p>
 
-                      <p className="text-sm font-bold text-slate-300 mt-1">
+                      <p className="text-sm font-bold text-muted mt-1">
                         {season}
                       </p>
                     </div>
 
-                    <div className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center">
-                      <Trophy className="w-4 h-4 text-amber-400" />
+                    <div className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center">
+                      <Trophy className="w-4 h-4 text-accent" />
                     </div>
 
                   </div>
@@ -819,9 +819,9 @@ export default function DashboardPage() {
 
               </section>
 
-              <section className="rounded-3xl border border-slate-800 bg-slate-900 shadow-xl p-5">
+              <section className="rounded-3xl border border-border bg-surface shadow-xl p-5">
 
-                <p className="text-[10px] uppercase tracking-[0.15em] font-black text-slate-500 mb-3">
+                <p className="text-[10px] uppercase tracking-[0.15em] font-black text-muted-2 mb-3">
                   Accesso rapido
                 </p>
 
@@ -829,47 +829,47 @@ export default function DashboardPage() {
 
                   <Link
                     href="/rosa"
-                    className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-slate-800 transition group"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-surface-elevated transition group"
                   >
                     <div className="flex items-center gap-3">
-                      <Shield className="w-4 h-4 text-emerald-400" />
+                      <Shield className="w-4 h-4 text-role-d" />
 
-                      <span className="text-xs font-semibold text-slate-400 group-hover:text-white">
+                      <span className="text-xs font-semibold text-muted group-hover:text-foreground">
                         La mia squadra
                       </span>
                     </div>
 
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-700 group-hover:text-slate-400" />
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-2 group-hover:text-muted" />
                   </Link>
 
                   <Link
                     href="/obiettivi"
-                    className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-slate-800 transition group"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-surface-elevated transition group"
                   >
                     <div className="flex items-center gap-3">
-                      <Target className="w-4 h-4 text-amber-400" />
+                      <Target className="w-4 h-4 text-accent" />
 
-                      <span className="text-xs font-semibold text-slate-400 group-hover:text-white">
+                      <span className="text-xs font-semibold text-muted group-hover:text-foreground">
                         I miei obiettivi
                       </span>
                     </div>
 
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-700 group-hover:text-slate-400" />
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-2 group-hover:text-muted" />
                   </Link>
 
                   <Link
                     href="/listone"
-                    className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-slate-800 transition group"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-surface-elevated transition group"
                   >
                     <div className="flex items-center gap-3">
-                      <ClipboardList className="w-4 h-4 text-blue-400" />
+                      <ClipboardList className="w-4 h-4 text-primary" />
 
-                      <span className="text-xs font-semibold text-slate-400 group-hover:text-white">
+                      <span className="text-xs font-semibold text-muted group-hover:text-foreground">
                         Listone
                       </span>
                     </div>
 
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-700 group-hover:text-slate-400" />
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-2 group-hover:text-muted" />
                   </Link>
 
                 </div>
