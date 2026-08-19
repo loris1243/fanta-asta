@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
-import {exportRossterExcel} from '../app/actions/export'
+import { exportRossterExcel } from '../app/actions/export'
 import Link from 'next/link'
 import {
   LogOut,
@@ -55,37 +55,27 @@ export default function DashboardSidebar({
   const [isExporting, setIsExporting] = useState(false) // Stato di caricamento export
 
   const handleExport = async () => {
-    setIsExporting(true)
-    try {
-      const res = await exportRossterExcel()
-      if (res.success && res.data) {
-        const byteCharacters = atob(res.data)
-        const byteNumbers = new Array(byteCharacters.length)
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i)
-        }
-        const byteArray = new Uint8Array(byteNumbers)
-        const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = res.fileName || 'rose_lega.xlsx'
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
-      } else {
-        alert(res.error || "Errore durante l'esportazione.")
+    const res = await exportRossterExcel()
+    if (res.success && res.data) {
+      // Converte la stringa base64 in un Blob ZIP
+      const byteCharacters = atob(res.data)
+      const byteNumbers = new Array(byteCharacters.length)
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
       }
-    } catch (err) {
-      console.error(err)
-      alert("Errore di connessione durante l'esportazione.")
-    } finally {
-      setIsExporting(false)
+      const byteArray = new Uint8Array(byteNumbers)
+      const blob = new Blob([byteArray], { type: 'application/zip' })
+
+      // Crea un link temporaneo per avviare il download automatico dello zip
+      const link = document.createElement('a')
+      link.href = window.URL.createObjectURL(blob)
+      link.download = res.fileName || 'Esportazione_Lega.zip'
+      link.click()
+      window.URL.revokeObjectURL(link.href)
+    } else {
+      alert(res.error || 'Errore durante il download')
     }
   }
-
   const isActive = (href: string) => {
     return pathname === href || pathname.startsWith(href + '/')
   }
@@ -112,14 +102,12 @@ export default function DashboardSidebar({
       >
         <div className="relative p-3 md:p-4">
           <div
-            className={`relative flex items-center ${
-              isSidebarOpen ? 'justify-between' : 'md:justify-center'
-            } justify-between min-h-10`}
+            className={`relative flex items-center ${isSidebarOpen ? 'justify-between' : 'md:justify-center'
+              } justify-between min-h-10`}
           >
             <div
-              className={`flex items-center ${
-                isSidebarOpen ? 'gap-3' : 'md:justify-center'
-              } gap-3 min-w-0`}
+              className={`flex items-center ${isSidebarOpen ? 'gap-3' : 'md:justify-center'
+                } gap-3 min-w-0`}
             >
               <div className="w-10 h-10 shrink-0 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/20">
                 <Gavel className="w-5 h-5" />
@@ -274,12 +262,12 @@ export default function DashboardSidebar({
                 )}
 
                 {/* Pulsante Esporta Rose */}
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={isExporting}
-            title={!isSidebarOpen ? 'Esporta Rose' : undefined}
-            className={`
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  disabled={isExporting}
+                  title={!isSidebarOpen ? 'Esporta Rose' : undefined}
+                  className={`
               w-full
               flex items-center
               ${isSidebarOpen || isMobileMenuOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
@@ -292,17 +280,17 @@ export default function DashboardSidebar({
               cursor-pointer
               disabled:opacity-50
             `}
-          >
-            <FileSpreadsheet className="w-4 h-4 shrink-0" />
+                >
+                  <FileSpreadsheet className="w-4 h-4 shrink-0" />
 
-            {(isSidebarOpen || isMobileMenuOpen) && (
-              <span className="truncate">
-                {isExporting ? 'Esportazione...' : 'Esporta Rose'}
-              </span>
-            )}
-          </button>
+                  {(isSidebarOpen || isMobileMenuOpen) && (
+                    <span className="truncate">
+                      {isExporting ? 'Esportazione...' : 'Esporta Rose'}
+                    </span>
+                  )}
+                </button>
 
-          <Link
+                <Link
                   href="/admin/gestione-rose"
                   title={!isSidebarOpen ? 'Gestione Rose' : undefined}
                   className={`
