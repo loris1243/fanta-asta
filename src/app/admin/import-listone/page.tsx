@@ -71,6 +71,7 @@ export default function ImportListonePage() {
   }
 
 
+
   const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -172,6 +173,19 @@ export default function ImportListonePage() {
           const updatedDetailsList: string[] = []
           const deactivatedNames: string[] = []
 
+
+          const { data: settingsData } = await supabase
+            .from('league_settings')
+            .select('initial_budget')
+            .maybeSingle()
+
+          const initialBudget = settingsData?.initial_budget ?? 500
+          const budgetRatio = initialBudget / 1000
+
+          const insertedNames: string[] = []
+          const updatedDetailsList: string[] = []
+          const deactivatedNames: string[] = []
+
           for (const row of data) {
             processedCount++
             const playerId = Number(row['#'])
@@ -223,7 +237,6 @@ export default function ImportListonePage() {
               }
 
               insertedCount++
-              insertedNames.push(`${name} (${team} - ${role})`)
               insertedNames.push(`${name} (${team} - ${role})`)
             }
 
@@ -279,6 +292,25 @@ export default function ImportListonePage() {
                   updatedCount++
                   updatedDetailsList.push(`• **${name}**: ${changes.join(', ')}`)
                 }
+                // Controlliamo cosa è cambiato specificamente
+                const changes: string[] = []
+                if (existing.quotation !== quotation) {
+                  changes.push(`Quot: ${existing.quotation} ➔ ${quotation}`)
+                }
+                if (existing.team !== team) {
+                  changes.push(`Sq: ${existing.team} ➔ ${team}`)
+                }
+                if (existing.fvm !== fvm) {
+                  changes.push(`FVM: ${existing.fvm} ➔ ${fvm}`)
+                }
+                if (existing.is_out !== isOut) {
+                  changes.push(isOut ? `Fuori lista` : `Rientrato in lista`)
+                }
+
+                if (changes.length > 0) {
+                  updatedCount++
+                  updatedDetailsList.push(`• **${name}**: ${changes.join(', ')}`)
+                }
               }
             }
 
@@ -315,6 +347,7 @@ export default function ImportListonePage() {
 
                 deactivatedCount++
                 deactivatedNames.push(`${player.name} (${player.team})`)
+                deactivatedNames.push(`${player.name} (${player.team})`)
               }
 
               const progress = Math.round((processedCount / totalRows) * 100)
@@ -325,6 +358,17 @@ export default function ImportListonePage() {
           /*
            * 4. Log importazione
            */
+          let detailedLogText = `Importati ${insertedCount} nuovi, aggiornati ${updatedCount}, disattivati ${deactivatedCount}.\n\n`
+
+          if (insertedNames.length > 0) {
+            detailedLogText += `**Nuovi inseriti:**\n${insertedNames.join(', ')}\n\n`
+          }
+          if (updatedDetailsList.length > 0) {
+            detailedLogText += `**Modifiche rilevate:**\n${updatedDetailsList.join('\n')}\n\n`
+          }
+          if (deactivatedNames.length > 0) {
+            detailedLogText += `**Disattivati:**\n${deactivatedNames.join(', ')}`
+          }
           let detailedLogText = `Importati ${insertedCount} nuovi, aggiornati ${updatedCount}, disattivati ${deactivatedCount}.\n\n`
 
           if (insertedNames.length > 0) {
@@ -349,7 +393,6 @@ export default function ImportListonePage() {
                   deactivated_count:
                     deactivatedCount,
                   details: detailedLogText,
-                  details: detailedLogText,
                 },
               ])
 
@@ -365,7 +408,6 @@ export default function ImportListonePage() {
             updated: updatedCount,
             deactivated: deactivatedCount,
             details: detailedLogText,
-            details: detailedLogText,
           })
         } catch (error: any) {
           console.error(
@@ -375,7 +417,7 @@ export default function ImportListonePage() {
 
           setErrorMessage(
             error?.message ||
-            'Errore durante l’importazione del listone.'
+              'Errore durante l’importazione del listone.'
           )
         } finally {
           setLoadingImport(false)
@@ -431,8 +473,8 @@ export default function ImportListonePage() {
           <div className="bg-surface-elevated border border-border rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4">
             {/* Spinner */}
             <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
               </div>
             </div>
 
@@ -571,8 +613,8 @@ export default function ImportListonePage() {
                   rounded-2xl
                   transition-all
                   ${loadingImport
-                    ? 'border-blue-500/40 bg-blue-500/5 cursor-wait'
-                    : 'border-slate-600 bg-slate-950/40 hover:border-blue-500/60 hover:bg-blue-500/5 cursor-pointer'
+                    ? 'border-primary/40 bg-primary/5 cursor-wait'
+                    : 'border-border-strong bg-background/40 hover:border-primary/60 hover:bg-primary/5 cursor-pointer'
                   }
                 `}
               >
