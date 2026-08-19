@@ -69,7 +69,7 @@ export default function ImportListonePage() {
       name.slice(1)
     )
   }
-  
+
 
   const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
