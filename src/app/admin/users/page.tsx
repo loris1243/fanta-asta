@@ -252,11 +252,11 @@ export default function AdminUsersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center font-sans">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-sans">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
 
-          <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">
+          <p className="text-xs text-muted font-semibold tracking-wider uppercase">
             Caricamento partecipanti...
           </p>
         </div>
@@ -265,7 +265,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col md:flex-row">
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col md:flex-row">
 
       {/* =====================================================
           SIDEBAR
@@ -305,7 +305,7 @@ export default function AdminUsersPage() {
                   text-xs
                   font-bold
                   tracking-wider
-                  text-slate-400
+                  text-muted
                   hover:text-white
                   uppercase
                   transition-colors
@@ -317,11 +317,11 @@ export default function AdminUsersPage() {
               </Link> */}
 
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                  <Users className="w-4 h-4 text-blue-400" />
+                <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  <Users className="w-4 h-4 text-primary" />
                 </div>
 
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-400">
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
                   Amministrazione
                 </span>
               </div>
@@ -330,15 +330,15 @@ export default function AdminUsersPage() {
                 Partecipanti
               </h1>
 
-              <p className="mt-1.5 text-sm text-slate-400">
+              <p className="mt-1.5 text-sm text-muted">
                 Aggiungi e gestisci i partecipanti
                 della lega.
               </p>
             </div>
 
             {maxUsers !== null && (
-              <div className="self-start lg:self-auto bg-slate-800 border border-slate-700 px-4 py-3 rounded-xl">
-                <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500">
+              <div className="self-start lg:self-auto bg-surface-elevated border border-border px-4 py-3 rounded-xl">
+                <p className="text-[10px] uppercase tracking-wider font-bold text-muted-2">
                   Partecipanti
                 </p>
 
@@ -346,14 +346,14 @@ export default function AdminUsersPage() {
                   <span
                     className={
                       isLimitReached
-                        ? 'text-red-400'
-                        : 'text-emerald-400'
+                        ? 'text-danger'
+                        : 'text-success'
                     }
                   >
                     {users.length}
                   </span>
 
-                  <span className="text-slate-500">
+                  <span className="text-muted-2">
                     {' '}
                     / {maxUsers}
                   </span>
@@ -375,15 +375,15 @@ export default function AdminUsersPage() {
                 flex items-start gap-3
                 ${
                   message.type === 'success'
-                    ? 'bg-emerald-500/10 border-emerald-500/30'
-                    : 'bg-red-500/10 border-red-500/30'
+                    ? 'bg-success/10 border-success/30'
+                    : 'bg-danger/10 border-danger/30'
                 }
               `}
             >
               {message.type === 'success' ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
               ) : (
-                <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+                <AlertCircle className="w-5 h-5 text-danger shrink-0" />
               )}
 
               <p
@@ -391,8 +391,8 @@ export default function AdminUsersPage() {
                   text-xs font-semibold
                   ${
                     message.type === 'success'
-                      ? 'text-emerald-300'
-                      : 'text-red-300'
+                      ? 'text-success'
+                      : 'text-danger-hover'
                   }
                 `}
               >
@@ -406,15 +406,15 @@ export default function AdminUsersPage() {
           ===================================================== */}
 
           {isLimitReached && (
-            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
+            <div className="rounded-2xl border border-danger/30 bg-danger/10 p-4 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-danger shrink-0" />
 
               <div>
-                <p className="text-sm font-bold text-red-300">
+                <p className="text-sm font-bold text-danger-hover">
                   Numero massimo raggiunto
                 </p>
 
-                <p className="text-xs text-red-200/70 mt-1">
+                <p className="text-xs text-danger/70 mt-1">
                   Hai raggiunto il numero massimo
                   di partecipanti consentito
                   dalle impostazioni della lega.
@@ -429,22 +429,22 @@ export default function AdminUsersPage() {
 
           <section
             className={`
-              bg-slate-800/80
+              bg-surface-elevated/80
               border
               rounded-2xl
               shadow-xl
               overflow-hidden
               ${
                 isLimitReached
-                  ? 'border-slate-700/50 opacity-70'
-                  : 'border-slate-700'
+                  ? 'border-border/50 opacity-70'
+                  : 'border-border'
               }
             `}
           >
-            <div className="p-5 md:p-6 border-b border-slate-700/70">
+            <div className="p-5 md:p-6 border-b border-border/70">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                  <UserPlus className="w-5 h-5 text-blue-400" />
+                <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  <UserPlus className="w-5 h-5 text-primary" />
                 </div>
 
                 <div>
@@ -452,9 +452,9 @@ export default function AdminUsersPage() {
                     Aggiungi partecipante
                   </h2>
 
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-muted mt-0.5">
                     Il nuovo partecipante riceverà{' '}
-                    <span className="text-emerald-400 font-bold">
+                    <span className="text-success font-bold">
                       {defaultBudget} FM
                     </span>
                     .
@@ -470,7 +470,7 @@ export default function AdminUsersPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
 
                 <div className="xl:col-span-1">
-                  <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block mb-1.5">
+                  <label className="text-[10px] uppercase tracking-wider text-muted font-bold block mb-1.5">
                     Username
                   </label>
 
@@ -484,15 +484,15 @@ export default function AdminUsersPage() {
                     placeholder="es. FC Real"
                     className="
                       w-full
-                      bg-slate-950/70
-                      border border-slate-700
+                      bg-background/70
+                      border border-border
                       rounded-xl
                       px-3.5 py-3
                       text-sm text-white
-                      placeholder-slate-600
-                      focus:border-blue-500
+                      placeholder-muted-2
+                      focus:border-primary
                       focus:ring-1
-                      focus:ring-blue-500/30
+                      focus:ring-primary/30
                       outline-none
                       transition-all
                       disabled:opacity-50
@@ -501,7 +501,7 @@ export default function AdminUsersPage() {
                 </div>
 
                 <div className="xl:col-span-1">
-                  <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block mb-1.5">
+                  <label className="text-[10px] uppercase tracking-wider text-muted font-bold block mb-1.5">
                     Password
                   </label>
 
@@ -517,15 +517,15 @@ export default function AdminUsersPage() {
                     placeholder="Password"
                     className="
                       w-full
-                      bg-slate-950/70
-                      border border-slate-700
+                      bg-background/70
+                      border border-border
                       rounded-xl
                       px-3.5 py-3
                       text-sm text-white
-                      placeholder-slate-600
-                      focus:border-blue-500
+                      placeholder-muted-2
+                      focus:border-primary
                       focus:ring-1
-                      focus:ring-blue-500/30
+                      focus:ring-primary/30
                       outline-none
                       transition-all
                       disabled:opacity-50
@@ -534,7 +534,7 @@ export default function AdminUsersPage() {
                 </div>
 
                 <div className="xl:col-span-1">
-                  <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block mb-1.5">
+                  <label className="text-[10px] uppercase tracking-wider text-muted font-bold block mb-1.5">
                     Ruolo
                   </label>
 
@@ -547,14 +547,14 @@ export default function AdminUsersPage() {
                     defaultValue="user"
                     className="
                       w-full
-                      bg-slate-950/70
-                      border border-slate-700
+                      bg-background/70
+                      border border-border
                       rounded-xl
                       px-3.5 py-3
                       text-sm text-white
-                      focus:border-blue-500
+                      focus:border-primary
                       focus:ring-1
-                      focus:ring-blue-500/30
+                      focus:ring-primary/30
                       outline-none
                       transition-all
                       disabled:opacity-50
@@ -581,15 +581,15 @@ export default function AdminUsersPage() {
                       w-full
                       h-[46px]
                       px-5
-                      bg-blue-600
-                      hover:bg-blue-500
+                      bg-primary
+                      hover:bg-primary-hover
                       text-white
                       text-sm
                       font-bold
                       rounded-xl
                       transition-all
                       shadow-md
-                      shadow-blue-600/20
+                      shadow-primary/20
                       active:scale-[0.98]
                       disabled:opacity-50
                       disabled:cursor-not-allowed
@@ -619,16 +619,16 @@ export default function AdminUsersPage() {
               USERS LIST
           ===================================================== */}
 
-          <section className="bg-slate-800/80 border border-slate-700 rounded-2xl shadow-xl overflow-hidden">
+          <section className="bg-surface-elevated/80 border border-border rounded-2xl shadow-xl overflow-hidden">
 
-            <div className="p-5 md:p-6 border-b border-slate-700/70">
+            <div className="p-5 md:p-6 border-b border-border/70">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-sm font-black uppercase tracking-wider text-white">
                     Partecipanti della lega
                   </h2>
 
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-muted mt-0.5">
                     {users.length}{' '}
                     {users.length === 1
                       ? 'partecipante'
@@ -640,21 +640,21 @@ export default function AdminUsersPage() {
 
             {users.length === 0 ? (
               <div className="p-10 text-center">
-                <div className="w-12 h-12 rounded-2xl bg-slate-950/60 border border-slate-700 flex items-center justify-center mx-auto mb-3">
-                  <Users className="w-5 h-5 text-slate-500" />
+                <div className="w-12 h-12 rounded-2xl bg-background/60 border border-border flex items-center justify-center mx-auto mb-3">
+                  <Users className="w-5 h-5 text-muted-2" />
                 </div>
 
-                <p className="text-sm font-bold text-slate-300">
+                <p className="text-sm font-bold text-muted">
                   Nessun partecipante trovato
                 </p>
 
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-muted-2 mt-1">
                   Aggiungi il primo partecipante
                   utilizzando il modulo qui sopra.
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-700/60">
+              <div className="divide-y divide-border/60">
                 {users.map((u) => {
                   const isSelf =
                     currentUser &&
@@ -671,7 +671,7 @@ export default function AdminUsersPage() {
                         flex items-center
                         justify-between
                         gap-4
-                        hover:bg-slate-800/70
+                        hover:bg-surface-elevated/70
                         transition-colors
                       "
                     >
@@ -679,8 +679,8 @@ export default function AdminUsersPage() {
                         <div className="
                           w-10 h-10
                           rounded-xl
-                          bg-slate-950
-                          border border-slate-700
+                          bg-background
+                          border border-border
                           flex items-center
                           justify-center
                           text-sm
@@ -702,9 +702,9 @@ export default function AdminUsersPage() {
                             {u.role === 'admin' && (
                               <span className="
                                 text-[9px]
-                                bg-amber-500/10
-                                text-amber-300
-                                border border-amber-500/30
+                                bg-accent/10
+                                text-accent
+                                border border-accent/30
                                 px-2 py-0.5
                                 rounded-md
                                 font-black
@@ -718,9 +718,9 @@ export default function AdminUsersPage() {
                             {isSelf && (
                               <span className="
                                 text-[9px]
-                                bg-blue-500/10
-                                text-blue-300
-                                border border-blue-500/30
+                                bg-primary/10
+                                text-primary-hover
+                                border border-primary/30
                                 px-2 py-0.5
                                 rounded-md
                                 font-black
@@ -732,7 +732,7 @@ export default function AdminUsersPage() {
                             )}
                           </div>
 
-                          <p className="text-[11px] text-slate-500 mt-0.5">
+                          <p className="text-[11px] text-muted-2 mt-0.5">
                             {u.role === 'admin'
                               ? 'Amministratore'
                               : 'Partecipante'}
@@ -742,11 +742,11 @@ export default function AdminUsersPage() {
 
                       <div className="flex items-center gap-3 md:gap-5 shrink-0">
                         <div className="text-right">
-                          <p className="text-[9px] uppercase tracking-wider font-bold text-slate-500">
+                          <p className="text-[9px] uppercase tracking-wider font-bold text-muted-2">
                             Budget
                           </p>
 
-                          <p className="text-sm font-black font-mono text-emerald-400">
+                          <p className="text-sm font-black font-mono text-success">
                             {u.budget} FM
                           </p>
                         </div>
@@ -764,12 +764,12 @@ export default function AdminUsersPage() {
                               rounded-xl
                               flex items-center
                               justify-center
-                              text-slate-500
-                              hover:text-red-400
-                              hover:bg-red-500/10
+                              text-muted-2
+                              hover:text-danger
+                              hover:bg-danger/10
                               border
                               border-transparent
-                              hover:border-red-500/20
+                              hover:border-danger/20
                               transition-all
                               disabled:opacity-50
                             "
