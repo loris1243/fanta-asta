@@ -91,8 +91,8 @@ export default function DashboardSidebar({
       <aside
         className={`
           fixed md:static inset-y-0 left-0 z-50
-          bg-slate-900/95 md:bg-slate-900/95
-          border-r border-slate-800
+          bg-surface/95 md:bg-surface/95
+          border-r border-border
           shadow-xl
           transition-all duration-300 ease-in-out
           flex flex-col
@@ -109,7 +109,7 @@ export default function DashboardSidebar({
               className={`flex items-center ${isSidebarOpen ? 'gap-3' : 'md:justify-center'
                 } gap-3 min-w-0`}
             >
-              <div className="w-10 h-10 shrink-0 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/20">
+              <div className="w-10 h-10 shrink-0 rounded-xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20">
                 <Gavel className="w-5 h-5" />
               </div>
 
@@ -118,7 +118,7 @@ export default function DashboardSidebar({
                   <h1 className="font-extrabold text-base tracking-tight text-white leading-tight">
                     FantAsta
                   </h1>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                  <p className="text-[10px] text-muted-2 font-bold uppercase tracking-wider">
                     Aste Live
                   </p>
                 </div>
@@ -128,7 +128,7 @@ export default function DashboardSidebar({
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="md:hidden p-2 text-slate-400 hover:text-white"
+              className="md:hidden p-2 text-muted hover:text-foreground"
             >
               ✕
             </button>
@@ -138,7 +138,7 @@ export default function DashboardSidebar({
                 type="button"
                 onClick={() => setIsSidebarOpen((prev) => !prev)}
                 aria-label="Comprimi barra laterale"
-                className="hidden md:flex items-center justify-center w-7 h-7 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-all"
+                className="hidden md:flex items-center justify-center w-7 h-7 rounded-lg text-muted-2 hover:text-foreground hover:bg-surface-hover transition-all"
               >
                 <PanelLeftClose className="w-4 h-4" />
               </button>
@@ -151,7 +151,7 @@ export default function DashboardSidebar({
                 type="button"
                 onClick={() => setIsSidebarOpen((prev) => !prev)}
                 aria-label="Espandi barra laterale"
-                className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all border border-slate-800"
+                className="flex items-center justify-center w-8 h-8 rounded-lg text-muted hover:text-foreground hover:bg-surface-hover transition-all border border-border"
               >
                 <PanelLeftOpen className="w-4 h-4" />
               </button>
@@ -171,8 +171,8 @@ export default function DashboardSidebar({
                 rounded-xl
                 text-sm font-semibold
                 ${isActive('/') && pathname === '/'
-                  ? 'text-white bg-blue-600 shadow-md shadow-blue-600/20'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                  ? 'text-white bg-primary shadow-md shadow-primary/20'
+                  : 'text-muted hover:text-foreground hover:bg-surface-hover'
                 }
                 transition-all
               `}
@@ -194,13 +194,13 @@ export default function DashboardSidebar({
                 rounded-xl
                 text-sm font-semibold
                 ${isActive('/rosa')
-                  ? 'text-white bg-blue-600 shadow-md shadow-blue-600/20'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                  ? 'text-white bg-primary shadow-md shadow-primary/20'
+                  : 'text-muted hover:text-foreground hover:bg-surface-hover'
                 }
                 transition-all
               `}
             >
-              <Shield className="w-4 h-4 shrink-0 text-emerald-400" />
+              <Shield className="w-4 h-4 shrink-0 text-role-d" />
 
               {(isSidebarOpen || isMobileMenuOpen) && (
                 <span className="truncate">La Mia Squadra</span>
@@ -217,13 +217,13 @@ export default function DashboardSidebar({
                 rounded-xl
                 text-sm font-semibold
                 ${isActive('/obiettivi')
-                  ? 'text-white bg-blue-600 shadow-md shadow-blue-600/20'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                  ? 'text-white bg-primary shadow-md shadow-primary/20'
+                  : 'text-muted hover:text-foreground hover:bg-surface-hover'
                 }
                 transition-all
               `}
             >
-              <Target className="w-4 h-4 shrink-0 text-amber-400" />
+              <Target className="w-4 h-4 shrink-0 text-accent" />
 
               {(isSidebarOpen || isMobileMenuOpen) && (
                 <span className="truncate">I Miei Obiettivi</span>
@@ -240,8 +240,8 @@ export default function DashboardSidebar({
                 rounded-xl
                 text-sm font-semibold
                 ${isActive('/listone')
-                  ? 'text-white bg-blue-600 shadow-md shadow-blue-600/20'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                  ? 'text-white bg-primary shadow-md shadow-primary/20'
+                  : 'text-muted hover:text-foreground hover:bg-surface-hover'
                 }
                 transition-all
               `}
@@ -254,9 +254,9 @@ export default function DashboardSidebar({
             </Link>
 
             {user.role === 'admin' && (
-              <div className="pt-4 mt-4 border-t border-slate-800">
+              <div className="pt-4 mt-4 border-t border-border">
                 {(isSidebarOpen || isMobileMenuOpen) && (
-                  <span className="px-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                  <span className="px-2 text-[10px] font-bold text-muted-2 uppercase tracking-wider block mb-2">
                     Pannello Admin
                   </span>
                 )}
@@ -274,8 +274,7 @@ export default function DashboardSidebar({
               h-10
               rounded-xl
               text-sm font-semibold
-              text-emerald-300 bg-emerald-500/10 border border-emerald-500/20
-              hover:bg-emerald-500/20
+              text-muted hover:text-foreground hover:bg-surface-hover
               transition-all
               cursor-pointer
               disabled:opacity-50
@@ -300,8 +299,8 @@ export default function DashboardSidebar({
                     rounded-xl
                     text-sm font-semibold
                     ${isActive('/admin/gestione-rose')
-                      ? 'text-blue-300 bg-blue-500/10 border border-blue-500/20'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                      ? 'text-primary bg-primary/10 border border-primary/20'
+                      : 'text-muted hover:text-foreground hover:bg-surface-hover'
                     }
                     transition-all
                   `}
@@ -323,8 +322,8 @@ export default function DashboardSidebar({
                     rounded-xl
                     text-sm font-semibold
                     ${isActive('/admin/import-listone')
-                      ? 'text-blue-300 bg-blue-500/10 border border-blue-500/20'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                      ? 'text-primary bg-primary/10 border border-primary/20'
+                      : 'text-muted hover:text-foreground hover:bg-surface-hover'
                     }
                     transition-all
                   `}
@@ -346,8 +345,8 @@ export default function DashboardSidebar({
                     rounded-xl
                     text-sm font-semibold
                     ${isActive('/admin/users')
-                      ? 'text-blue-300 bg-blue-500/10 border border-blue-500/20'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                      ? 'text-primary bg-primary/10 border border-primary/20'
+                      : 'text-muted hover:text-foreground hover:bg-surface-hover'
                     }
                     transition-all
                   `}
@@ -369,8 +368,8 @@ export default function DashboardSidebar({
                     rounded-xl
                     text-sm font-semibold
                     ${isActive('/admin/settings')
-                      ? 'text-blue-300 bg-blue-500/10 border border-blue-500/20'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                      ? 'text-primary bg-primary/10 border border-primary/20'
+                      : 'text-muted hover:text-foreground hover:bg-surface-hover'
                     }
                     transition-all
                   `}
@@ -383,7 +382,7 @@ export default function DashboardSidebar({
                 </Link>
 
                 {(isSidebarOpen || isMobileMenuOpen) && (
-                  <span className="px-2 pt-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                  <span className="px-2 pt-4 text-[10px] font-bold text-muted-2 uppercase tracking-wider block mb-2">
                     Anagrafiche
                   </span>
                 )}
@@ -398,8 +397,8 @@ export default function DashboardSidebar({
                     rounded-xl
                     text-xs font-semibold
                     ${isActive('/admin/anagrafiche/serie-a')
-                      ? 'text-blue-300 bg-blue-500/10 border border-blue-500/20'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      ? 'text-primary bg-primary/10 border border-primary/20'
+                      : 'text-muted hover:text-foreground hover:bg-surface-hover'
                     }
                     transition-all
                   `}
@@ -421,8 +420,8 @@ export default function DashboardSidebar({
                     rounded-xl
                     text-xs font-semibold
                     ${isActive('/admin/anagrafiche/squadre_lega')
-                      ? 'text-blue-300 bg-blue-500/10 border border-blue-500/20'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      ? 'text-primary bg-primary/10 border border-primary/20'
+                      : 'text-muted hover:text-foreground hover:bg-surface-hover'
                     }
                     transition-all
                   `}
@@ -438,7 +437,7 @@ export default function DashboardSidebar({
           </nav>
         </div>
 
-        <div className="mt-auto p-3 md:p-4 border-t border-slate-800">
+        <div className="mt-auto p-3 md:p-4 border-t border-border">
           <button
             onClick={onLogout}
             type="button"
@@ -450,9 +449,9 @@ export default function DashboardSidebar({
               h-11
               rounded-xl
               text-sm font-semibold
-              text-red-400
-              hover:text-red-300
-              hover:bg-red-500/10
+              text-danger
+              hover:text-danger-hover
+              hover:bg-danger/10
               transition-all
               cursor-pointer
             `}
@@ -464,18 +463,18 @@ export default function DashboardSidebar({
         </div>
       </aside>
 
-      <div className="md:hidden flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800">
+      <div className="md:hidden flex items-center justify-between p-4 bg-surface border-b border-border">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(true)}
-            className="p-2 rounded-xl bg-slate-800 text-slate-200 hover:text-white"
+            className="p-2 rounded-xl bg-surface-elevated text-muted hover:text-foreground"
           >
             <LayoutDashboard className="w-5 h-5" />
           </button>
           <span className="font-extrabold text-sm text-white">FantAsta</span>
         </div>
-        <span className="text-xs font-bold text-blue-400">{formatUsername(user.username)}</span>
+        <span className="text-xs font-bold text-primary">{formatUsername(user.username)}</span>
       </div>
     </>
   )

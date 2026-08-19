@@ -327,7 +327,7 @@ export default function AddLeagueTeamPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col md:flex-row">
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col md:flex-row">
 
       {/* =====================================================
           SIDEBAR
@@ -358,11 +358,11 @@ export default function AddLeagueTeamPage() {
 
           <header>
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                <Plus className="w-4 h-4 text-blue-400" />
+              <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Plus className="w-4 h-4 text-primary" />
               </div>
 
-              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-400">
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
                 Anagrafiche
               </span>
             </div>
@@ -371,7 +371,7 @@ export default function AddLeagueTeamPage() {
               Nuova squadra
             </h1>
 
-            <p className="mt-1.5 text-sm text-slate-400">
+            <p className="mt-1.5 text-sm text-muted">
               Aggiungi una nuova squadra alla lega.
             </p>
           </header>
@@ -387,15 +387,15 @@ export default function AddLeagueTeamPage() {
                 flex items-start gap-3
                 ${
                   message.type === 'success'
-                    ? 'bg-emerald-500/10 border-emerald-500/30'
-                    : 'bg-red-500/10 border-red-500/30'
+                    ? 'bg-success/10 border-success/30'
+                    : 'bg-danger/10 border-danger/30'
                 }
               `}
             >
               {message.type === 'success' ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
               ) : (
-                <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+                <AlertCircle className="w-5 h-5 text-danger shrink-0" />
               )}
 
               <p
@@ -403,8 +403,8 @@ export default function AddLeagueTeamPage() {
                   text-xs font-semibold
                   ${
                     message.type === 'success'
-                      ? 'text-emerald-300'
-                      : 'text-red-300'
+                      ? 'text-success'
+                      : 'text-danger-hover'
                   }
                 `}
               >
@@ -417,7 +417,7 @@ export default function AddLeagueTeamPage() {
 
           <form
             onSubmit={handleSubmit}
-            className="bg-slate-800/80 border border-slate-700 rounded-2xl shadow-xl overflow-hidden"
+            className="bg-surface-elevated/80 border border-border rounded-2xl shadow-xl overflow-hidden"
           >
 
             <div className="p-5 md:p-7 space-y-6">
@@ -427,7 +427,7 @@ export default function AddLeagueTeamPage() {
               <div>
                 <label
                   htmlFor="team-name"
-                  className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2"
+                  className="block text-xs font-bold text-muted uppercase tracking-wider mb-2"
                 >
                   Nome squadra
                 </label>
@@ -446,15 +446,15 @@ export default function AddLeagueTeamPage() {
                     h-11
                     px-3.5
                     rounded-xl
-                    bg-slate-950/70
-                    border border-slate-700
+                    bg-background/70
+                    border border-border
                     text-sm
                     text-white
-                    placeholder:text-slate-600
+                    placeholder:text-muted-2
                     outline-none
-                    focus:border-blue-500
+                    focus:border-primary
                     focus:ring-2
-                    focus:ring-blue-500/10
+                    focus:ring-primary/10
                     transition-all
                     disabled:opacity-50
                   "
@@ -466,7 +466,7 @@ export default function AddLeagueTeamPage() {
               <div>
                 <label
                   htmlFor="team-owner"
-                  className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2"
+                  className="block text-xs font-bold text-muted uppercase tracking-wider mb-2"
                 >
                   Proprietario
                 </label>
@@ -487,14 +487,14 @@ export default function AddLeagueTeamPage() {
                     h-11
                     px-3.5
                     rounded-xl
-                    bg-slate-950/70
-                    border border-slate-700
+                    bg-background/70
+                    border border-border
                     text-sm
                     text-white
                     outline-none
-                    focus:border-blue-500
+                    focus:border-primary
                     focus:ring-2
-                    focus:ring-blue-500/10
+                    focus:ring-primary/10
                     transition-all
                     disabled:opacity-50
                   "
@@ -523,7 +523,7 @@ export default function AddLeagueTeamPage() {
               <div>
                 <label
                   htmlFor="team-budget"
-                  className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2"
+                  className="block text-xs font-bold text-muted uppercase tracking-wider mb-2"
                 >
                   Budget iniziale
                 </label>
@@ -546,20 +546,20 @@ export default function AddLeagueTeamPage() {
                       px-3.5
                       pr-16
                       rounded-xl
-                      bg-slate-950/70
-                      border border-slate-700
+                      bg-background/70
+                      border border-border
                       text-sm
                       text-white
                       outline-none
-                      focus:border-blue-500
+                      focus:border-primary
                       focus:ring-2
-                      focus:ring-blue-500/10
+                      focus:ring-primary/10
                       transition-all
                       disabled:opacity-50
                     "
                   />
 
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-2">
                     crediti
                   </span>
                 </div>
@@ -568,13 +568,13 @@ export default function AddLeagueTeamPage() {
               {/* LOGO */}
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">
                   Logo squadra
                 </label>
 
                 <div className="flex flex-col sm:flex-row gap-4">
 
-                  <div className="w-28 h-28 rounded-2xl bg-slate-950 border border-slate-700 overflow-hidden shrink-0 flex items-center justify-center">
+                  <div className="w-28 h-28 rounded-2xl bg-background border border-border overflow-hidden shrink-0 flex items-center justify-center">
                     {logoPreview ? (
                       <img
                         src={logoPreview}
@@ -582,7 +582,7 @@ export default function AddLeagueTeamPage() {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <ImagePlus className="w-7 h-7 text-slate-600" />
+                      <ImagePlus className="w-7 h-7 text-muted-2" />
                     )}
                   </div>
 
@@ -599,9 +599,9 @@ export default function AddLeagueTeamPage() {
                         h-10
                         px-4
                         rounded-xl
-                        bg-slate-700
-                        hover:bg-slate-600
-                        border border-slate-600
+                        bg-surface-elevated
+                        hover:bg-surface-hover
+                        border border-border-strong
                         text-xs
                         font-bold
                         text-white
@@ -624,13 +624,13 @@ export default function AddLeagueTeamPage() {
                       className="hidden"
                     />
 
-                    <p className="text-[11px] text-slate-500 mt-2">
+                    <p className="text-[11px] text-muted-2 mt-2">
                       PNG, JPG, WEBP. Dimensione massima
                       5 MB.
                     </p>
 
                     {logoFile && (
-                      <p className="text-[11px] text-slate-400 mt-1 truncate">
+                      <p className="text-[11px] text-muted mt-1 truncate">
                         {logoFile.name}
                       </p>
                     )}
@@ -642,7 +642,7 @@ export default function AddLeagueTeamPage() {
 
             {/* FOOTER */}
 
-            <div className="px-5 md:px-7 py-4 bg-slate-900/40 border-t border-slate-700 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <div className="px-5 md:px-7 py-4 bg-surface/40 border-t border-border flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
 
               <Link
                 href="/admin/anagrafiche/squadre_lega"
@@ -653,13 +653,13 @@ export default function AddLeagueTeamPage() {
                   h-10
                   px-4
                   rounded-xl
-                  border border-slate-700
-                  bg-slate-800
-                  hover:bg-slate-700
+                  border border-border
+                  bg-surface-elevated
+                  hover:bg-surface-hover
                   text-xs
                   font-bold
-                  text-slate-300
-                  hover:text-white
+                  text-muted
+                  hover:text-foreground
                   transition-all
                 "
               >
@@ -682,16 +682,16 @@ export default function AddLeagueTeamPage() {
                   h-10
                   px-5
                   rounded-xl
-                  bg-blue-600
-                  hover:bg-blue-500
-                  disabled:bg-slate-700
-                  disabled:text-slate-500
+                  bg-primary
+                  hover:bg-primary-hover
+                  disabled:bg-surface-elevated
+                  disabled:text-muted-2
                   disabled:cursor-not-allowed
                   text-white
                   text-xs
                   font-bold
                   shadow-md
-                  shadow-blue-600/20
+                  shadow-primary/20
                   transition-all
                 "
               >

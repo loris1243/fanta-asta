@@ -3,27 +3,47 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #070b14;
-  --foreground: #f8fafc;
+  --background: #0a0d12;
+  --foreground: #edeff2;
 
-  --surface: #0d1321;
-  --surface-elevated: #111827;
-  --border: #1e293b;
+  --surface: #131820;
+  --surface-elevated: #171d26;
+  --surface-hover: #1b222c;
+  --border: #1e2530;
+  --border-strong: #2b3440;
+  --hairline: rgba(255, 255, 255, 0.06);
 
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
+  --primary: #2f9e6e;
+  --primary-hover: #3fbe86;
+  --primary-dim: #1f5c41;
 
-  --accent: #f59e0b;
-  --success: #10b981;
-  --danger: #ef4444;
-  --info: #8b5cf6;
+  --accent: #d99a3d;
+  --accent-hover: #f0b457;
 
-  --muted: #94a3b8;
+  --success: #3fbe86;
+  --danger: #db5555;
+  --danger-hover: #ec6b6b;
+  --info: #4a93c9;
+
+  --muted: #8891a0;
+  --muted-2: #535c6a;
+
+  /* Colori ruolo (P/D/C/A) */
+  --role-p: #4a93c9;
+  --role-p-bg: rgba(74, 147, 201, 0.1);
+  --role-d: #3fbe86;
+  --role-d-bg: rgba(63, 190, 134, 0.1);
+  --role-c: #e0a94a;
+  --role-c-bg: rgba(224, 169, 74, 0.1);
+  --role-a: #d9694a;
+  --role-a-bg: rgba(217, 105, 74, 0.1);
+
+  --font-display: var(--font-space-grotesk, var(--font-geist-sans));
 }
 
 .dark {
-  --background: #070b14;
-  --foreground: #f8fafc;
+  --background: #0a0d12;
+  --foreground: #edeff2;
 }
 
 @theme inline {
@@ -32,20 +52,38 @@
 
   --color-surface: var(--surface);
   --color-surface-elevated: var(--surface-elevated);
+  --color-surface-hover: var(--surface-hover);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-hairline: var(--hairline);
 
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
+  --color-primary-dim: var(--primary-dim);
 
   --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+
   --color-success: var(--success);
   --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
   --color-info: var(--info);
 
   --color-muted: var(--muted);
+  --color-muted-2: var(--muted-2);
+
+  --color-role-p: var(--role-p);
+  --color-role-p-bg: var(--role-p-bg);
+  --color-role-d: var(--role-d);
+  --color-role-d-bg: var(--role-d-bg);
+  --color-role-c: var(--role-c);
+  --color-role-c-bg: var(--role-c-bg);
+  --color-role-a: var(--role-a);
+  --color-role-a-bg: var(--role-a-bg);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
 }
 
 html {

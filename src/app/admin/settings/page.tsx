@@ -211,11 +211,11 @@ export default function AdminSettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center font-sans">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-sans">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
 
-          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
+          <p className="text-xs text-muted font-semibold uppercase tracking-wider">
             Caricamento impostazioni...
           </p>
         </div>
@@ -224,7 +224,7 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col md:flex-row">
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col md:flex-row">
 
       {/* =====================================================
           SIDEBAR
@@ -262,7 +262,7 @@ export default function AdminSettingsPage() {
                 text-xs
                 font-bold
                 tracking-wider
-                text-slate-400
+                text-muted
                 hover:text-white
                 uppercase
                 transition-colors
@@ -274,11 +274,11 @@ export default function AdminSettingsPage() {
             </Link> */}
 
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                <Settings className="w-4 h-4 text-blue-400" />
+              <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Settings className="w-4 h-4 text-primary" />
               </div>
 
-              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-400">
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
                 Amministrazione
               </span>
             </div>
@@ -287,7 +287,7 @@ export default function AdminSettingsPage() {
               Configurazione Lega
             </h1>
 
-            <p className="mt-1.5 text-sm text-slate-400">
+            <p className="mt-1.5 text-sm text-muted">
               Gestisci le impostazioni principali
               della tua lega.
             </p>
@@ -306,15 +306,15 @@ export default function AdminSettingsPage() {
                 flex items-start gap-3
                 ${
                   message.type === 'success'
-                    ? 'bg-emerald-500/10 border-emerald-500/30'
-                    : 'bg-red-500/10 border-red-500/30'
+                    ? 'bg-success/10 border-success/30'
+                    : 'bg-danger/10 border-danger/30'
                 }
               `}
             >
               {message.type === 'success' ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
               ) : (
-                <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+                <AlertCircle className="w-5 h-5 text-danger shrink-0" />
               )}
 
               <p
@@ -322,8 +322,8 @@ export default function AdminSettingsPage() {
                   text-xs font-semibold
                   ${
                     message.type === 'success'
-                      ? 'text-emerald-300'
-                      : 'text-red-300'
+                      ? 'text-success'
+                      : 'text-danger-hover'
                   }
                 `}
               >
@@ -345,12 +345,12 @@ export default function AdminSettingsPage() {
                 INFO LEGA
             ================================================= */}
 
-            <section className="bg-slate-800/80 border border-slate-700 rounded-2xl shadow-xl overflow-hidden">
+            <section className="bg-surface-elevated/80 border border-border rounded-2xl shadow-xl overflow-hidden">
 
-              <div className="p-5 md:p-6 border-b border-slate-700/70">
+              <div className="p-5 md:p-6 border-b border-border/70">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                    <Trophy className="w-5 h-5 text-blue-400" />
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                    <Trophy className="w-5 h-5 text-primary" />
                   </div>
 
                   <div>
@@ -358,7 +358,7 @@ export default function AdminSettingsPage() {
                       Informazioni lega
                     </h2>
 
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="text-xs text-muted mt-0.5">
                       Il nome con cui verrà identificata la lega.
                     </p>
                   </div>
@@ -366,7 +366,7 @@ export default function AdminSettingsPage() {
               </div>
 
               <div className="p-5 md:p-6">
-                <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block mb-1.5">
+                <label className="text-[10px] uppercase tracking-wider text-muted font-bold block mb-1.5">
                   Nome della lega
                 </label>
 
@@ -380,23 +380,23 @@ export default function AdminSettingsPage() {
                   placeholder="Es. Fantacalcio degli Amici"
                   className="
                     w-full
-                    bg-slate-950/70
-                    border border-slate-700
+                    bg-background/70
+                    border border-border
                     rounded-xl
                     px-3.5 py-3
                     text-sm
                     text-white
                     font-bold
-                    placeholder-slate-600
-                    focus:border-blue-500
+                    placeholder-muted-2
+                    focus:border-primary
                     focus:ring-1
-                    focus:ring-blue-500/30
+                    focus:ring-primary/30
                     outline-none
                     transition-all
                   "
                 />
 
-                <p className="text-[11px] text-slate-500 mt-1.5">
+                <p className="text-[11px] text-muted-2 mt-1.5">
                   Questo nome identifica la tua lega
                   all&apos;interno di FantAsta.
                 </p>
@@ -407,12 +407,12 @@ export default function AdminSettingsPage() {
                 PARAMETRI
             ================================================= */}
 
-            <section className="bg-slate-800/80 border border-slate-700 rounded-2xl shadow-xl overflow-hidden">
+            <section className="bg-surface-elevated/80 border border-border rounded-2xl shadow-xl overflow-hidden">
 
-              <div className="p-5 md:p-6 border-b border-slate-700/70">
+              <div className="p-5 md:p-6 border-b border-border/70">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                    <Coins className="w-5 h-5 text-emerald-400" />
+                  <div className="w-10 h-10 rounded-xl bg-success/10 border border-success/20 flex items-center justify-center">
+                    <Coins className="w-5 h-5 text-success" />
                   </div>
 
                   <div>
@@ -420,7 +420,7 @@ export default function AdminSettingsPage() {
                       Parametri lega
                     </h2>
 
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="text-xs text-muted mt-0.5">
                       Configura partecipanti e budget iniziale.
                     </p>
                   </div>
@@ -431,11 +431,11 @@ export default function AdminSettingsPage() {
 
                 {/* PARTECIPANTI */}
 
-                <div className="rounded-xl bg-slate-950/40 border border-slate-700/70 p-4">
+                <div className="rounded-xl bg-background/40 border border-border/70 p-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <UserRound className="w-4 h-4 text-blue-400" />
+                    <UserRound className="w-4 h-4 text-primary" />
 
-                    <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                    <label className="text-[10px] uppercase tracking-wider text-muted font-bold">
                       Numero massimo partecipanti
                     </label>
                   </div>
@@ -451,22 +451,22 @@ export default function AdminSettingsPage() {
                     }
                     className="
                       w-full
-                      bg-slate-900
-                      border border-slate-700
+                      bg-surface
+                      border border-border
                       rounded-xl
                       px-3.5 py-3
                       text-sm
                       text-white
                       font-bold
-                      focus:border-blue-500
+                      focus:border-primary
                       focus:ring-1
-                      focus:ring-blue-500/30
+                      focus:ring-primary/30
                       outline-none
                       transition-all
                     "
                   />
 
-                  <p className="text-[11px] text-slate-500 mt-2">
+                  <p className="text-[11px] text-muted-2 mt-2">
                     Numero massimo di squadre
                     partecipanti alla lega.
                   </p>
@@ -474,11 +474,11 @@ export default function AdminSettingsPage() {
 
                 {/* BUDGET */}
 
-                <div className="rounded-xl bg-slate-950/40 border border-slate-700/70 p-4">
+                <div className="rounded-xl bg-background/40 border border-border/70 p-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <Coins className="w-4 h-4 text-emerald-400" />
+                    <Coins className="w-4 h-4 text-success" />
 
-                    <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                    <label className="text-[10px] uppercase tracking-wider text-muted font-bold">
                       Crediti iniziali
                     </label>
                   </div>
@@ -494,27 +494,27 @@ export default function AdminSettingsPage() {
                       }
                       className="
                         w-full
-                        bg-slate-900
-                        border border-slate-700
+                        bg-surface
+                        border border-border
                         rounded-xl
                         px-3.5 py-3 pr-14
                         text-sm
-                        text-emerald-400
+                        text-success
                         font-black
-                        focus:border-emerald-500
+                        focus:border-success
                         focus:ring-1
-                        focus:ring-emerald-500/30
+                        focus:ring-success/30
                         outline-none
                         transition-all
                       "
                     />
 
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-emerald-500/70">
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-success/70">
                       FM
                     </span>
                   </div>
 
-                  <p className="text-[11px] text-slate-500 mt-2">
+                  <p className="text-[11px] text-muted-2 mt-2">
                     Budget assegnato ai nuovi
                     partecipanti.
                   </p>
@@ -523,7 +523,7 @@ export default function AdminSettingsPage() {
 
               {/* SAVE */}
 
-              <div className="px-5 md:px-6 py-4 border-t border-slate-700/70 flex justify-end">
+              <div className="px-5 md:px-6 py-4 border-t border-border/70 flex justify-end">
                 <button
                   type="submit"
                   disabled={saving}
@@ -534,15 +534,15 @@ export default function AdminSettingsPage() {
                     gap-2
                     px-5
                     h-11
-                    bg-blue-600
-                    hover:bg-blue-500
+                    bg-primary
+                    hover:bg-primary-hover
                     text-white
                     text-sm
                     font-bold
                     rounded-xl
                     transition-all
                     shadow-md
-                    shadow-blue-600/20
+                    shadow-primary/20
                     active:scale-[0.98]
                     disabled:opacity-50
                     disabled:cursor-not-allowed
@@ -568,21 +568,21 @@ export default function AdminSettingsPage() {
               DANGER ZONE
           ===================================================== */}
 
-          <section className="bg-red-500/5 border border-red-500/30 rounded-2xl shadow-xl overflow-hidden">
+          <section className="bg-danger/5 border border-danger/30 rounded-2xl shadow-xl overflow-hidden">
 
             <div className="p-5 md:p-6">
               <div className="flex items-start gap-3">
 
-                <div className="w-10 h-10 shrink-0 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                <div className="w-10 h-10 shrink-0 rounded-xl bg-danger/10 border border-danger/20 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-danger" />
                 </div>
 
                 <div className="min-w-0">
-                  <h2 className="text-sm font-black uppercase tracking-wider text-red-400">
+                  <h2 className="text-sm font-black uppercase tracking-wider text-danger">
                     Zona pericolosa
                   </h2>
 
-                  <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                  <p className="text-xs text-muted mt-1 max-w-2xl leading-relaxed">
                     Il reset azzera le rose assegnate,
                     cancella lo storico delle aste
                     e ripristina i crediti iniziali
@@ -591,13 +591,13 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
 
-              <div className="mt-5 pt-5 border-t border-red-500/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="mt-5 pt-5 border-t border-danger/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <p className="text-xs font-bold text-slate-300">
+                  <p className="text-xs font-bold text-muted">
                     Reset completo della lega
                   </p>
 
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <p className="text-[11px] text-muted-2 mt-0.5">
                     Questa operazione non dovrebbe essere
                     utilizzata durante un&apos;asta.
                   </p>
@@ -614,8 +614,8 @@ export default function AdminSettingsPage() {
                     gap-2
                     px-4
                     h-10
-                    bg-red-600
-                    hover:bg-red-500
+                    bg-danger
+                    hover:bg-danger-hover
                     disabled:opacity-50
                     disabled:cursor-not-allowed
                     text-white
@@ -624,7 +624,7 @@ export default function AdminSettingsPage() {
                     rounded-xl
                     transition-all
                     shadow-md
-                    shadow-red-600/10
+                    shadow-danger/10
                     active:scale-[0.98]
                     shrink-0
                   "
