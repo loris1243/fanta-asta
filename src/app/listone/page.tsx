@@ -1253,7 +1253,7 @@ export default function ListonePage() {
                               <button
                                 type="button"
                                 onClick={() =>
-                                  toggleTarget(
+                                  !player.is_out && toggleTarget(
                                     player.id
                                   )
                                 }
@@ -1271,9 +1271,11 @@ export default function ListonePage() {
                                   border
                                   transition-all
                                   cursor-pointer
-                                  ${isTarget
-                                    ? 'bg-amber-500/15 text-amber-400 border-amber-500/30 shadow-sm shadow-amber-500/10'
-                                    : 'bg-slate-950/50 text-slate-600 border-slate-700 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/5'
+                                  ${player.is_out
+                                    ? 'bg-slate-950/30 text-slate-700 border-slate-800 opacity-30 cursor-not-allowed'
+                                    : isTarget
+                                    ? 'bg-amber-500/15 text-amber-400 border-amber-500/30 shadow-sm shadow-amber-500/10 cursor-pointer'
+                                    : 'bg-slate-950/50 text-slate-600 border-slate-700 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/5 cursor-pointer'
                                   }
                                 `}
                               >
