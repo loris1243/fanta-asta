@@ -69,6 +69,7 @@ export default function ImportListonePage() {
       name.slice(1)
     )
   }
+  
 
   const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -158,6 +159,18 @@ export default function ImportListonePage() {
            */
           const totalRows = data.length + (existingPlayers?.length || 0)
           let processedCount = 0
+
+          const { data: settingsData } = await supabase
+            .from('league_settings')
+            .select('initial_budget')
+            .maybeSingle()
+
+          const initialBudget = settingsData?.initial_budget ?? 500
+          const budgetRatio = initialBudget / 1000
+
+          const insertedNames: string[] = []
+          const updatedDetailsList: string[] = []
+          const deactivatedNames: string[] = []
           
           for (const row of data) {
             processedCount++
@@ -166,17 +179,12 @@ export default function ImportListonePage() {
             const team = row['Sq.']
             const role = row['R.']
             const roleMantra = row['R.MANTRA'] || ''
-            const quotation = Number(
-              row['QUOT.'] || 0
-            )
-            const fantaMedia = Number(
-              row['FM'] || 0
-            )
-            const fvm = Number(
-              row['FVM/1000'] || 0
-            )
-            const isOut =
-              row['Fuori lista'] === '*'
+            const quotation = Number(row['QUOT.'] || 0)
+            const fantaMedia = Number(row['FM'] || 0)
+            const rawFvm = Number(row['FVM/1000'] || 0)
+            // Ricalcola il FVM in base al budget effettivo della lega (arrotondato a intero o mantenuto decimale)
+            const fvm = Math.round(rawFvm * budgetRatio)
+            const isOut =row['Fuori lista'] === '*'
 
             if (!playerId || !name) {
               continue
@@ -215,6 +223,7 @@ export default function ImportListonePage() {
               }
 
               insertedCount++
+              insertedNames.push(`${name} (${team} - ${role})`)
             }
 
             /*
@@ -250,7 +259,25 @@ export default function ImportListonePage() {
                 existing.is_out !== isOut ||
                 existing.team !== team
               ) {
+                // Controlliamo cosa è cambiato specificamente
+              const changes: string[] = []
+              if (existing.quotation !== quotation) {
+                changes.push(`Quot: ${existing.quotation} ➔ ${quotation}`)
+              }
+              if (existing.team !== team) {
+                changes.push(`Sq: ${existing.team} ➔ ${team}`)
+              }
+              if (existing.fvm !== fvm) {
+                changes.push(`FVM: ${existing.fvm} ➔ ${fvm}`)
+              }
+              if (existing.is_out !== isOut) {
+                changes.push(isOut ? `Fuori lista` : `Rientrato in lista`)
+              }
+
+              if (changes.length > 0) {
                 updatedCount++
+                updatedDetailsList.push(`• **${name}**: ${changes.join(', ')}`)
+              }
               }
             }
             
@@ -286,6 +313,7 @@ export default function ImportListonePage() {
                 }
 
                 deactivatedCount++
+                deactivatedNames.push(`${player.name} (${player.team})`)
               }
               
               const progress = Math.round((processedCount / totalRows) * 100)
@@ -296,10 +324,17 @@ export default function ImportListonePage() {
           /*
            * 4. Log importazione
            */
-          const logDetails =
-            `Importati ${insertedCount} nuovi, ` +
-            `aggiornati ${updatedCount}, ` +
-            `disattivati ${deactivatedCount} giocatori.`
+let detailedLogText = `Importati ${insertedCount} nuovi, aggiornati ${updatedCount}, disattivati ${deactivatedCount}.\n\n`
+
+          if (insertedNames.length > 0) {
+            detailedLogText += `**Nuovi inseriti:**\n${insertedNames.join(', ')}\n\n`
+          }
+          if (updatedDetailsList.length > 0) {
+            detailedLogText += `**Modifiche rilevate:**\n${updatedDetailsList.join('\n')}\n\n`
+          }
+          if (deactivatedNames.length > 0) {
+            detailedLogText += `**Disattivati:**\n${deactivatedNames.join(', ')}`
+          }
 
           const { error: logError } =
             await supabase
@@ -312,7 +347,7 @@ export default function ImportListonePage() {
                     updatedCount,
                   deactivated_count:
                     deactivatedCount,
-                  details: logDetails,
+                  details: detailedLogText,
                 },
               ])
 
@@ -327,7 +362,7 @@ export default function ImportListonePage() {
             inserted: insertedCount,
             updated: updatedCount,
             deactivated: deactivatedCount,
-            details: logDetails,
+            details: detailedLogText,
           })
         } catch (error: any) {
           console.error(
@@ -697,10 +732,14 @@ export default function ImportListonePage() {
                   </div>
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-border/70">
-                  <p className="text-xs text-muted">
-                    {lastResult.details}
+                <div className="mt-6 pt-4 border-t border-slate-700/70">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                    Report Dettagliato delle Modifiche:
                   </p>
+                  
+                  <div className="max-h-60 overflow-y-auto rounded-xl bg-slate-950/50 border border-slate-700/70 p-4 text-xs text-slate-300 whitespace-pre-line leading-relaxed font-mono">
+                    {lastResult.details}
+                  </div>
                 </div>
               </div>
             </section>
