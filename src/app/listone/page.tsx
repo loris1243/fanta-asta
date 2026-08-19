@@ -1252,6 +1252,7 @@ export default function ListonePage() {
                             <td className="px-5 md:px-6 py-4 text-center">
                               <button
                                 type="button"
+                                disabled={player.is_out}
                                 onClick={() =>
                                   !player.is_out && toggleTarget(
                                     player.id
