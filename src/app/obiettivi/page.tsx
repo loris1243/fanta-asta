@@ -603,11 +603,11 @@ const toggleMode = (newMode: 'percentage' | 'fixed') => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center font-sans">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-sans">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin" />
 
-          <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">
+          <p className="text-xs text-muted font-semibold tracking-wider uppercase">
             Caricamento obiettivi...
           </p>
         </div>
@@ -624,7 +624,7 @@ const toggleMode = (newMode: 'percentage' | 'fixed') => {
   // ============================================================
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col md:flex-row">
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col md:flex-row">
       <DashboardSidebar
         user={{ username: user.username, role: user.role }}
         remainingBudget={remainingBudget}
@@ -653,11 +653,11 @@ const toggleMode = (newMode: 'percentage' | 'fixed') => {
 
               <div className="flex items-center gap-2 mb-2">
 
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                  <Target className="w-4 h-4 text-amber-400" />
+                <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center">
+                  <Target className="w-4 h-4 text-accent" />
                 </div>
 
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">
                   Strategia
                 </span>
 
@@ -667,7 +667,7 @@ const toggleMode = (newMode: 'percentage' | 'fixed') => {
                 I Miei Obiettivi
               </h1>
 
-              <p className="mt-1.5 text-sm text-slate-400">
+              <p className="mt-1.5 text-sm text-muted">
                 Gestisci i giocatori da tenere d'occhio e pianifica il tuo budget d'asta.
               </p>
 
@@ -675,13 +675,13 @@ const toggleMode = (newMode: 'percentage' | 'fixed') => {
 
             <div className="flex items-center gap-3">
 
-              <div className="px-4 py-2.5 rounded-xl bg-slate-800/70 border border-slate-700/80">
+              <div className="px-4 py-2.5 rounded-xl bg-surface-elevated/70 border border-border/80">
 
                 <div className="flex items-center gap-2">
 
-                  <Target className="w-4 h-4 text-amber-400" />
+                  <Target className="w-4 h-4 text-accent" />
 
-                  <span className="text-xs font-bold text-slate-300">
+                  <span className="text-xs font-bold text-muted">
                     {targets.length} obiettivi
                   </span>
 
@@ -697,17 +697,17 @@ const toggleMode = (newMode: 'percentage' | 'fixed') => {
           ===================================================== */}
 
           {showWarning && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 flex items-center gap-3">
+            <div className="bg-danger/10 border border-danger/30 rounded-2xl p-4 flex items-center gap-3">
 
-              <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
+              <AlertTriangle className="w-5 h-5 text-danger shrink-0" />
 
               <div>
 
-                <h3 className="text-sm font-bold text-red-400">
+                <h3 className="text-sm font-bold text-danger">
                   Budget superato
                 </h3>
 
-                <p className="text-xs text-red-400/70 mt-0.5">
+                <p className="text-xs text-danger/70 mt-0.5">
                   Hai distribuito {totalDistributed} crediti su un massimo di {maxBudget}. Riduci le quote.
                 </p>
 
@@ -722,15 +722,15 @@ const toggleMode = (newMode: 'percentage' | 'fixed') => {
 
           <section
             className={`
-              bg-slate-800/80
+              bg-surface-elevated/80
               border
               rounded-2xl
               shadow-xl
               overflow-hidden
               ${
                 showWarning
-                  ? 'border-red-500/30'
-                  : 'border-slate-700/80'
+                  ? 'border-danger/30'
+                  : 'border-border/80'
               }
             `}
           >
@@ -743,7 +743,7 @@ const toggleMode = (newMode: 'percentage' | 'fixed') => {
 
                   <div className="flex items-center gap-2">
 
-                    <Settings className="w-4 h-4 text-amber-400" />
+                    <Settings className="w-4 h-4 text-accent" />
 
                     <h2 className="text-sm font-black uppercase tracking-widest text-white">
                       Distribuzione Budget
@@ -751,13 +751,13 @@ const toggleMode = (newMode: 'percentage' | 'fixed') => {
 
                   </div>
 
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-muted mt-1">
                     Imposta quanto vuoi destinare a ciascun ruolo.
                   </p>
 
                 </div>
 
-                <div className="bg-slate-950/70 p-1 rounded-xl border border-slate-700/80 inline-flex items-center">
+                <div className="bg-background/70 p-1 rounded-xl border border-border/80 inline-flex items-center">
 
                   <button
                     type="button"
@@ -772,8 +772,8 @@ const toggleMode = (newMode: 'percentage' | 'fixed') => {
                       transition
                       ${
                         budgetMode === 'percentage'
-                          ? 'bg-amber-500 text-slate-950'
-                          : 'text-slate-400 hover:text-white'
+                          ? 'bg-accent text-background'
+                          : 'text-muted hover:text-foreground'
                       }
                     `}
                   >
@@ -794,8 +794,8 @@ const toggleMode = (newMode: 'percentage' | 'fixed') => {
                       transition
                       ${
                         budgetMode === 'fixed'
-                          ? 'bg-amber-500 text-slate-950'
-                          : 'text-slate-400 hover:text-white'
+                          ? 'bg-accent text-background'
+                          : 'text-muted hover:text-foreground'
                       }
                     `}
                   >
@@ -814,8 +814,8 @@ const toggleMode = (newMode: 'percentage' | 'fixed') => {
                   <div
                     key={roleKey}
                     className="
-                      bg-slate-950/50
-                      border border-slate-700/60
+                      bg-background/50
+                      border border-border/60
                       rounded-xl
                       p-4
                       space-y-3
@@ -824,11 +824,11 @@ const toggleMode = (newMode: 'percentage' | 'fixed') => {
 
                     <div className="flex justify-between items-center">
 
-                      <span className="text-xs font-black text-slate-300">
+                      <span className="text-xs font-black text-muted">
                         {roleKey}
                       </span>
 
-                      <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 font-bold">
+                      <span className="text-[10px] text-accent bg-accent/10 px-2 py-0.5 rounded border border-accent/20 font-bold">
                         {getEffectiveCredits(roleKey)} cr.
                       </span>
 
@@ -843,8 +843,8 @@ onChange={(e) =>
 }
                       className="
                         w-full
-                        bg-slate-900
-                        border border-slate-700
+                        bg-surface
+                        border border-border
                         rounded-xl
                         px-3
                         py-2.5
@@ -852,9 +852,9 @@ onChange={(e) =>
                         text-white
                         font-bold
                         outline-none
-                        focus:border-amber-500
+                        focus:border-accent
                         focus:ring-2
-                        focus:ring-amber-500/10
+                        focus:ring-accent/10
                         transition
                       "
                     />
@@ -867,9 +867,9 @@ onChange={(e) =>
 
             </div>
 
-            <div className="px-5 md:px-6 py-3.5 border-t border-slate-700/70 bg-slate-950/20 flex items-center justify-between">
+            <div className="px-5 md:px-6 py-3.5 border-t border-border/70 bg-background/20 flex items-center justify-between">
 
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-muted-2">
                 Budget distribuito
               </span>
 
@@ -878,8 +878,8 @@ onChange={(e) =>
                   text-xs font-black
                   ${
                     totalDistributed > maxBudget
-                      ? 'text-red-400'
-                      : 'text-emerald-400'
+                      ? 'text-danger'
+                      : 'text-success'
                   }
                 `}
               >
@@ -909,8 +909,8 @@ onChange={(e) =>
                 <section
                   key={role}
                   className="
-                    bg-slate-800/80
-                    border border-slate-700/80
+                    bg-surface-elevated/80
+                    border border-border/80
                     rounded-2xl
                     shadow-xl
                     overflow-hidden
@@ -919,13 +919,13 @@ onChange={(e) =>
 
                   {/* HEADER RUOLO */}
 
-                  <div className="px-5 md:px-6 py-4 border-b border-slate-700/70 bg-slate-950/20 flex items-center justify-between">
+                  <div className="px-5 md:px-6 py-4 border-b border-border/70 bg-background/20 flex items-center justify-between">
 
                     <div className="flex items-center gap-3">
 
-                      <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center">
 
-                        <span className="text-xs font-black text-amber-400">
+                        <span className="text-xs font-black text-accent">
                           {role}
                         </span>
 
@@ -937,7 +937,7 @@ onChange={(e) =>
 
                     </div>
 
-                    <span className="text-[10px] font-bold text-slate-400 bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg">
+                    <span className="text-[10px] font-bold text-muted bg-surface border border-border px-2.5 py-1 rounded-lg">
                       {rolePlayers.length}
                     </span>
 
@@ -965,14 +965,14 @@ onChange={(e) =>
                             <div
                               key={item.id}
                               className="
-                                bg-slate-950/50
-                                border border-slate-700/60
+                                bg-background/50
+                                border border-border/60
                                 rounded-xl
                                 p-4
                                 flex items-center justify-between
                                 gap-4
-                                hover:border-slate-600
-                                hover:bg-slate-950/80
+                                hover:border-border-strong
+                                hover:bg-background/80
                                 transition
                               "
                             >
@@ -1000,8 +1000,8 @@ onChange={(e) =>
                                       overflow-hidden
                                       flex
                                       border-2
-                                      border-slate-300/70
-                                      bg-slate-800
+                                      border-border-strong
+                                      bg-surface-elevated
                                       shadow-lg
                                     "
                                     title={
@@ -1056,14 +1056,14 @@ onChange={(e) =>
 
                                 {/* NOME UFFICIALE */}
 
-                                <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                                <p className="text-[10px] text-muted-2 truncate mt-0.5">
                                   {team?.name ??
                                     item.player.team}
                                 </p>
 
                                 {/* FVM */}
 
-                                <p className="text-[10px] text-slate-600 font-semibold mt-1">
+                                <p className="text-[10px] text-muted-2 font-semibold mt-1">
                                   FVM {item.player.fvm}
                                 </p>
 
@@ -1084,12 +1084,12 @@ onChange={(e) =>
                                   inline-flex
                                   items-center
                                   justify-center
-                                  border border-slate-700
-                                  bg-slate-900/50
-                                  text-slate-500
-                                  hover:text-red-400
-                                  hover:border-red-500/30
-                                  hover:bg-red-500/10
+                                  border border-border
+                                  bg-surface/50
+                                  text-muted-2
+                                  hover:text-danger
+                                  hover:border-danger/30
+                                  hover:bg-danger/10
                                   transition
                                   cursor-pointer
                                 "
@@ -1106,17 +1106,17 @@ onChange={(e) =>
 
                     ) : (
 
-                      <div className="py-10 text-center bg-slate-950/30 rounded-xl border border-slate-800">
+                      <div className="py-10 text-center bg-background/30 rounded-xl border border-border">
 
-                        <Target className="w-6 h-6 text-slate-700 mx-auto mb-2" />
+                        <Target className="w-6 h-6 text-muted-2 mx-auto mb-2" />
 
-                        <p className="text-xs text-slate-500 italic">
+                        <p className="text-xs text-muted-2 italic">
                           Nessun giocatore tra gli obiettivi.
                         </p>
 
                         <Link
                           href="/listone"
-                          className="inline-flex items-center mt-3 text-[10px] font-bold uppercase tracking-wider text-amber-400 hover:text-amber-300 transition"
+                          className="inline-flex items-center mt-3 text-[10px] font-bold uppercase tracking-wider text-accent hover:text-accent-hover transition"
                         >
                           Vai al Listone
                         </Link>

@@ -402,11 +402,11 @@ export default function ImportListonePage() {
 
   if (loadingPage) {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center font-sans">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-sans">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
 
-          <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">
+          <p className="text-xs text-muted font-semibold tracking-wider uppercase">
             Caricamento FantAsta...
           </p>
         </div>
@@ -419,17 +419,17 @@ export default function ImportListonePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col md:flex-row">
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col md:flex-row">
       {/* =========================================================
           OVERLAY BLOCCO UI DURANTE IMPORTAZIONE
       ========================================================= */}
       {loadingImport && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4">
+          <div className="bg-surface-elevated border border-border rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4">
             {/* Spinner */}
             <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
             </div>
 
@@ -437,15 +437,15 @@ export default function ImportListonePage() {
             <h3 className="text-center text-lg font-bold text-white mb-2">
               Importazione in corso
             </h3>
-            <p className="text-center text-sm text-slate-400 mb-6">
+            <p className="text-center text-sm text-muted mb-6">
               Elaborazione dei giocatori dal listone...
             </p>
 
             {/* Barra di progresso */}
             <div className="mb-4">
-              <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
+              <div className="w-full h-2 bg-border-strong rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all duration-300 ease-out"
+                  className="h-full bg-gradient-to-r from-primary to-success transition-all duration-300 ease-out"
                   style={{ width: `${importProgress}%` }}
                 />
               </div>
@@ -453,8 +453,8 @@ export default function ImportListonePage() {
 
             {/* Percentuale */}
             <div className="text-center">
-              <span className="text-2xl font-black text-blue-400">{importProgress}%</span>
-              <p className="text-xs text-slate-500 mt-2">Non chiudere questa pagina</p>
+              <span className="text-2xl font-black text-primary">{importProgress}%</span>
+              <p className="text-xs text-muted-2 mt-2">Non chiudere questa pagina</p>
             </div>
           </div>
         </div>
@@ -496,7 +496,7 @@ export default function ImportListonePage() {
                   text-xs
                   font-bold
                   tracking-wider
-                  text-slate-400
+                  text-muted
                   hover:text-white
                   uppercase
                   transition-colors
@@ -508,11 +508,11 @@ export default function ImportListonePage() {
               </Link> */}
 
               <div className="flex items-center gap-2 mb-2">
-                {/* <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                  <Inbox className="w-4 h-4 text-blue-400" />
+                {/* <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  <Inbox className="w-4 h-4 text-primary" />
                 </div> */}
 
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-400">
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
                   Amministrazione
                 </span>
               </div>
@@ -521,7 +521,7 @@ export default function ImportListonePage() {
                 Importazione Listone
               </h1>
 
-              <p className="mt-1.5 text-sm text-slate-400">
+              <p className="mt-1.5 text-sm text-muted">
                 Aggiorna il database dei giocatori
                 utilizzando il listone ufficiale.
               </p>
@@ -532,11 +532,11 @@ export default function ImportListonePage() {
               UPLOAD CARD
           ===================================================== */}
 
-          <section className="bg-slate-800/80 border border-slate-700 rounded-2xl shadow-xl overflow-hidden">
-            <div className="p-5 md:p-6 border-b border-slate-700/70">
+          <section className="bg-surface-elevated/80 border border-border rounded-2xl shadow-xl overflow-hidden">
+            <div className="p-5 md:p-6 border-b border-border/70">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                  <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
+                <div className="w-10 h-10 rounded-xl bg-success/10 border border-success/20 flex items-center justify-center shrink-0">
+                  <FileSpreadsheet className="w-5 h-5 text-success" />
                 </div>
 
                 <div>
@@ -544,7 +544,7 @@ export default function ImportListonePage() {
                     Carica il listone
                   </h2>
 
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-muted mt-0.5">
                     Formato supportato: Excel
                     (.xlsx, .xls)
                   </p>
@@ -568,40 +568,40 @@ export default function ImportListonePage() {
                   rounded-2xl
                   transition-all
                   ${loadingImport
-                    ? 'border-blue-500/40 bg-blue-500/5 cursor-wait'
-                    : 'border-slate-600 bg-slate-950/40 hover:border-blue-500/60 hover:bg-blue-500/5 cursor-pointer'
+                    ? 'border-primary/40 bg-primary/5 cursor-wait'
+                    : 'border-border-strong bg-background/40 hover:border-primary/60 hover:bg-primary/5 cursor-pointer'
                   }
                 `}
               >
                 {loadingImport ? (
                   <>
-                    <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-4">
-                      <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+                      <Loader2 className="w-6 h-6 text-primary animate-spin" />
                     </div>
 
                     <span className="text-sm font-bold text-white">
                       Importazione in corso...
                     </span>
 
-                    <span className="text-xs text-slate-500 mt-1">
+                    <span className="text-xs text-muted-2 mt-1">
                       Non chiudere questa pagina.
                     </span>
                   </>
                 ) : (
                   <>
-                    <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-4">
-                      <Upload className="w-6 h-6 text-blue-400" />
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+                      <Upload className="w-6 h-6 text-primary" />
                     </div>
 
                     <span className="text-sm font-bold text-white">
                       Clicca per selezionare il file
                     </span>
 
-                    <span className="text-xs text-slate-500 mt-1">
+                    <span className="text-xs text-muted-2 mt-1">
                       Listone ufficiale Excel
                     </span>
 
-                    <span className="mt-4 inline-flex items-center px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <span className="mt-4 inline-flex items-center px-3 py-1.5 rounded-lg bg-surface-elevated border border-border text-[10px] font-bold uppercase tracking-wider text-muted">
                       .XLSX / .XLS
                     </span>
                   </>
@@ -619,32 +619,32 @@ export default function ImportListonePage() {
               {/* INFO */}
 
               <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="rounded-xl bg-slate-950/50 border border-slate-700/70 p-4">
-                  <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500">
+                <div className="rounded-xl bg-background/50 border border-border/70 p-4">
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-2">
                     Nuovi
                   </p>
 
-                  <p className="text-xs text-slate-300 mt-1">
+                  <p className="text-xs text-muted mt-1">
                     Giocatori presenti per la prima volta nel database.
                   </p>
                 </div>
 
-                <div className="rounded-xl bg-slate-950/50 border border-slate-700/70 p-4">
-                  <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500">
+                <div className="rounded-xl bg-background/50 border border-border/70 p-4">
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-2">
                     Aggiornati
                   </p>
 
-                  <p className="text-xs text-slate-300 mt-1">
+                  <p className="text-xs text-muted mt-1">
                     Quotazioni, squadre e dati aggiornati.
                   </p>
                 </div>
 
-                <div className="rounded-xl bg-slate-950/50 border border-slate-700/70 p-4">
-                  <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500">
+                <div className="rounded-xl bg-background/50 border border-border/70 p-4">
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-2">
                     Disattivati
                   </p>
 
-                  <p className="text-xs text-slate-300 mt-1">
+                  <p className="text-xs text-muted mt-1">
                     Giocatori non più presenti nel nuovo listone.
                   </p>
                 </div>
@@ -657,16 +657,16 @@ export default function ImportListonePage() {
           ===================================================== */}
 
           {errorMessage && (
-            <section className="rounded-2xl border border-red-500/30 bg-red-500/10 p-5">
+            <section className="rounded-2xl border border-danger/30 bg-danger/10 p-5">
               <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                <AlertCircle className="w-5 h-5 text-danger shrink-0 mt-0.5" />
 
                 <div>
-                  <p className="text-sm font-bold text-red-300">
+                  <p className="text-sm font-bold text-danger-hover">
                     Importazione non completata
                   </p>
 
-                  <p className="text-xs text-red-200/80 mt-1 leading-relaxed">
+                  <p className="text-xs text-danger/80 mt-1 leading-relaxed">
                     {errorMessage}
                   </p>
                 </div>
@@ -679,11 +679,11 @@ export default function ImportListonePage() {
           ===================================================== */}
 
           {lastResult && (
-            <section className="bg-slate-800/80 border border-emerald-500/20 rounded-2xl shadow-xl overflow-hidden">
-              <div className="p-5 md:p-6 border-b border-slate-700/70">
+            <section className="bg-surface-elevated/80 border border-success/20 rounded-2xl shadow-xl overflow-hidden">
+              <div className="p-5 md:p-6 border-b border-border/70">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                  <div className="w-10 h-10 rounded-xl bg-success/10 border border-success/20 flex items-center justify-center">
+                    <CheckCircle2 className="w-5 h-5 text-success" />
                   </div>
 
                   <div>
@@ -691,7 +691,7 @@ export default function ImportListonePage() {
                       Importazione completata
                     </h2>
 
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="text-xs text-muted mt-0.5">
                       Il listone è stato elaborato correttamente.
                     </p>
                   </div>
@@ -701,51 +701,51 @@ export default function ImportListonePage() {
               <div className="p-5 md:p-6 space-y-5">
                 {/* Contatori riassuntivi */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="rounded-xl bg-slate-950/50 border border-slate-700/70 p-4">
-                    <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500">
+                  <div className="rounded-xl bg-background/50 border border-border/70 p-4">
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-muted-2">
                       Nuovi inseriti
                     </p>
 
-                    <p className="text-2xl font-black text-emerald-400 mt-1">
+                    <p className="text-2xl font-black text-success mt-1">
                       {lastResult.inserted}
                     </p>
                   </div>
 
-                  <div className="rounded-xl bg-slate-950/50 border border-slate-700/70 p-4">
-                    <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500">
+                  <div className="rounded-xl bg-background/50 border border-border/70 p-4">
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-muted-2">
                       Aggiornati
                     </p>
 
-                    <p className="text-2xl font-black text-blue-400 mt-1">
+                    <p className="text-2xl font-black text-primary mt-1">
                       {lastResult.updated}
                     </p>
                   </div>
 
-                  <div className="rounded-xl bg-slate-950/50 border border-slate-700/70 p-4">
-                    <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500">
+                  <div className="rounded-xl bg-background/50 border border-border/70 p-4">
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-muted-2">
                       Disattivati
                     </p>
 
-                    <p className="text-2xl font-black text-amber-400 mt-1">
+                    <p className="text-2xl font-black text-accent mt-1">
                       {lastResult.deactivated}
                     </p>
                   </div>
                 </div>
 
                 {/* Box Dettagli Grafico */}
-                <div className="rounded-xl bg-slate-950/50 border border-slate-700/70 p-4 md:p-5">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                <div className="rounded-xl bg-background/50 border border-border/70 p-4 md:p-5">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-primary"></span>
                     Dettaglio delle variazioni
                   </p>
 
-                  <div className="max-h-72 overflow-y-auto pr-2 space-y-2 text-xs text-slate-300 custom-scrollbar">
+                  <div className="max-h-72 overflow-y-auto pr-2 space-y-2 text-xs text-muted custom-scrollbar">
                     {lastResult.details ? (
-                      <div className="leading-relaxed whitespace-pre-line text-slate-300">
+                      <div className="leading-relaxed whitespace-pre-line text-muted">
                         {lastResult.details}
                       </div>
                     ) : (
-                      <p className="text-slate-500 italic">Nessun dettaglio aggiuntivo registrato per questa importazione.</p>
+                      <p className="text-muted-2 italic">Nessun dettaglio aggiuntivo registrato per questa importazione.</p>
                     )}
                   </div>
                 </div>

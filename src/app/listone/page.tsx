@@ -491,8 +491,8 @@ export default function ListonePage() {
                                       overflow-hidden
                                       flex
                                       border-2
-                                      border-slate-300/70
-                                      bg-slate-800
+                                      border-border-strong
+                                      bg-surface-elevated
                                       shadow-lg
                                     "
         style={{
@@ -700,11 +700,11 @@ export default function ListonePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center font-sans">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-sans">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
 
-          <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">
+          <p className="text-xs text-muted font-semibold tracking-wider uppercase">
             Caricamento Listone...
           </p>
         </div>
@@ -717,7 +717,7 @@ export default function ListonePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col md:flex-row">
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col md:flex-row">
       <DashboardSidebar
         user={{ username: user.username, role: user.role }}
         remainingBudget={remainingBudget}
@@ -740,11 +740,11 @@ export default function ListonePage() {
           <header className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                  <ClipboardList className="w-4 h-4 text-blue-400" />
+                <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  <ClipboardList className="w-4 h-4 text-primary" />
                 </div>
 
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-400">
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
                   Mercato
                 </span>
               </div>
@@ -753,24 +753,24 @@ export default function ListonePage() {
                 Listone
               </h1>
 
-              <p className="mt-1.5 text-sm text-slate-400">
+              <p className="mt-1.5 text-sm text-muted">
                 Cerca, filtra e seleziona i giocatori da tenere d'occhio.
               </p>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="px-4 py-2.5 rounded-xl bg-slate-800/70 border border-slate-700/80">
+              <div className="px-4 py-2.5 rounded-xl bg-surface-elevated/70 border border-border/80">
                 <div className="flex items-center gap-2">
-                  <Wallet className="w-4 h-4 text-emerald-400" />
+                  <Wallet className="w-4 h-4 text-success" />
 
-                  <span className="text-xs font-bold text-slate-300">
+                  <span className="text-xs font-bold text-muted">
                     {remainingBudget} FM
                   </span>
                 </div>
               </div>
 
-              <div className="px-4 py-2.5 rounded-xl bg-slate-800/70 border border-slate-700/80">
-                <span className="text-xs font-bold text-slate-300">
+              <div className="px-4 py-2.5 rounded-xl bg-surface-elevated/70 border border-border/80">
+                <span className="text-xs font-bold text-muted">
                   {targetIds.length} obiettivi
                 </span>
               </div>
@@ -779,19 +779,19 @@ export default function ListonePage() {
 
           {/* FILTRI */}
 
-          <section className="bg-slate-800/80 border border-slate-700/80 rounded-2xl shadow-xl overflow-hidden">
+          <section className="bg-surface-elevated/80 border border-border/80 rounded-2xl shadow-xl overflow-hidden">
             <div className="p-5 md:p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1.6fr_0.8fr_1fr_auto] gap-4 items-end">
 
                 {/* RICERCA */}
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-muted">
                     Cerca calciatore
                   </label>
 
                   <div className="relative">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-2" />
 
                     <input
                       type="text"
@@ -804,19 +804,19 @@ export default function ListonePage() {
                       placeholder="Cerca per nome..."
                       className="
                         w-full
-                        bg-slate-950/70
-                        border border-slate-700
+                        bg-background/70
+                        border border-border
                         rounded-xl
                         py-3
                         pl-10
                         pr-4
                         text-sm
                         text-white
-                        placeholder:text-slate-600
+                        placeholder:text-muted-2
                         outline-none
-                        focus:border-blue-500
+                        focus:border-primary
                         focus:ring-2
-                        focus:ring-blue-500/10
+                        focus:ring-primary/10
                         transition
                       "
                     />
@@ -826,7 +826,7 @@ export default function ListonePage() {
                 {/* RUOLO */}
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-muted">
                     Ruolo
                   </label>
 
@@ -839,15 +839,15 @@ export default function ListonePage() {
                     }
                     className="
                       w-full
-                      bg-slate-950/70
-                      border border-slate-700
+                      bg-background/70
+                      border border-border
                       rounded-xl
                       px-4
                       py-3
                       text-sm
                       text-white
                       outline-none
-                      focus:border-blue-500
+                      focus:border-primary
                       transition
                       cursor-pointer
                     "
@@ -873,7 +873,7 @@ export default function ListonePage() {
                 {/* SQUADRA */}
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-muted">
                     Squadra
                   </label>
 
@@ -886,15 +886,15 @@ export default function ListonePage() {
                     }
                     className="
                       w-full
-                      bg-slate-950/70
-                      border border-slate-700
+                      bg-background/70
+                      border border-border
                       rounded-xl
                       px-4
                       py-3
                       text-sm
                       text-white
                       outline-none
-                      focus:border-blue-500
+                      focus:border-primary
                       transition
                       cursor-pointer
                     "
@@ -938,13 +938,13 @@ export default function ListonePage() {
                     gap-2
                     px-4
                     rounded-xl
-                    border border-slate-700
-                    bg-slate-900/60
+                    border border-border
+                    bg-surface/60
                     text-xs
                     font-bold
-                    text-slate-400
+                    text-muted
                     hover:text-white
-                    hover:bg-slate-700
+                    hover:bg-surface-hover
                     disabled:opacity-30
                     disabled:cursor-not-allowed
                     transition
@@ -958,8 +958,8 @@ export default function ListonePage() {
 
             {/* RISULTATI */}
 
-            <div className="px-5 md:px-6 py-3.5 border-t border-slate-700/70 bg-slate-950/20 flex flex-wrap items-center justify-between gap-3">
-              <div className="text-xs text-slate-400">
+            <div className="px-5 md:px-6 py-3.5 border-t border-border/70 bg-background/20 flex flex-wrap items-center justify-between gap-3">
+              <div className="text-xs text-muted">
                 <span className="font-bold text-white">
                   {filteredPlayers.length}
                 </span>{' '}
@@ -972,21 +972,21 @@ export default function ListonePage() {
                 'TUTTE') && (
                   <div className="flex items-center gap-2">
                     {searchTerm && (
-                      <span className="px-2.5 py-1 rounded-md bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-300">
+                      <span className="px-2.5 py-1 rounded-md bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary-hover">
                         {searchTerm}
                       </span>
                     )}
 
                     {roleFilter !==
                       'TUTTI' && (
-                        <span className="px-2.5 py-1 rounded-md bg-purple-500/10 border border-purple-500/20 text-[10px] font-bold text-purple-300">
+                        <span className="px-2.5 py-1 rounded-md bg-info/10 border border-info/20 text-[10px] font-bold text-info">
                           {roleFilter}
                         </span>
                       )}
 
                     {teamFilter !==
                       'TUTTE' && (
-                        <span className="px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-300">
+                        <span className="px-2.5 py-1 rounded-md bg-success/10 border border-success/20 text-[10px] font-bold text-success">
                           {teamFilter}
                         </span>
                       )}
@@ -997,34 +997,34 @@ export default function ListonePage() {
 
           {/* TABELLA */}
 
-          <section className="bg-slate-800/80 border border-slate-700/80 rounded-2xl shadow-xl overflow-hidden">
+          <section className="bg-surface-elevated/80 border border-border/80 rounded-2xl shadow-xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse min-w-[820px]">
                 <thead>
-                  <tr className="border-b border-slate-700 bg-slate-950/30">
-                    <th className="px-5 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  <tr className="border-b border-border bg-background/30">
+                    <th className="px-5 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-muted-2">
                       Calciatore
                     </th>
 
-                    <th className="px-5 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    <th className="px-5 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-muted-2">
                       Ruolo
                     </th>
 
-                    <th className="px-5 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    <th className="px-5 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-muted-2">
                       Squadra
                     </th>
 
-                    <th className="px-5 md:px-6 py-4 text-right text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    <th className="px-5 md:px-6 py-4 text-right text-[10px] font-black uppercase tracking-wider text-muted-2">
                       FantaMedia
                     </th>
 
-                    <th className="px-5 md:px-6 py-4 text-center text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    <th className="px-5 md:px-6 py-4 text-center text-[10px] font-black uppercase tracking-wider text-muted-2">
                       Obiettivo
                     </th>
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-slate-700/60">
+                <tbody className="divide-y divide-border/60">
                   {currentPlayers.length >
                     0 ? (
                     currentPlayers.map(
@@ -1048,8 +1048,8 @@ export default function ListonePage() {
                               group
                               transition
                               ${player.is_out
-                                ? 'bg-red-950/10 hover:bg-red-950/20'
-                                : 'hover:bg-slate-700/20'
+                                ? 'bg-danger/5 hover:bg-danger/10'
+                                : 'hover:bg-surface-hover/50'
                               }
                             `}
                           >
@@ -1069,8 +1069,8 @@ export default function ListonePage() {
                                     font-black
                                     border
                                     ${player.is_out
-                                      ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                                      : 'bg-blue-500/10 border-blue-500/20 text-blue-300'
+                                      ? 'bg-danger/10 border-danger/20 text-danger'
+                                      : 'bg-primary/10 border-primary/20 text-primary-hover'
                                     }
                                   `}
                                 >
@@ -1089,7 +1089,7 @@ export default function ListonePage() {
                                       text-sm
                                       truncate
                                       ${player.is_out
-                                        ? 'text-slate-500 line-through'
+                                        ? 'text-muted-2 line-through'
                                         : 'text-white'
                                       }
                                     `}
@@ -1100,7 +1100,7 @@ export default function ListonePage() {
                                   </div>
 
                                   {player.is_out && (
-                                    <span className="text-[9px] font-black uppercase tracking-wider text-red-400">
+                                    <span className="text-[9px] font-black uppercase tracking-wider text-danger">
                                       Fuori Listone
                                     </span>
                                   )}
@@ -1124,14 +1124,14 @@ export default function ListonePage() {
                                   border
                                   ${player.role ===
                                     'P'
-                                    ? 'bg-sky-500/10 border-sky-500/20 text-sky-300'
+                                    ? 'bg-role-p-bg border-role-p/20 text-role-p'
                                     : player.role ===
                                       'D'
-                                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                                      ? 'bg-role-d-bg border-role-d/20 text-role-d'
                                       : player.role ===
                                         'C'
-                                        ? 'bg-amber-500/10 border-amber-500/20 text-amber-300'
-                                        : 'bg-red-500/10 border-red-500/20 text-red-300'
+                                        ? 'bg-role-c-bg border-role-c/20 text-role-c'
+                                        : 'bg-role-a-bg border-role-a/20 text-role-a'
                                   }
                                 `}
                               >
@@ -1162,8 +1162,8 @@ export default function ListonePage() {
                                       overflow-hidden
                                       flex
                                       border-2
-                                      border-slate-300/70
-                                      bg-slate-800
+                                      border-border-strong
+                                      bg-surface-elevated
                                       shadow-lg
                                     "
                                   title={
@@ -1213,7 +1213,7 @@ export default function ListonePage() {
                                       }
                                     </div>
                                   )}
-                                       <div className="text-[10px] text-slate-500 truncate mt-0.5">
+                                       <div className="text-[10px] text-muted-2 truncate mt-0.5">
                                     {teamData
                                       ?.name ??
                                       player.team}
@@ -1231,8 +1231,8 @@ export default function ListonePage() {
                                     text-sm
                                     font-black
                                     ${player.is_out
-                                      ? 'text-slate-500'
-                                      : 'text-emerald-400'
+                                      ? 'text-muted-2'
+                                      : 'text-success'
                                     }
                                   `}
                                 >
@@ -1241,7 +1241,7 @@ export default function ListonePage() {
                                   }
                                 </span>
 
-                                <span className="text-[9px] uppercase tracking-wider text-slate-600 font-bold">
+                                <span className="text-[9px] uppercase tracking-wider text-muted-2 font-bold">
                                   FM
                                 </span>
                               </div>
@@ -1273,10 +1273,10 @@ export default function ListonePage() {
                                   transition-all
                                   cursor-pointer
                                   ${player.is_out
-                                    ? 'bg-slate-950/30 text-slate-700 border-slate-800 opacity-30 cursor-not-allowed'
+                                    ? 'bg-background/30 text-muted-2 border-border opacity-30 cursor-not-allowed'
                                     : isTarget
-                                    ? 'bg-amber-500/15 text-amber-400 border-amber-500/30 shadow-sm shadow-amber-500/10 cursor-pointer'
-                                    : 'bg-slate-950/50 text-slate-600 border-slate-700 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/5 cursor-pointer'
+                                    ? 'bg-accent/15 text-accent border-accent/30 shadow-sm shadow-accent/10 cursor-pointer'
+                                    : 'bg-background/50 text-muted-2 border-border hover:text-accent hover:border-accent/30 hover:bg-accent/5 cursor-pointer'
                                   }
                                 `}
                               >
@@ -1294,14 +1294,14 @@ export default function ListonePage() {
                         className="py-20 text-center"
                       >
                         <div className="flex flex-col items-center gap-3">
-                          <Search className="w-8 h-8 text-slate-700" />
+                          <Search className="w-8 h-8 text-muted-2" />
 
                           <div>
-                            <p className="text-sm font-bold text-slate-300">
+                            <p className="text-sm font-bold text-muted">
                               Nessun calciatore trovato
                             </p>
 
-                            <p className="text-xs text-slate-500 mt-1">
+                            <p className="text-xs text-muted-2 mt-1">
                               Prova a modificare i filtri di ricerca.
                             </p>
                           </div>
@@ -1311,7 +1311,7 @@ export default function ListonePage() {
                             onClick={
                               handleResetFilters
                             }
-                            className="mt-2 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 hover:text-white transition"
+                            className="mt-2 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-elevated hover:bg-surface-hover text-xs font-bold text-muted hover:text-foreground transition"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
                             Resetta filtri
@@ -1326,8 +1326,8 @@ export default function ListonePage() {
 
             {/* PAGINAZIONE */}
 
-            <div className="px-5 md:px-6 py-4 border-t border-slate-700/70 bg-slate-950/20 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3 text-xs text-slate-500">
+            <div className="px-5 md:px-6 py-4 border-t border-border/70 bg-background/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3 text-xs text-muted-2">
                 <span>Mostra</span>
 
                 <select
@@ -1343,8 +1343,8 @@ export default function ListonePage() {
                     setCurrentPage(1)
                   }}
                   className="
-                    bg-slate-800
-                    border border-slate-700
+                    bg-surface-elevated
+                    border border-border
                     rounded-lg
                     px-2.5
                     py-1.5
@@ -1371,7 +1371,7 @@ export default function ListonePage() {
 
                 <span>
                   di{' '}
-                  <strong className="text-slate-300">
+                  <strong className="text-muted">
                     {
                       filteredPlayers.length
                     }
@@ -1398,11 +1398,11 @@ export default function ListonePage() {
                   className="
                     w-9 h-9
                     rounded-xl
-                    bg-slate-800
-                    border border-slate-700
-                    text-slate-300
+                    bg-surface-elevated
+                    border border-border
+                    text-muted
                     hover:text-white
-                    hover:bg-slate-700
+                    hover:bg-surface-hover
                     disabled:opacity-30
                     disabled:cursor-not-allowed
                     transition
@@ -1414,7 +1414,7 @@ export default function ListonePage() {
                   <ChevronLeft className="w-4 h-4" />
                 </button>
 
-                <div className="px-3 text-xs font-bold text-slate-400">
+                <div className="px-3 text-xs font-bold text-muted">
                   Pagina{' '}
                   <span className="text-white">
                     {
@@ -1442,11 +1442,11 @@ export default function ListonePage() {
                   className="
                     w-9 h-9
                     rounded-xl
-                    bg-slate-800
-                    border border-slate-700
-                    text-slate-300
+                    bg-surface-elevated
+                    border border-border
+                    text-muted
                     hover:text-white
-                    hover:bg-slate-700
+                    hover:bg-surface-hover
                     disabled:opacity-30
                     disabled:cursor-not-allowed
                     transition
