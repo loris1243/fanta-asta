@@ -69,7 +69,7 @@ export default function ImportListonePage() {
       name.slice(1)
     )
   }
-
+  
 
   const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -224,7 +224,6 @@ export default function ImportListonePage() {
 
               insertedCount++
               insertedNames.push(`${name} (${team} - ${role})`)
-              insertedNames.push(`${name} (${team} - ${role})`)
             }
 
             /*
@@ -349,7 +348,6 @@ export default function ImportListonePage() {
                   deactivated_count:
                     deactivatedCount,
                   details: detailedLogText,
-                  details: detailedLogText,
                 },
               ])
 
@@ -364,7 +362,6 @@ export default function ImportListonePage() {
             inserted: insertedCount,
             updated: updatedCount,
             deactivated: deactivatedCount,
-            details: detailedLogText,
             details: detailedLogText,
           })
         } catch (error: any) {
