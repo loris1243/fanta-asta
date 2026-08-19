@@ -44,14 +44,6 @@ interface TargetPlayer {
   player: Player
 }
 
-interface RoleBudget {
-  mode: 'percentage' | 'fixed'
-  P: number
-  D: number
-  C: number
-  A: number
-}
-
 export default function ObiettiviPage() {
   const [remainingBudget, setRemainingBudget] = useState(500)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -71,8 +63,17 @@ export default function ObiettiviPage() {
 
   const [maxBudget, setMaxBudget] = useState<number>(500)
 
-  const [roleBudget, setRoleBudget] = useState<RoleBudget>({
-    mode: 'percentage',
+  // Stati separati per gestire in modo indipendente percentuali e crediti fissi
+  const [budgetMode, setBudgetMode] = useState<'percentage' | 'fixed'>('percentage')
+  
+  const [percentBudget, setPercentBudget] = useState({
+    P: 0,
+    D: 0,
+    C: 0,
+    A: 0,
+  })
+
+  const [fixedBudget, setFixedBudget] = useState({
     P: 0,
     D: 0,
     C: 0,
@@ -191,17 +192,25 @@ export default function ObiettiviPage() {
           .single()
 
       if (userBudgetPref) {
-        setRoleBudget({
-          mode:
-            userBudgetPref.mode === 'fixed'
-              ? 'fixed'
-              : 'percentage',
+        const mode =
+          userBudgetPref.mode === 'fixed'
+            ? 'fixed'
+            : 'percentage'
 
+        setBudgetMode(mode)
+
+        const loadedValues = {
           P: userBudgetPref.p_val ?? 0,
           D: userBudgetPref.d_val ?? 0,
           C: userBudgetPref.c_val ?? 0,
           A: userBudgetPref.a_val ?? 0,
-        })
+        }
+
+        if (mode === 'fixed') {
+          setFixedBudget(loadedValues)
+        } else {
+          setPercentBudget(loadedValues)
+        }
       }
 
        const initialBudget =
@@ -209,7 +218,7 @@ export default function ObiettiviPage() {
             currentUser.budget ??
             500
 
-        const { data: teamData, error: teamError } = await supabase
+        const { data: teamData } = await supabase
           .from('league_teams')
           .select('id, name, logo_url')
           .eq('user_id', currentUser.id)
@@ -257,22 +266,7 @@ export default function ObiettiviPage() {
   }
 
   // ============================================================
-  // USERNAME
-  // ============================================================
-
-  const formatUsername = (name: string) => {
-    if (!name) return ''
-
-    return (
-      name.charAt(0).toUpperCase() +
-      name.slice(1)
-    )
-  }
-
-  // ============================================================
   // TROVA LA SQUADRA DEL GIOCATORE
-  // players.team === teams.alias
-  // case insensitive
   // ============================================================
 
   const getPlayerTeam = (
@@ -296,12 +290,17 @@ export default function ObiettiviPage() {
   // CALCOLO CREDITI PER RUOLO
   // ============================================================
 
+  const currentActiveBudget =
+    budgetMode === 'percentage'
+      ? percentBudget
+      : fixedBudget
+
   const getEffectiveCredits = (
     roleKey: 'P' | 'D' | 'C' | 'A'
   ): number => {
-    const value = roleBudget[roleKey]
+    const value = currentActiveBudget[roleKey]
 
-    if (roleBudget.mode === 'percentage') {
+    if (budgetMode === 'percentage') {
       return Math.round(
         (maxBudget * value) / 100
       )
@@ -327,23 +326,28 @@ export default function ObiettiviPage() {
   }, [totalDistributed, maxBudget])
 
   // ============================================================
-  // SALVATAGGIO AUTOMATICO
+  // SALVATAGGIO AUTOMATICO (UPSERT SU UN UNICO RECORD)
   // ============================================================
 
   useEffect(() => {
     if (!user?.id) return
 
     const timer = setTimeout(async () => {
+      const activeData =
+        budgetMode === 'percentage'
+          ? percentBudget
+          : fixedBudget
+
       const { error } = await supabase
         .from('user_role_budgets')
         .upsert(
           {
             user_id: user.id,
-            mode: roleBudget.mode,
-            p_val: roleBudget.P,
-            d_val: roleBudget.D,
-            c_val: roleBudget.C,
-            a_val: roleBudget.A,
+            mode: budgetMode,
+            p_val: activeData.P,
+            d_val: activeData.D,
+            c_val: activeData.C,
+            a_val: activeData.A,
             updated_at:
               new Date().toISOString(),
           },
@@ -361,31 +365,115 @@ export default function ObiettiviPage() {
     }, 800)
 
     return () => clearTimeout(timer)
-  }, [roleBudget, user?.id])
+  }, [budgetMode, percentBudget, fixedBudget, user?.id])
 
   // ============================================================
   // MODIFICA BUDGET
   // ============================================================
+const roles: ('P' | 'D' | 'C' | 'A')[] = ['P', 'D', 'C', 'A']
 
-  const updateBudget = (
-    roleKey: 'P' | 'D' | 'C' | 'A',
-    value: number
-  ) => {
-    setRoleBudget((prev) => ({
-      ...prev,
-      [roleKey]: isNaN(value) ? 0 : value,
-    }))
+const getTotal = (b: { P: number; D: number; C: number; A: number }) =>
+  b.P + b.D + b.C + b.A
+
+const updateBudget = (
+  roleKey: 'P' | 'D' | 'C' | 'A',
+  value: number
+) => {
+  const safeValue = isNaN(value) ? 0 : Math.max(0, value)
+
+  if (budgetMode === 'percentage') {
+    setPercentBudget((prev) => {
+      const updated = {
+        ...prev,
+        [roleKey]: Math.min(100, safeValue),
+      }
+
+      let total = getTotal(updated)
+      const otherRoles = roles.filter(r => r !== roleKey)
+
+      // 🔴 se supera 100 → riduco gli altri
+      if (total > 100) {
+        let overflow = total - 100
+
+        for (const r of otherRoles) {
+          if (overflow <= 0) break
+          const reducible = Math.min(updated[r], overflow)
+          updated[r] -= reducible
+          overflow -= reducible
+        }
+      }
+
+      // 🔵 se sotto 100 → distribuisco
+      if (total < 100) {
+        let deficit = 100 - total
+        const perRole = deficit / otherRoles.length
+
+        for (const r of otherRoles) {
+          updated[r] += perRole
+        }
+      }
+
+      // 🧠 arrotondamento safe
+      const rounded = {
+        P: Math.round(updated.P),
+        D: Math.round(updated.D),
+        C: Math.round(updated.C),
+        A: Math.round(updated.A),
+      }
+
+      return rounded
+    })
+  } else {
+    setFixedBudget((prev) => {
+      const updated = {
+        ...prev,
+        [roleKey]: safeValue,
+      }
+
+      let total = getTotal(updated)
+      const otherRoles = roles.filter(r => r !== roleKey)
+
+      // 🔴 se supera budget → riduco altri
+      if (total > maxBudget) {
+        let overflow = total - maxBudget
+
+        for (const r of otherRoles) {
+          if (overflow <= 0) break
+          const reducible = Math.min(updated[r], overflow)
+          updated[r] -= reducible
+          overflow -= reducible
+        }
+      }
+
+      return updated
+    })
   }
+}
 
-  const toggleMode = (
-    mode: 'percentage' | 'fixed'
-  ) => {
-    setRoleBudget((prev) => ({
-      ...prev,
-      mode,
-    }))
+
+const toggleMode = (newMode: 'percentage' | 'fixed') => {
+  if (newMode === budgetMode) return
+
+  setBudgetMode(newMode)
+
+  if (newMode === 'percentage') {
+    // reset totale percentuali
+    setPercentBudget({
+      P: 0,
+      D: 0,
+      C: 0,
+      A: 0,
+    })
+  } else {
+    // reset totale crediti
+    setFixedBudget({
+      P: 0,
+      D: 0,
+      C: 0,
+      A: 0,
+    })
   }
-
+}
   // ============================================================
   // RIMOZIONE OBIETTIVO
   // ============================================================
@@ -417,7 +505,10 @@ export default function ObiettiviPage() {
   // RUOLI
   // ============================================================
 
-  const roles = ['P', 'D', 'C', 'A'] as const
+  const remaining =
+  budgetMode === 'percentage'
+    ? 100 - getTotal(percentBudget)
+    : maxBudget - getTotal(fixedBudget)
 
   const roleTitles: Record<string, string> = {
     P: 'Portieri',
@@ -600,7 +691,7 @@ export default function ObiettiviPage() {
                       text-xs font-bold
                       transition
                       ${
-                        roleBudget.mode === 'percentage'
+                        budgetMode === 'percentage'
                           ? 'bg-amber-500 text-slate-950'
                           : 'text-slate-400 hover:text-white'
                       }
@@ -622,7 +713,7 @@ export default function ObiettiviPage() {
                       text-xs font-bold
                       transition
                       ${
-                        roleBudget.mode === 'fixed'
+                        budgetMode === 'fixed'
                           ? 'bg-amber-500 text-slate-950'
                           : 'text-slate-400 hover:text-white'
                       }
@@ -666,13 +757,10 @@ export default function ObiettiviPage() {
                     <input
                       type="number"
                       min="0"
-                      value={roleBudget[roleKey]}
-                      onChange={(e) =>
-                        updateBudget(
-                          roleKey,
-                          Number(e.target.value)
-                        )
-                      }
+                      value={currentActiveBudget[roleKey]}
+onChange={(e) =>
+  updateBudget(roleKey, Number(e.target.value))
+}
                       className="
                         w-full
                         bg-slate-900
@@ -788,9 +876,6 @@ export default function ObiettiviPage() {
                           const team = getPlayerTeam(
                             item.player.team
                           )
-
-                          const teamColor =
-                            team?.color ?? '#3b82f6'
 
                           const teamColors =
                             team?.colors?.filter(Boolean) ?? []
