@@ -370,7 +370,6 @@ export default function ObiettiviPage() {
   // ============================================================
   // MODIFICA BUDGET
   // ============================================================
-const roles: ('P' | 'D' | 'C' | 'A')[] = ['P', 'D', 'C', 'A']
 
 const getTotal = (b: { P: number; D: number; C: number; A: number }) =>
   b.P + b.D + b.C + b.A
@@ -450,29 +449,110 @@ const updateBudget = (
   }
 }
 
+const roles: ('P' | 'D' | 'C' | 'A')[] = ['P', 'D', 'C', 'A']
+
+const normalizePercentage = (data: any) => {
+  const total =
+    data.P + data.D + data.C + data.A
+
+  if (total === 0) return { P: 25, D: 25, C: 25, A: 25 }
+
+  const factor = 100 / total
+
+  const normalized = {
+    P: Math.round(data.P * factor),
+    D: Math.round(data.D * factor),
+    C: Math.round(data.C * factor),
+    A: Math.round(data.A * factor),
+  }
+
+  // fix rounding (porta a 100 preciso)
+  const diff =
+    100 -
+    (normalized.P +
+      normalized.D +
+      normalized.C +
+      normalized.A)
+
+  normalized.A += diff
+
+  return normalized
+}
+
+const convertFixedToPercentage = (
+  fixed: any,
+  maxBudget: number
+) => {
+  if (maxBudget === 0) {
+    return { P: 25, D: 25, C: 25, A: 25 }
+  }
+
+  const raw = {
+    P: (fixed.P / maxBudget) * 100,
+    D: (fixed.D / maxBudget) * 100,
+    C: (fixed.C / maxBudget) * 100,
+    A: (fixed.A / maxBudget) * 100,
+  }
+
+  return normalizePercentage(raw)
+}
+
+const convertPercentageToFixed = (
+  percent: any,
+  maxBudget: number
+) => {
+  const raw = {
+    P: (percent.P / 100) * maxBudget,
+    D: (percent.D / 100) * maxBudget,
+    C: (percent.C / 100) * maxBudget,
+    A: (percent.A / 100) * maxBudget,
+  }
+
+  const rounded = {
+    P: Math.round(raw.P),
+    D: Math.round(raw.D),
+    C: Math.round(raw.C),
+    A: Math.round(raw.A),
+  }
+
+  // fix overflow da rounding
+  let total =
+    rounded.P + rounded.D + rounded.C + rounded.A
+
+  if (total > maxBudget) {
+    let overflow = total - maxBudget
+
+    for (const r of roles) {
+      if (overflow <= 0) break
+
+      const reducible = Math.min(rounded[r], overflow)
+      rounded[r] -= reducible
+      overflow -= reducible
+    }
+  }
+
+  return rounded
+}
+
 
 const toggleMode = (newMode: 'percentage' | 'fixed') => {
   if (newMode === budgetMode) return
 
-  setBudgetMode(newMode)
-
   if (newMode === 'percentage') {
-    // reset totale percentuali
-    setPercentBudget({
-      P: 0,
-      D: 0,
-      C: 0,
-      A: 0,
-    })
+    const converted = convertFixedToPercentage(
+      fixedBudget,
+      maxBudget
+    )
+    setPercentBudget(converted)
   } else {
-    // reset totale crediti
-    setFixedBudget({
-      P: 0,
-      D: 0,
-      C: 0,
-      A: 0,
-    })
+    const converted = convertPercentageToFixed(
+      percentBudget,
+      maxBudget
+    )
+    setFixedBudget(converted)
   }
+
+  setBudgetMode(newMode)
 }
   // ============================================================
   // RIMOZIONE OBIETTIVO
