@@ -69,7 +69,7 @@ export default function ImportListonePage() {
       name.slice(1)
     )
   }
-  
+
 
   const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -143,7 +143,7 @@ export default function ImportListonePage() {
           if (existingPlayersError) {
             throw new Error(
               'Errore nel recupero dei giocatori esistenti: ' +
-                existingPlayersError.message
+              existingPlayersError.message
             )
           }
 
@@ -171,7 +171,7 @@ export default function ImportListonePage() {
           const insertedNames: string[] = []
           const updatedDetailsList: string[] = []
           const deactivatedNames: string[] = []
-          
+
           for (const row of data) {
             processedCount++
             const playerId = Number(row['#'])
@@ -184,7 +184,7 @@ export default function ImportListonePage() {
             const rawFvm = Number(row['FVM/1000'] || 0)
             // Ricalcola il FVM in base al budget effettivo della lega (arrotondato a intero o mantenuto decimale)
             const fvm = Math.round(rawFvm * budgetRatio)
-            const isOut =row['Fuori lista'] === '*'
+            const isOut = row['Fuori lista'] === '*'
 
             if (!playerId || !name) {
               continue
@@ -260,27 +260,27 @@ export default function ImportListonePage() {
                 existing.team !== team
               ) {
                 // Controlliamo cosa è cambiato specificamente
-              const changes: string[] = []
-              if (existing.quotation !== quotation) {
-                changes.push(`Quot: ${existing.quotation} ➔ ${quotation}`)
-              }
-              if (existing.team !== team) {
-                changes.push(`Sq: ${existing.team} ➔ ${team}`)
-              }
-              if (existing.fvm !== fvm) {
-                changes.push(`FVM: ${existing.fvm} ➔ ${fvm}`)
-              }
-              if (existing.is_out !== isOut) {
-                changes.push(isOut ? `Fuori lista` : `Rientrato in lista`)
-              }
+                const changes: string[] = []
+                if (existing.quotation !== quotation) {
+                  changes.push(`Quot: ${existing.quotation} ➔ ${quotation}`)
+                }
+                if (existing.team !== team) {
+                  changes.push(`Sq: ${existing.team} ➔ ${team}`)
+                }
+                if (existing.fvm !== fvm) {
+                  changes.push(`FVM: ${existing.fvm} ➔ ${fvm}`)
+                }
+                if (existing.is_out !== isOut) {
+                  changes.push(isOut ? `Fuori lista` : `Rientrato in lista`)
+                }
 
-              if (changes.length > 0) {
-                updatedCount++
-                updatedDetailsList.push(`• **${name}**: ${changes.join(', ')}`)
-              }
+                if (changes.length > 0) {
+                  updatedCount++
+                  updatedDetailsList.push(`• **${name}**: ${changes.join(', ')}`)
+                }
               }
             }
-            
+
             const progress = Math.round((processedCount / totalRows) * 100)
             setImportProgress(progress)
           }
@@ -315,7 +315,7 @@ export default function ImportListonePage() {
                 deactivatedCount++
                 deactivatedNames.push(`${player.name} (${player.team})`)
               }
-              
+
               const progress = Math.round((processedCount / totalRows) * 100)
               setImportProgress(progress)
             }
@@ -324,7 +324,7 @@ export default function ImportListonePage() {
           /*
            * 4. Log importazione
            */
-let detailedLogText = `Importati ${insertedCount} nuovi, aggiornati ${updatedCount}, disattivati ${deactivatedCount}.\n\n`
+          let detailedLogText = `Importati ${insertedCount} nuovi, aggiornati ${updatedCount}, disattivati ${deactivatedCount}.\n\n`
 
           if (insertedNames.length > 0) {
             detailedLogText += `**Nuovi inseriti:**\n${insertedNames.join(', ')}\n\n`
@@ -372,7 +372,7 @@ let detailedLogText = `Importati ${insertedCount} nuovi, aggiornati ${updatedCou
 
           setErrorMessage(
             error?.message ||
-              'Errore durante l’importazione del listone.'
+            'Errore durante l’importazione del listone.'
           )
         } finally {
           setLoadingImport(false)
@@ -393,7 +393,7 @@ let detailedLogText = `Importati ${insertedCount} nuovi, aggiornati ${updatedCou
 
       setErrorMessage(
         error?.message ||
-          'Errore durante l’importazione del listone.'
+        'Errore durante l’importazione del listone.'
       )
     }
 
@@ -503,7 +503,7 @@ let detailedLogText = `Importati ${insertedCount} nuovi, aggiornati ${updatedCou
                   mb-3
                 "
               > */}
-                {/* <ArrowLeft className="w-4 h-4" />
+              {/* <ArrowLeft className="w-4 h-4" />
                 Dashboard
               </Link> */}
 
@@ -699,7 +699,8 @@ let detailedLogText = `Importati ${insertedCount} nuovi, aggiornati ${updatedCou
                 </div>
               </div>
 
-              <div className="p-5 md:p-6">
+              <div className="p-5 md:p-6 space-y-5">
+                {/* Contatori riassuntivi */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="rounded-xl bg-background/50 border border-border/70 p-4">
                     <p className="text-[10px] uppercase tracking-wider font-bold text-muted-2">
@@ -732,13 +733,21 @@ let detailedLogText = `Importati ${insertedCount} nuovi, aggiornati ${updatedCou
                   </div>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-slate-700/70">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                    Report Dettagliato delle Modifiche:
+                {/* Box Dettagli Grafico */}
+                <div className="rounded-xl bg-slate-950/50 border border-slate-700/70 p-4 md:p-5">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                    Dettaglio delle variazioni
                   </p>
-                  
-                  <div className="max-h-60 overflow-y-auto rounded-xl bg-slate-950/50 border border-slate-700/70 p-4 text-xs text-slate-300 whitespace-pre-line leading-relaxed font-mono">
-                    {lastResult.details}
+
+                  <div className="max-h-72 overflow-y-auto pr-2 space-y-2 text-xs text-slate-300 custom-scrollbar">
+                    {lastResult.details ? (
+                      <div className="leading-relaxed whitespace-pre-line text-slate-300">
+                        {lastResult.details}
+                      </div>
+                    ) : (
+                      <p className="text-slate-500 italic">Nessun dettaglio aggiuntivo registrato per questa importazione.</p>
+                    )}
                   </div>
                 </div>
               </div>
