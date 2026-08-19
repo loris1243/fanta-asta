@@ -202,7 +202,7 @@ export default function LeagueTeamsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col md:flex-row">
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col md:flex-row">
 
       {/* =====================================================
           SIDEBAR
@@ -234,11 +234,11 @@ export default function LeagueTeamsPage() {
 
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                  <Building2 className="w-4 h-4 text-blue-400" />
+                <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  <Building2 className="w-4 h-4 text-primary" />
                 </div>
 
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-400">
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
                   Anagrafiche
                 </span>
               </div>
@@ -247,7 +247,7 @@ export default function LeagueTeamsPage() {
                 Squadre Lega Fantacalcio
               </h1>
 
-              <p className="mt-1.5 text-sm text-slate-400">
+              <p className="mt-1.5 text-sm text-muted">
                 Gestisci le squadre che partecipano
                 al campionato.
               </p>
@@ -255,8 +255,8 @@ export default function LeagueTeamsPage() {
 
             <div className="flex items-center gap-3 self-start lg:self-auto">
 
-              <div className="bg-slate-800 border border-slate-700 px-4 py-3 rounded-xl">
-                <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500">
+              <div className="bg-surface-elevated border border-border px-4 py-3 rounded-xl">
+                <p className="text-[10px] uppercase tracking-wider font-bold text-muted-2">
                   Squadre
                 </p>
 
@@ -274,14 +274,14 @@ export default function LeagueTeamsPage() {
                   gap-2
                   h-11
                   px-4
-                  bg-blue-600
-                  hover:bg-blue-500
+                  bg-primary
+                  hover:bg-primary-hover
                   text-white
                   text-sm
                   font-bold
                   rounded-xl
                   shadow-md
-                  shadow-blue-600/20
+                  shadow-primary/20
                   transition-all
                   active:scale-[0.98]
                   shrink-0
@@ -304,15 +304,15 @@ export default function LeagueTeamsPage() {
                 flex items-start gap-3
                 ${
                   message.type === 'success'
-                    ? 'bg-emerald-500/10 border-emerald-500/30'
-                    : 'bg-red-500/10 border-red-500/30'
+                    ? 'bg-success/10 border-success/30'
+                    : 'bg-danger/10 border-danger/30'
                 }
               `}
             >
               {message.type === 'success' ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
               ) : (
-                <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+                <AlertCircle className="w-5 h-5 text-danger shrink-0" />
               )}
 
               <p
@@ -320,8 +320,8 @@ export default function LeagueTeamsPage() {
                   text-xs font-semibold
                   ${
                     message.type === 'success'
-                      ? 'text-emerald-300'
-                      : 'text-red-300'
+                      ? 'text-success'
+                      : 'text-danger-hover'
                   }
                 `}
               >
@@ -333,27 +333,27 @@ export default function LeagueTeamsPage() {
           {/* CONTENT */}
 
           {loading ? (
-            <section className="bg-slate-800/80 border border-slate-700 rounded-2xl shadow-xl p-12">
+            <section className="bg-surface-elevated/80 border border-border rounded-2xl shadow-xl p-12">
               <div className="flex flex-col items-center gap-3">
-                <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
 
-                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
+                <p className="text-xs text-muted font-semibold uppercase tracking-wider">
                   Caricamento squadre...
                 </p>
               </div>
             </section>
           ) : teams.length === 0 ? (
-            <section className="bg-slate-800/80 border border-slate-700 rounded-2xl shadow-xl p-10 text-center">
+            <section className="bg-surface-elevated/80 border border-border rounded-2xl shadow-xl p-10 text-center">
 
-              <div className="w-14 h-14 rounded-2xl bg-slate-950/60 border border-slate-700 flex items-center justify-center mx-auto mb-4">
-                <Trophy className="w-6 h-6 text-slate-500" />
+              <div className="w-14 h-14 rounded-2xl bg-background/60 border border-border flex items-center justify-center mx-auto mb-4">
+                <Trophy className="w-6 h-6 text-muted-2" />
               </div>
 
               <h2 className="text-sm font-black text-white">
                 Nessuna squadra definita
               </h2>
 
-              <p className="text-xs text-slate-500 mt-1.5 max-w-sm mx-auto">
+              <p className="text-xs text-muted-2 mt-1.5 max-w-sm mx-auto">
                 Non ci sono ancora squadre nella lega.
                 Crea la prima per iniziare.
               </p>
@@ -367,8 +367,8 @@ export default function LeagueTeamsPage() {
                   mt-5
                   px-4
                   h-10
-                  bg-blue-600
-                  hover:bg-blue-500
+                  bg-primary
+                  hover:bg-primary-hover
                   text-white
                   text-xs
                   font-bold
@@ -381,14 +381,14 @@ export default function LeagueTeamsPage() {
               </Link>
             </section>
           ) : (
-            <section className="bg-slate-800/80 border border-slate-700 rounded-2xl shadow-xl overflow-hidden">
+            <section className="bg-surface-elevated/80 border border-border rounded-2xl shadow-xl overflow-hidden">
 
-              <div className="p-5 md:p-6 border-b border-slate-700/70">
+              <div className="p-5 md:p-6 border-b border-border/70">
                 <h2 className="text-sm font-black uppercase tracking-wider text-white">
                   Squadre partecipanti
                 </h2>
 
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-muted mt-0.5">
                   Elenco delle squadre iscritte alla lega,
                   ordinate alfabeticamente.
                 </p>
@@ -409,14 +409,14 @@ export default function LeagueTeamsPage() {
                       className="
                         group
                         p-4
-                        bg-slate-900/60
-                        border border-slate-700
+                        bg-surface/60
+                        border border-border
                         rounded-xl
                         flex items-center
                         justify-between
                         gap-3
-                        hover:border-slate-600
-                        hover:bg-slate-900/80
+                        hover:border-border-strong
+                        hover:bg-surface/80
                         transition-all
                       "
                     >
@@ -429,8 +429,8 @@ export default function LeagueTeamsPage() {
                           className="
                             w-12 h-12
                             rounded-xl
-                            bg-slate-950
-                            border border-slate-700
+                            bg-background
+                            border border-border
                             flex items-center
                             justify-center
                             shrink-0
@@ -445,7 +445,7 @@ export default function LeagueTeamsPage() {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <Building2 className="w-5 h-5 text-slate-600" />
+                            <Building2 className="w-5 h-5 text-muted-2" />
                           )}
                         </div>
 
@@ -457,9 +457,9 @@ export default function LeagueTeamsPage() {
                           </h3>
 
                           <div className="flex items-center gap-1.5 mt-1">
-                            <UserRound className="w-3 h-3 text-slate-500 shrink-0" />
+                            <UserRound className="w-3 h-3 text-muted-2 shrink-0" />
 
-                            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold truncate">
+                            <p className="text-[10px] text-muted uppercase tracking-wider font-semibold truncate">
                               {owner}
                             </p>
                           </div>
@@ -480,11 +480,11 @@ export default function LeagueTeamsPage() {
                           rounded-xl
                           flex items-center
                           justify-center
-                          text-slate-500
-                          hover:text-red-400
-                          hover:bg-red-500/10
+                          text-muted-2
+                          hover:text-danger
+                          hover:bg-danger/10
                           border border-transparent
-                          hover:border-red-500/20
+                          hover:border-danger/20
                           transition-all
                           disabled:opacity-50
                           disabled:cursor-not-allowed

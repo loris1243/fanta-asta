@@ -177,7 +177,7 @@ export default function GestioneRosePage() {
 
   if (loading || !user) {
     return (
-      <div className="p-8 text-slate-400 text-center bg-slate-950 min-h-screen flex items-center justify-center">
+      <div className="p-8 text-muted text-center bg-background min-h-screen flex items-center justify-center">
         Caricamento pannello di gestione in corso...
       </div>
     )
@@ -190,7 +190,7 @@ export default function GestioneRosePage() {
   const filteredTargetTeamPlayers = (targetTeamData?.roster || []).filter(item => item.players?.role === currentRoleFilter)
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col md:flex-row">
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col md:flex-row">
       <DashboardSidebar
         user={{ username: user.username, role: user.role }}
         remainingBudget={remainingBudget}
@@ -204,17 +204,17 @@ export default function GestioneRosePage() {
       <main className="flex-1 p-5 md:p-8 xl:p-10 space-y-6 overflow-y-auto">
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-3">
-            <ArrowLeftRight className="w-7 h-7 text-blue-500" />
+            <ArrowLeftRight className="w-7 h-7 text-primary" />
             Gestione Rose e Svincoli
           </h1>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-muted">
             Effettua scambi diretti tra rose (senza variazioni di budget) o gestisci gli svincoli.
           </p>
         </div>
 
         {feedback && (
           <div className={`p-4 rounded-xl flex items-center gap-3 text-sm font-semibold ${
-            feedback.success ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+            feedback.success ? 'bg-success/10 text-success border border-success/20' : 'bg-danger/10 text-danger border border-danger/20'
           }`}>
             {feedback.success ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
             <span>{feedback.success || feedback.error}</span>
@@ -223,31 +223,31 @@ export default function GestioneRosePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {teams.map((team) => (
-            <div key={team.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+            <div key={team.id} className="bg-surface border border-border rounded-2xl p-5 shadow-xl flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+                <div className="flex items-center justify-between pb-3 mb-4 border-b border-border">
                   <h2 className="font-bold text-white text-base flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-emerald-400" />
+                    <Shield className="w-4 h-4 text-role-d" />
                     {team.name}
                   </h2>
-                  <span className="text-xs font-semibold px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg">
+                  <span className="text-xs font-semibold px-2.5 py-1 bg-surface-elevated text-muted rounded-lg">
                     {team.roster.length} giocatori
                   </span>
                 </div>
 
                 {team.roster.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic py-4 text-center">Nessun giocatore in rosa</p>
+                  <p className="text-xs text-muted-2 italic py-4 text-center">Nessun giocatore in rosa</p>
                 ) : (
                   <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                     {team.roster.map((item) => (
                       <div 
                         key={item.id}
-                        className="flex items-center justify-between p-2.5 bg-slate-800/50 hover:bg-slate-800 rounded-xl transition-all text-xs"
+                        className="flex items-center justify-between p-2.5 bg-surface-elevated/50 hover:bg-surface-elevated rounded-xl transition-all text-xs"
                       >
                         <div className="min-w-0 pr-2">
                           <p className="font-bold text-white truncate">{item.players?.name}</p>
-                          <p className="text-[10px] text-slate-400 uppercase tracking-wider">
-                            {item.players?.role} • {item.players?.team} • <span className="text-blue-400 font-semibold">{item.price} FM</span>
+                          <p className="text-[10px] text-muted uppercase tracking-wider">
+                            {item.players?.role} • {item.players?.team} • <span className="text-primary font-semibold">{item.price} FM</span>
                           </p>
                         </div>
 
@@ -261,7 +261,7 @@ export default function GestioneRosePage() {
                               setTargetTeamPlayerId('')
                               setFeedback(null)
                             }}
-                            className="p-1.5 bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white rounded-lg transition-all cursor-pointer"
+                            className="p-1.5 bg-primary/20 hover:bg-primary text-primary-hover hover:text-white rounded-lg transition-all cursor-pointer"
                             title="Scambia con altra squadra"
                           >
                             <ArrowLeftRight className="w-3.5 h-3.5" />
@@ -275,7 +275,7 @@ export default function GestioneRosePage() {
                               setSelectedFreePlayerId('')
                               setFeedback(null)
                             }}
-                            className="p-1.5 bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white rounded-lg transition-all cursor-pointer"
+                            className="p-1.5 bg-danger/20 hover:bg-danger text-danger-hover hover:text-white rounded-lg transition-all cursor-pointer"
                             title="Svincola giocatore"
                           >
                             <UserMinus className="w-3.5 h-3.5" />
@@ -292,12 +292,12 @@ export default function GestioneRosePage() {
 
         {selectedItem && modalType && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
+            <div className="bg-surface border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
               <div>
                 <h3 className="text-lg font-bold text-white">
                   {modalType === 'swap' ? 'Scambio tra Squadre' : 'Gestione Svincolo'}
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-muted mt-1">
                   Giocatore in uscita: <span className="text-white font-semibold">{selectedItem.item.players?.name}</span> ({selectedItem.item.players?.role})
                 </p>
               </div>
@@ -306,7 +306,7 @@ export default function GestioneRosePage() {
                 {modalType === 'swap' ? (
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                      <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">
                         1. Seleziona Squadra Destinataria
                       </label>
                       <select
@@ -316,7 +316,7 @@ export default function GestioneRosePage() {
                           setTargetTeamPlayerId('')
                         }}
                         required
-                        className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-500"
+                        className="w-full bg-surface-elevated border border-border text-white rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-primary"
                       >
                         <option value="" disabled>Seleziona squadra...</option>
                         {teams
@@ -331,14 +331,14 @@ export default function GestioneRosePage() {
 
                     {targetTeamId && (
                       <div>
-                        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                        <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">
                           2. Seleziona Giocatore in Cambio ({currentRoleFilter})
                         </label>
                         <select
                           value={targetTeamPlayerId}
                           onChange={(e) => setTargetTeamPlayerId(e.target.value)}
                           required
-                          className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-500"
+                          className="w-full bg-surface-elevated border border-border text-white rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-primary"
                         >
                           <option value="" disabled>Seleziona giocatore da ricevere...</option>
                           {filteredTargetTeamPlayers.length === 0 ? (
@@ -357,7 +357,7 @@ export default function GestioneRosePage() {
                 ) : (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                      <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">
                         Tipo di Svincolo
                       </label>
                       <div className="grid grid-cols-2 gap-2">
@@ -366,8 +366,8 @@ export default function GestioneRosePage() {
                           onClick={() => setReleaseActionType('refund')}
                           className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
                             releaseActionType === 'refund' 
-                              ? 'bg-red-600/20 border-red-500 text-red-300' 
-                              : 'bg-slate-800 border-slate-700 text-slate-400'
+                              ? 'bg-danger/20 border-danger text-danger-hover' 
+                              : 'bg-surface-elevated border-border text-muted'
                           }`}
                         >
                           Solo Rimborso ({selectedItem.item.price} FM)
@@ -377,8 +377,8 @@ export default function GestioneRosePage() {
                           onClick={() => setReleaseActionType('swap')}
                           className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
                             releaseActionType === 'swap' 
-                              ? 'bg-blue-600/20 border-blue-500 text-blue-300' 
-                              : 'bg-slate-800 border-slate-700 text-slate-400'
+                              ? 'bg-primary/20 border-primary text-primary-hover' 
+                              : 'bg-surface-elevated border-border text-muted'
                           }`}
                         >
                           Svincolo + Rimpiazzo (1 FM)
@@ -388,14 +388,14 @@ export default function GestioneRosePage() {
 
                     {releaseActionType === 'swap' && (
                       <div>
-                        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                        <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">
                           Seleziona Nuovo Giocatore ({currentRoleFilter})
                         </label>
                         <select
                           value={selectedFreePlayerId}
                           onChange={(e) => setSelectedFreePlayerId(e.target.value)}
                           required
-                          className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-500"
+                          className="w-full bg-surface-elevated border border-border text-white rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-primary"
                         >
                           <option value="" disabled>Seleziona svincolato...</option>
                           {filteredFreePlayers.length === 0 ? (
@@ -417,14 +417,14 @@ export default function GestioneRosePage() {
                   <button
                     type="button"
                     onClick={() => setSelectedItem(null)}
-                    className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-300 hover:bg-slate-800 transition-all cursor-pointer"
+                    className="px-4 py-2 rounded-xl text-sm font-semibold text-muted hover:bg-surface-elevated transition-all cursor-pointer"
                   >
                     Annulla
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmitting || (modalType === 'swap' && (!targetTeamId || !targetTeamPlayerId)) || (modalType === 'release' && releaseActionType === 'swap' && !selectedFreePlayerId)}
-                    className="px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 transition-all disabled:opacity-50 cursor-pointer"
+                    className="px-4 py-2 rounded-xl text-sm font-semibold bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/20 transition-all disabled:opacity-50 cursor-pointer"
                   >
                     {isSubmitting ? 'Elaborazione...' : 'Conferma'}
                   </button>
