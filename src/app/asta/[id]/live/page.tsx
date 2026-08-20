@@ -3224,8 +3224,8 @@ export default function LiveAuctionPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-                <div className="w-8 h-8 border-4 border-blue-500 rounded-full animate-spin" />
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="w-8 h-8 border-4 border-primary rounded-full animate-spin" />
             </div>
         )
     }
@@ -3234,21 +3234,21 @@ export default function LiveAuctionPage() {
         const stats = auctionStats
 
         return (
-            <div className="min-h-screen bg-slate-900 text-slate-100 font-sans p-4 md:p-8 flex items-center justify-center">
-                <div className="max-w-3xl w-full bg-slate-800/80 border border-slate-700 rounded-2xl p-8 text-center space-y-6 shadow-2xl">
-                    <div className="w-16 h-16 bg-amber-500/15 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto text-amber-400">
+            <div className="min-h-screen bg-background text-foreground font-sans p-4 md:p-8 flex items-center justify-center">
+                <div className="max-w-3xl w-full bg-surface-elevated/80 border border-border rounded-2xl p-8 text-center space-y-6 shadow-2xl">
+                    <div className="w-16 h-16 bg-accent/15 border border-accent/30 rounded-2xl flex items-center justify-center mx-auto text-accent">
                         <Trophy className="w-8 h-8" />
                     </div>
 
                     <div className="space-y-2">
                         <h1 className="text-2xl font-black uppercase text-white">Asta Conclusa!</h1>
-                        <p className="text-sm text-slate-400">
+                        <p className="text-sm text-muted">
                             Tutti i ruoli e le chiamate sono stati completati con successo.
                         </p>
                     </div>
 
                     {isLoadingAuctionStats && !stats && (
-                        <div className="flex items-center justify-center gap-2 text-slate-400 text-sm py-6">
+                        <div className="flex items-center justify-center gap-2 text-muted text-sm py-6">
                             <Loader2 className="w-4 h-4 animate-spin" />
                             Calcolo statistiche...
                         </div>
@@ -3259,8 +3259,8 @@ export default function LiveAuctionPage() {
 
                             {/* COLPO PIU' CARO DELL'ASTA */}
                             {stats.topPickOverall && (
-                                <div className="bg-slate-900/60 border border-amber-500/30 rounded-xl p-4">
-                                    <p className="text-[11px] font-black uppercase tracking-wider text-amber-400 mb-1">
+                                <div className="bg-surface/60 border border-accent/30 rounded-xl p-4">
+                                    <p className="text-[11px] font-black uppercase tracking-wider text-accent mb-1">
                                         Colpo più caro dell'asta
                                     </p>
                                     <div className="flex items-center justify-between">
@@ -3268,11 +3268,11 @@ export default function LiveAuctionPage() {
                                             <span className="font-bold text-white mr-5">
                                                 {stats.topPickOverall.playerName}&nbsp;
                                             </span>
-                                            <span className="text-xs text-slate-400 ml-5">
+                                            <span className="text-xs text-muted ml-5">
                                                 &nbsp;{ROLE_NAMES[stats.topPickOverall.role] || stats.topPickOverall.role} · {stats.topPickOverall.teamName}
                                             </span>
                                         </div>
-                                        <span className="font-black text-amber-400">
+                                        <span className="font-black text-accent">
                                             {stats.topPickOverall.price} CR
                                         </span>
                                     </div>
@@ -3282,15 +3282,15 @@ export default function LiveAuctionPage() {
                             {/* SPESA: CHI PIU' CHI MENO */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {stats.topSpender && (
-                                    <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-4">
-                                        <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                                    <div className="bg-surface/60 border border-border rounded-xl p-4">
+                                        <p className="text-[11px] font-black uppercase tracking-wider text-muted mb-1">
                                             Ha speso di più
                                         </p>
                                         <div className="flex items-center justify-between">
                                             <span className="font-bold text-white text-sm">
                                                 {stats.topSpender.teamName}
                                             </span>
-                                            <span className="font-black text-emerald-400 text-sm">
+                                            <span className="font-black text-success text-sm">
                                                 {stats.topSpender.spent} CR
                                             </span>
                                         </div>
@@ -3298,15 +3298,15 @@ export default function LiveAuctionPage() {
                                 )}
 
                                 {stats.lowestSpender && (
-                                    <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-4">
-                                        <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                                    <div className="bg-surface/60 border border-border rounded-xl p-4">
+                                        <p className="text-[11px] font-black uppercase tracking-wider text-muted mb-1">
                                             Ha speso di meno
                                         </p>
                                         <div className="flex items-center justify-between">
                                             <span className="font-bold text-white text-sm">
                                                 {stats.lowestSpender.teamName}
                                             </span>
-                                            <span className="font-black text-emerald-400 text-sm">
+                                            <span className="font-black text-success text-sm">
                                                 {stats.lowestSpender.spent} CR
                                             </span>
                                         </div>
@@ -3316,8 +3316,8 @@ export default function LiveAuctionPage() {
 
                             {/* COLPO PIU' CARO PER RUOLO */}
                             {Object.keys(stats.topPickByRole || {}).length > 0 && (
-                                <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-4">
-                                    <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
+                                <div className="bg-surface/60 border border-border rounded-xl p-4">
+                                    <p className="text-[11px] font-black uppercase tracking-wider text-muted mb-2">
                                         Colpo più caro per ruolo
                                     </p>
                                     <div className="space-y-1.5">
@@ -3325,12 +3325,12 @@ export default function LiveAuctionPage() {
                                             const pick = stats.topPickByRole[role]
                                             return (
                                                 <div key={role} className="flex items-center justify-between text-sm">
-                                                    <span className="text-slate-300">
-                                                        <span className="text-slate-500 mr-1">{ROLE_NAMES[role]}: </span>
+                                                    <span className="text-muted">
+                                                        <span className="text-muted-2 mr-1">{ROLE_NAMES[role]}: </span>
                                                         <span className="text-white font-semibold">{pick.playerName}</span>
-                                                        <span className="text-slate-500 ml-1">({pick.teamName})</span>
+                                                        <span className="text-muted-2 ml-1">({pick.teamName})</span>
                                                     </span>
-                                                    <span className="font-black text-amber-400 shrink-0 ml-2">
+                                                    <span className="font-black text-accent shrink-0 ml-2">
                                                         {pick.price} CR
                                                     </span>
                                                 </div>
@@ -3342,8 +3342,8 @@ export default function LiveAuctionPage() {
 
                             {/* COLPO PIU' CARO PER SQUADRA */}
                             {Object.keys(stats.topPickByTeam || {}).length > 0 && (
-                                <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-4">
-                                    <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
+                                <div className="bg-surface/60 border border-border rounded-xl p-4">
+                                    <p className="text-[11px] font-black uppercase tracking-wider text-muted mb-2">
                                         Acquisto più caro per squadra
                                     </p>
                                     <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
@@ -3351,11 +3351,11 @@ export default function LiveAuctionPage() {
                                             .sort((a: any, b: any) => b.price - a.price)
                                             .map((pick: any) => (
                                                 <div key={pick.teamId} className="flex items-center justify-between text-sm">
-                                                    <span className="text-slate-300">
+                                                    <span className="text-muted">
                                                         <span className="text-white font-semibold">{pick.teamName}</span>
-                                                        <span className="text-slate-500 ml-1">— {pick.playerName}</span>
+                                                        <span className="text-muted-2 ml-1">— {pick.playerName}</span>
                                                     </span>
-                                                    <span className="font-black text-amber-400 shrink-0 ml-2">
+                                                    <span className="font-black text-accent shrink-0 ml-2">
                                                         {pick.price} CR
                                                     </span>
                                                 </div>
@@ -3366,15 +3366,15 @@ export default function LiveAuctionPage() {
 
                             {/* BUDGET RESIDUO PER SQUADRA */}
                             {stats.residualBudgets?.length > 0 && (
-                                <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-4">
-                                    <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
+                                <div className="bg-surface/60 border border-border rounded-xl p-4">
+                                    <p className="text-[11px] font-black uppercase tracking-wider text-muted mb-2">
                                         Budget residuo per squadra
                                     </p>
                                     <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                                         {stats.residualBudgets.map((t: any) => (
                                             <div key={t.teamId} className="flex items-center justify-between text-sm">
-                                                <span className="text-slate-300">{t.teamName}</span>
-                                                <span className="font-black text-slate-200 shrink-0 ml-2">
+                                                <span className="text-muted">{t.teamName}</span>
+                                                <span className="font-black text-foreground shrink-0 ml-2">
                                                     {t.budget} CR
                                                 </span>
                                             </div>
@@ -3386,10 +3386,10 @@ export default function LiveAuctionPage() {
                         </div>
                     )}
 
-                    <div className="pt-4 border-t border-slate-700/60 flex gap-3">
+                    <div className="pt-4 border-t border-border/60 flex gap-3">
                         <button
                             onClick={() => router.push('/')}
-                            className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-wider transition"
+                            className="w-full py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-black text-xs uppercase tracking-wider transition"
                         >
                             Torna alla dashboard
                         </button>
@@ -3401,14 +3401,14 @@ export default function LiveAuctionPage() {
 
     return (
 
-        <div className="min-h-screen bg-slate-900 text-slate-100 font-sans p-4 md:p-8 flex flex-col">
+        <div className="min-h-screen bg-background text-foreground font-sans p-4 md:p-8 flex flex-col">
 
             {/* HEADER */}
 
-            <header className="max-w-7xl mx-auto w-full flex flex-wrap items-center justify-between pb-6 border-b border-slate-800 gap-3">
+            <header className="max-w-7xl mx-auto w-full flex flex-wrap items-center justify-between pb-6 border-b border-border gap-3">
 
                 <h1 className="text-lg font-black uppercase flex items-center gap-2">
-                    <Gavel className="w-5 h-5 text-blue-500" />
+                    <Gavel className="w-5 h-5 text-primary" />
                     Asta Live
                 </h1>
 
@@ -3417,8 +3417,8 @@ export default function LiveAuctionPage() {
                     {myRoleBudget !== null && (
                         <div
                             className={`px-3 py-1 rounded-lg text-xs font-black uppercase flex items-center gap-1.5 transition-all ${isRoleBudgetExceeded
-                                ? 'bg-red-500/15 border border-red-500/50 text-red-400 animate-pulse'
-                                : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-300'
+                                ? 'bg-danger/15 border border-danger/50 text-danger animate-pulse'
+                                : 'bg-primary/10 border border-primary/20 text-primary-hover'
                                 }`}
                         >
                             <Wallet className="w-3.5 h-3.5" />
@@ -3431,8 +3431,8 @@ export default function LiveAuctionPage() {
 
                             <span
                                 className={`font-normal ${isRoleBudgetExceeded
-                                    ? 'text-red-300'
-                                    : 'text-slate-500'
+                                    ? 'text-danger-hover'
+                                    : 'text-muted-2'
                                     }`}
                             >
                                 / {myRoleBudget}
@@ -3440,15 +3440,15 @@ export default function LiveAuctionPage() {
                         </div>
                     )}
 
-                    <div className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs font-black uppercase">
+                    <div className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-lg text-accent text-xs font-black uppercase">
                         Budget Tot:{' '}
                         {myBudget} CR
                     </div>
 
-                    <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400 text-xs font-black uppercase flex items-center gap-2">
+                    <div className="px-3 py-1 bg-success/10 border border-success/20 rounded-lg text-success text-xs font-black uppercase flex items-center gap-2">
                         <span>ROSA: {(myRoleCounts.P + myRoleCounts.D + myRoleCounts.C + myRoleCounts.A)}/25</span>
-                        <span className="text-slate-500 font-normal">|</span>
-                        <span className="text-[10px] text-slate-300">
+                        <span className="text-muted-2 font-normal">|</span>
+                        <span className="text-[10px] text-muted">
                             P:{myRoleCounts.P} D:{myRoleCounts.D} C:{myRoleCounts.C} A:{myRoleCounts.A}
                         </span>
                     </div>
@@ -3464,7 +3464,7 @@ export default function LiveAuctionPage() {
                 <div className="lg:col-span-2 space-y-6">
 
                     {currentNomination ? (
-                        <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-6 md:p-8 space-y-6">
+                        <div className="bg-surface-elevated/60 border border-border/80 rounded-2xl p-6 md:p-8 space-y-6">
 
                             {/* GIOCATORE */}
 
@@ -3474,7 +3474,7 @@ export default function LiveAuctionPage() {
 
                                     <div className="flex items-center gap-2 flex-wrap">
 
-                                        <span className="text-xs font-bold uppercase px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg">
+                                        <span className="text-xs font-bold uppercase px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-lg">
                                             {
                                                 ROLE_NAMES[
                                                 currentNomination
@@ -3500,7 +3500,7 @@ export default function LiveAuctionPage() {
                                                 .players
                                                 ?.id
                                         ) && (
-                                                <span className="px-2.5 py-1 bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-extrabold rounded-full uppercase tracking-wider">
+                                                <span className="px-2.5 py-1 bg-accent/20 border border-accent/40 text-accent text-xs font-extrabold rounded-full uppercase tracking-wider">
                                                     ⭐ Obiettivo
                                                 </span>
                                             )}
@@ -3511,7 +3511,7 @@ export default function LiveAuctionPage() {
                                                 ?.id
                                         ) && (
                                                 <span
-                                                    className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider rounded-full bg-cyan-950/80 text-cyan-400 border border-cyan-700/60 flex items-center gap-1 ${currentBid > currentNomination.players.fvm ? 'animate-pulse text-red-400 border-red-500 bg-red-950/80' : ''
+                                                    className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider rounded-full bg-info/10 text-info border border-info/30 flex items-center gap-1 ${currentBid > currentNomination.players.fvm ? 'animate-pulse text-danger border-danger bg-danger/10' : ''
                                                         }`}
                                                 >
                                                     💎 Fanta-valore Medio: {currentNomination.players.fvm}
@@ -3528,9 +3528,9 @@ export default function LiveAuctionPage() {
                                         }
                                     </h2>
 
-                                    <p className="text-slate-400 text-xs mt-2">
+                                    <p className="text-muted text-xs mt-2">
                                         Chiamato da{' '}
-                                        <span className="text-amber-400 font-bold">
+                                        <span className="text-accent font-bold">
                                             {
                                                 currentTurnTeamName
                                             }
@@ -3540,11 +3540,11 @@ export default function LiveAuctionPage() {
                                 </div>
 
                                 <div className="text-right">
-                                    <span className="text-xs text-slate-400 uppercase font-semibold">
+                                    <span className="text-xs text-muted uppercase font-semibold">
                                         Offerta
                                     </span>
 
-                                    <span className="text-5xl font-black text-amber-400 block">
+                                    <span className="text-5xl font-black text-accent block">
                                         {
                                             currentBid
                                         }{' '}
@@ -3556,9 +3556,9 @@ export default function LiveAuctionPage() {
 
                             {/* STATO ASTA */}
 
-                            <div className="flex justify-between items-center bg-slate-900/60 p-3 rounded-xl border border-slate-700/50 flex-wrap gap-2">
+                            <div className="flex justify-between items-center bg-surface/60 p-3 rounded-xl border border-border/50 flex-wrap gap-2">
 
-                                <div className="text-xs font-bold text-slate-300 uppercase">
+                                <div className="text-xs font-bold text-muted uppercase">
                                     In vantaggio:{' '}
                                     <span className="text-white font-black">
                                         {
@@ -3567,7 +3567,7 @@ export default function LiveAuctionPage() {
                                     </span>
                                 </div>
 
-                                <div className="text-xs font-black text-slate-400 bg-slate-800 px-3 py-1 rounded-lg">
+                                <div className="text-xs font-black text-muted bg-surface-elevated px-3 py-1 rounded-lg">
                                     Squadre ancora in gara:{' '}
                                     {
                                         activeTeams.length
@@ -3580,9 +3580,9 @@ export default function LiveAuctionPage() {
 
                             {withdrawalMessages.length >
                                 0 && (
-                                    <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+                                    <div className="bg-danger/5 border border-danger/20 rounded-xl p-4">
 
-                                        <div className="flex items-center gap-2 text-xs font-black uppercase text-red-300 mb-3">
+                                        <div className="flex items-center gap-2 text-xs font-black uppercase text-danger-hover mb-3">
                                             <LogOut className="w-4 h-4" />
                                             Ritiri
                                         </div>
@@ -3597,7 +3597,7 @@ export default function LiveAuctionPage() {
                                                         key={
                                                             message.id
                                                         }
-                                                        className="text-sm text-slate-300"
+                                                        className="text-sm text-muted"
                                                     >
                                                         🔥{' '}
                                                         <span className="font-black text-white">
@@ -3620,9 +3620,9 @@ export default function LiveAuctionPage() {
 
                             {bids.length >
                                 0 && (
-                                    <div className="bg-slate-900/60 border border-slate-700/50 rounded-xl p-4">
+                                    <div className="bg-surface/60 border border-border/50 rounded-xl p-4">
 
-                                        <h3 className="text-xs font-black uppercase text-slate-400 mb-3">
+                                        <h3 className="text-xs font-black uppercase text-muted mb-3">
                                             Ultime offerte
                                         </h3>
 
@@ -3667,7 +3667,7 @@ export default function LiveAuctionPage() {
                                                                     }
                                                                 </span>
 
-                                                                <span className="font-black text-amber-400">
+                                                                <span className="font-black text-accent">
                                                                     {
                                                                         bid.amount
                                                                     }{' '}
@@ -3686,8 +3686,8 @@ export default function LiveAuctionPage() {
 
                             {/* MESSAGGIO SLOT PIENI */}
                             {isRoleFull && (
-                                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-center">
-                                    <p className="text-xs font-black uppercase text-amber-400">
+                                <div className="bg-accent/10 border border-accent/30 rounded-xl p-3 text-center">
+                                    <p className="text-xs font-black uppercase text-accent">
                                         ⚠️ Hai esaurito gli slot disponibili per questo ruolo ({currentRoleCount}/{currentRoleLimit}). Rilanci disabilitati.
                                     </p>
                                 </div>
@@ -3698,13 +3698,13 @@ export default function LiveAuctionPage() {
                             {!hasWithdrawn ? (
                                 <>
                                     {amHighestBidder ? (
-                                        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-5 text-center">
+                                        <div className="bg-success/10 border border-success/30 rounded-xl p-5 text-center">
 
-                                            <div className="text-emerald-400 text-sm font-black uppercase">
+                                            <div className="text-success text-sm font-black uppercase">
                                                 Sei in vantaggio
                                             </div>
 
-                                            <p className="text-xs text-slate-400 mt-1">
+                                            <p className="text-xs text-muted mt-1">
                                                 Non puoi rilanciare
                                                 contro la tua stessa
                                                 offerta.
@@ -3723,7 +3723,7 @@ export default function LiveAuctionPage() {
                                                             1
                                                         )
                                                     }
-                                                    className="py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold uppercase text-sm transition"
+                                                    className="py-3 bg-surface-elevated hover:bg-surface-hover disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold uppercase text-sm transition"
                                                 >
                                                     +1
                                                 </button>
@@ -3736,7 +3736,7 @@ export default function LiveAuctionPage() {
                                                             5
                                                         )
                                                     }
-                                                    className="py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold uppercase text-sm transition"
+                                                    className="py-3 bg-surface-elevated hover:bg-surface-hover disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold uppercase text-sm transition"
                                                 >
                                                     +5
                                                 </button>
@@ -3749,14 +3749,14 @@ export default function LiveAuctionPage() {
                                                             10
                                                         )
                                                     }
-                                                    className="py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold uppercase text-sm transition"
+                                                    className="py-3 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold uppercase text-sm transition"
                                                 >
                                                     +10
                                                 </button>
 
                                             </div>
 
-                                            <div className="flex gap-2 pt-2 border-t border-slate-700/50">
+                                            <div className="flex gap-2 pt-2 border-t border-border/50">
 
                                                 <input
                                                     type="number"
@@ -3774,7 +3774,7 @@ export default function LiveAuctionPage() {
                                                                 .value
                                                         )
                                                     }
-                                                    className="flex-1 bg-slate-900 border border-slate-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500"
+                                                    className="flex-1 bg-surface border border-border disabled:opacity-40 disabled:cursor-not-allowed rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary"
                                                 />
 
                                                 <button
@@ -3803,7 +3803,7 @@ export default function LiveAuctionPage() {
                                                             value
                                                         )
                                                     }}
-                                                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-black text-xs uppercase transition"
+                                                    className="px-6 py-3 bg-success hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-black text-xs uppercase transition"
                                                 >
                                                     Rilancia
                                                 </button>
@@ -3820,7 +3820,7 @@ export default function LiveAuctionPage() {
                                             disabled={
                                                 isWithdrawing
                                             }
-                                            className="w-full py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-300 rounded-xl font-black text-xs uppercase transition flex items-center justify-center gap-2"
+                                            className="w-full py-3 bg-danger/20 hover:bg-danger/30 border border-danger/40 text-danger-hover rounded-xl font-black text-xs uppercase transition flex items-center justify-center gap-2"
                                         >
                                             <LogOut className="w-4 h-4" />
 
@@ -3832,16 +3832,16 @@ export default function LiveAuctionPage() {
 
                                 </>
                             ) : (
-                                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-5 text-center">
+                                <div className="bg-danger/10 border border-danger/30 rounded-xl p-5 text-center">
 
-                                    <LogOut className="w-8 h-8 text-red-400 mx-auto mb-2" />
+                                    <LogOut className="w-8 h-8 text-danger mx-auto mb-2" />
 
-                                    <p className="text-sm font-black uppercase text-red-300">
+                                    <p className="text-sm font-black uppercase text-danger-hover">
                                         Ti sei ritirato
                                         dall'asta
                                     </p>
 
-                                    <p className="text-xs text-slate-400 mt-1">
+                                    <p className="text-xs text-muted mt-1">
                                         Non puoi più fare
                                         offerte su questo
                                         giocatore.
@@ -3853,7 +3853,7 @@ export default function LiveAuctionPage() {
                             {/* ADMIN */}
 
                             {isAdmin && (
-                                <div className="pt-4 border-t border-slate-700/50">
+                                <div className="pt-4 border-t border-border/50">
 
                                     <button
                                         onClick={async () => {
@@ -3889,7 +3889,7 @@ export default function LiveAuctionPage() {
                                         disabled={
                                             isClosingAuction
                                         }
-                                        className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-xl font-black text-xs uppercase transition"
+                                        className="w-full py-3 bg-primary hover:bg-primary-hover disabled:opacity-50 rounded-xl font-black text-xs uppercase transition"
                                     >
                                         {isClosingAuction
                                             ? 'Chiusura...'
@@ -3901,7 +3901,7 @@ export default function LiveAuctionPage() {
 
                         </div>
                     ) : (
-                        <div className="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-12 text-center space-y-4">
+                        <div className="bg-surface-elevated/40 border border-border/60 rounded-2xl p-12 text-center space-y-4">
 
                             <h3 className="text-xl font-black uppercase">
                                 {canNominate && (myRoleCounts[requiredRole] || 0) >= ROLE_LIMITS[requiredRole]
@@ -3910,7 +3910,7 @@ export default function LiveAuctionPage() {
                                 }
                             </h3>
 
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-muted">
                                 {canNominate && (myRoleCounts[requiredRole] || 0) >= ROLE_LIMITS[requiredRole] ? (
                                     <span>
                                         Hai esaurito i posti disponibili per il ruolo di <span className="text-white font-bold">{roleDisplay}</span>. Puoi passare il turno.
@@ -3918,7 +3918,7 @@ export default function LiveAuctionPage() {
                                 ) : (
                                     <span>
                                         È il turno di{' '}
-                                        <span className="text-amber-400 font-bold">
+                                        <span className="text-accent font-bold">
                                             {currentTurnTeamName}
                                         </span>{' '}
                                         di chiamare un{' '}
@@ -3934,7 +3934,7 @@ export default function LiveAuctionPage() {
                                     onClick={() =>
                                         setIsNominateModalOpen(true)
                                     }
-                                    className="mt-4 px-6 py-3 bg-blue-600 rounded-xl font-black text-xs uppercase hover:bg-blue-500 transition"
+                                    className="mt-4 px-6 py-3 bg-primary rounded-xl font-black text-xs uppercase hover:bg-primary-hover transition"
                                 >
                                     Chiama {roleDisplay}
                                 </button>
@@ -3942,7 +3942,7 @@ export default function LiveAuctionPage() {
                                 <div className="mt-4">
                                     <button
                                         onClick={() => handlePassTurn()}
-                                        className="px-6 py-3 bg-amber-600 rounded-xl font-black text-xs uppercase hover:bg-amber-500 transition text-white"
+                                        className="px-6 py-3 bg-accent rounded-xl font-black text-xs uppercase hover:brightness-110 transition text-white"
                                     >
                                         Passa il turno
                                     </button>
@@ -3956,9 +3956,9 @@ export default function LiveAuctionPage() {
 
                 {/* PARTECIPANTI */}
 
-                <div className="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-5 space-y-4">
+                <div className="bg-surface-elevated/40 border border-border/60 rounded-2xl p-5 space-y-4">
 
-                    <h3 className="text-xs font-black uppercase text-slate-400 flex items-center gap-2">
+                    <h3 className="text-xs font-black uppercase text-muted flex items-center gap-2">
                         <Users className="w-4 h-4" />
                         Partecipanti
                     </h3>
@@ -3985,11 +3985,11 @@ export default function LiveAuctionPage() {
                                         team.id
                                     }
                                     className={`rounded-xl border overflow-hidden ${withdrawn
-                                        ? 'bg-red-500/5 border-red-500/20 opacity-60'
+                                        ? 'bg-danger/5 border-danger/20 opacity-60'
                                         : team.id ===
                                             currentTurnTeamId
-                                            ? 'bg-amber-500/10 border-amber-500/50'
-                                            : 'bg-slate-800/80 border-slate-700'
+                                            ? 'bg-accent/10 border-accent/50'
+                                            : 'bg-surface-elevated/80 border-border'
                                         }`}
                                 >
 
@@ -4004,7 +4004,7 @@ export default function LiveAuctionPage() {
                                         <div className="flex items-center gap-2">
 
                                             <ChevronDown
-                                                className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''
+                                                className={`w-3.5 h-3.5 text-muted-2 transition-transform ${isExpanded ? 'rotate-180' : ''
                                                     }`}
                                             />
 
@@ -4017,14 +4017,14 @@ export default function LiveAuctionPage() {
                                                 </span>
 
                                                 {withdrawn && (
-                                                    <span className="text-[10px] uppercase font-black text-red-400 block mt-1">
+                                                    <span className="text-[10px] uppercase font-black text-danger block mt-1">
                                                         Ritirata
                                                     </span>
                                                 )}
 
                                                 {team.id ===
                                                     currentTurnTeamId && (
-                                                        <span className="text-[10px] uppercase font-black text-amber-400 block mt-1">
+                                                        <span className="text-[10px] uppercase font-black text-accent block mt-1">
                                                             Turno di chiamata
                                                         </span>
                                                     )}
@@ -4033,7 +4033,7 @@ export default function LiveAuctionPage() {
 
                                         </div>
 
-                                        <span className="text-xs font-black text-amber-400">
+                                        <span className="text-xs font-black text-accent">
                                             {
                                                 team.budget
                                             }{' '}
@@ -4043,15 +4043,15 @@ export default function LiveAuctionPage() {
                                     </button>
 
                                     {isExpanded && (
-                                        <div className="px-3 pb-3 pt-1 border-t border-slate-700/60">
+                                        <div className="px-3 pb-3 pt-1 border-t border-border/60">
 
                                             {isLoadingRoster ? (
-                                                <div className="flex items-center gap-2 text-xs text-slate-500 py-2">
+                                                <div className="flex items-center gap-2 text-xs text-muted-2 py-2">
                                                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                                     Caricamento rosa...
                                                 </div>
                                             ) : roster.length === 0 ? (
-                                                <p className="text-xs text-slate-500 py-2">
+                                                <p className="text-xs text-muted-2 py-2">
                                                     Nessun giocatore acquistato finora.
                                                 </p>
                                             ) : (
@@ -4069,7 +4069,7 @@ export default function LiveAuctionPage() {
                                                         return (
                                                             <div key={role} className="mb-2">
 
-                                                                <span className="text-[10px] uppercase font-black text-slate-500">
+                                                                <span className="text-[10px] uppercase font-black text-muted-2">
                                                                     {ROLE_NAMES[role]}
                                                                 </span>
 
@@ -4077,12 +4077,12 @@ export default function LiveAuctionPage() {
                                                                     {playersForRole.map((p: any) => (
                                                                         <div
                                                                             key={p.player_id}
-                                                                            className="flex justify-between items-center text-xs px-2 py-1.5 rounded-lg bg-slate-900/60"
+                                                                            className="flex justify-between items-center text-xs px-2 py-1.5 rounded-lg bg-surface/60"
                                                                         >
-                                                                            <span className="text-slate-200">
+                                                                            <span className="text-foreground">
                                                                                 {p.player_name}
                                                                             </span>
-                                                                            <span className="text-emerald-400 font-bold">
+                                                                            <span className="text-success font-bold">
                                                                                 {p.price} CR
                                                                             </span>
                                                                         </div>
@@ -4114,12 +4114,12 @@ export default function LiveAuctionPage() {
             {isRoleBudgetWarningOpen &&
                 pendingBidAmount !== null && (
                     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                        <div className="w-full max-w-md bg-slate-900 border border-red-500/30 rounded-2xl shadow-2xl p-6">
+                        <div className="w-full max-w-md bg-surface border border-danger/30 rounded-2xl shadow-2xl p-6">
 
                             <div className="flex items-center gap-3 mb-5">
 
-                                <div className="w-11 h-11 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center">
-                                    <Wallet className="w-5 h-5 text-red-400" />
+                                <div className="w-11 h-11 rounded-xl bg-danger/15 border border-danger/30 flex items-center justify-center">
+                                    <Wallet className="w-5 h-5 text-danger" />
                                 </div>
 
                                 <div>
@@ -4127,17 +4127,17 @@ export default function LiveAuctionPage() {
                                         Budget ruolo superato
                                     </h2>
 
-                                    <p className="text-xs text-slate-400 font-bold uppercase">
+                                    <p className="text-xs text-muted font-bold uppercase">
                                         {ROLE_NAMES[requiredRole]}
                                     </p>
                                 </div>
 
                             </div>
 
-                            <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-4 mb-5 space-y-3">
+                            <div className="bg-surface-elevated/60 border border-border rounded-xl p-4 mb-5 space-y-3">
 
                                 <div className="flex justify-between text-sm">
-                                    <span className="text-slate-400">
+                                    <span className="text-muted">
                                         Budget impostato
                                     </span>
 
@@ -4147,7 +4147,7 @@ export default function LiveAuctionPage() {
                                 </div>
 
                                 <div className="flex justify-between text-sm">
-                                    <span className="text-slate-400">
+                                    <span className="text-muted">
                                         Già spesi
                                     </span>
 
@@ -4157,28 +4157,28 @@ export default function LiveAuctionPage() {
                                 </div>
 
                                 <div className="flex justify-between text-sm">
-                                    <span className="text-slate-400">
+                                    <span className="text-muted">
                                         Nuova offerta
                                     </span>
 
-                                    <span className="text-amber-400 font-black">
+                                    <span className="text-accent font-black">
                                         {pendingBidAmount} CR
                                     </span>
                                 </div>
 
-                                <div className="border-t border-slate-700 pt-3 flex justify-between">
-                                    <span className="text-red-300 font-bold">
+                                <div className="border-t border-border pt-3 flex justify-between">
+                                    <span className="text-danger-hover font-bold">
                                         Superamento
                                     </span>
 
-                                    <span className="text-red-400 font-black">
+                                    <span className="text-danger font-black">
                                         +{pendingRoleBudgetExceeded} CR
                                     </span>
                                 </div>
 
                             </div>
 
-                            <p className="text-sm text-slate-300 leading-relaxed mb-6">
+                            <p className="text-sm text-muted leading-relaxed mb-6">
                                 Questa offerta supera il budget che hai
                                 impostato per questo ruolo.
                                 <br />
@@ -4196,7 +4196,7 @@ export default function LiveAuctionPage() {
                                         setPendingBidAmount(null)
                                         setPendingRoleBudgetExceeded(0)
                                     }}
-                                    className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl font-black text-xs uppercase transition"
+                                    className="flex-1 py-3 bg-surface-elevated hover:bg-surface-hover border border-border rounded-xl font-black text-xs uppercase transition"
                                 >
                                     Annulla
                                 </button>
@@ -4204,7 +4204,7 @@ export default function LiveAuctionPage() {
                                 <button
                                     type="button"
                                     onClick={confirmRoleBudgetBid}
-                                    className="flex-1 py-3 bg-red-600 hover:bg-red-500 rounded-xl font-black text-xs uppercase transition"
+                                    className="flex-1 py-3 bg-danger hover:bg-danger-hover rounded-xl font-black text-xs uppercase transition"
                                 >
                                     Fai comunque l'offerta
                                 </button>
@@ -4223,15 +4223,15 @@ export default function LiveAuctionPage() {
                 congratulatedPlayer && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
 
-                        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">
+                        <div className="bg-surface border border-border rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">
 
-                            <Trophy className="w-12 h-12 text-amber-400 mx-auto mb-3 animate-bounce" />
+                            <Trophy className="w-12 h-12 text-accent mx-auto mb-3 animate-bounce" />
 
                             <h2 className="text-2xl font-black uppercase text-white mb-1">
                                 Giocatore Assegnato!
                             </h2>
 
-                            <p className="text-slate-400 text-sm mb-6">
+                            <p className="text-muted text-sm mb-6">
 
                                 {congratulatedPlayer.isMyTeam
                                     ? "Complimenti! È entrato nella tua rosa."
@@ -4239,7 +4239,7 @@ export default function LiveAuctionPage() {
 
                             </p>
 
-                            <div className="bg-slate-800/80 rounded-xl p-4 border border-slate-700/50 mb-6 text-left space-y-2">
+                            <div className="bg-surface-elevated/80 rounded-xl p-4 border border-border/50 mb-6 text-left space-y-2">
 
                                 <div className="text-xl font-black text-white">
                                     {
@@ -4247,13 +4247,13 @@ export default function LiveAuctionPage() {
                                     }
                                 </div>
 
-                                <div className="flex justify-between items-center pt-2 border-t border-slate-700/50 text-sm">
+                                <div className="flex justify-between items-center pt-2 border-t border-border/50 text-sm">
 
-                                    <span className="text-slate-400">
+                                    <span className="text-muted">
                                         Prezzo di chiusura
                                     </span>
 
-                                    <span className="font-black text-emerald-400">
+                                    <span className="font-black text-success">
                                         {
                                             congratulatedPlayer.price
                                         }{' '}
@@ -4262,9 +4262,9 @@ export default function LiveAuctionPage() {
 
                                 </div>
 
-                                <div className="flex justify-between items-center pt-2 border-t border-slate-700/50 text-sm">
+                                <div className="flex justify-between items-center pt-2 border-t border-border/50 text-sm">
 
-                                    <span className="text-slate-400">
+                                    <span className="text-muted">
                                         Squadra vincitrice
                                     </span>
 
@@ -4302,17 +4302,17 @@ export default function LiveAuctionPage() {
                                             await fetchMyRoleCounts(myTeamId);
                                         }
                                     }}
-                                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition"
+                                    className="w-full py-3 bg-primary hover:bg-primary-hover text-white font-black text-xs uppercase tracking-wider rounded-xl transition"
                                 >
                                     Continua l'Asta
                                 </button>
                             ) : (
-                                <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-3">
-                                    <p className="text-xs font-black uppercase text-slate-400">
+                                <div className="bg-surface-elevated/80 border border-border rounded-xl p-3">
+                                    <p className="text-xs font-black uppercase text-muted">
                                         In attesa dell'amministratore
                                     </p>
 
-                                    <p className="text-[10px] text-slate-500 mt-1">
+                                    <p className="text-[10px] text-muted-2 mt-1">
                                         L'asta continuerà quando l'amministratore procederà.
                                     </p>
                                 </div>
@@ -4328,16 +4328,16 @@ export default function LiveAuctionPage() {
             =================================================== */}
 
             {isNominateModalOpen && (
-                <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
 
-                    <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl p-6 space-y-4 relative">
+                    <div className="bg-surface border border-border rounded-2xl w-full max-w-3xl p-6 space-y-4 relative">
 
                         {isSubmitting && (
-                            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs z-10 flex flex-col items-center justify-center gap-3 rounded-2xl">
+                            <div className="absolute inset-0 bg-background/60 backdrop-blur-xs z-10 flex flex-col items-center justify-center gap-3 rounded-2xl">
 
-                                <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                                <Loader2 className="w-8 h-8 text-primary animate-spin" />
 
-                                <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
+                                <span className="text-xs font-bold uppercase tracking-wider text-foreground">
                                     Chiamata in corso...
                                 </span>
 
@@ -4364,16 +4364,16 @@ export default function LiveAuctionPage() {
                                         false
                                     )
                                 }}
-                                className="text-slate-400 hover:text-white"
+                                className="text-muted hover:text-white"
                             >
                                 <X className="w-5 h-5" />
                             </button>
 
                         </div>
 
-                        <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-4">
+                        <div className="bg-surface-elevated/80 border border-border rounded-xl p-4">
 
-                            <label className="text-xs font-black uppercase text-slate-400 block mb-2">
+                            <label className="text-xs font-black uppercase text-muted block mb-2">
                                 Prezzo base
                             </label>
 
@@ -4397,16 +4397,16 @@ export default function LiveAuctionPage() {
                                                 .value
                                         )
                                     }
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white font-black focus:outline-none focus:border-blue-500"
+                                    className="w-full bg-surface border border-border rounded-lg px-4 py-3 text-white font-black focus:outline-none focus:border-primary"
                                 />
 
-                                <span className="text-sm font-black text-amber-400">
+                                <span className="text-sm font-black text-accent">
                                     CR
                                 </span>
 
                             </div>
 
-                            <p className="text-[10px] text-slate-500 mt-2 uppercase">
+                            <p className="text-[10px] text-muted-2 mt-2 uppercase">
                                 Default: 1 CR
                             </p>
 
@@ -4432,7 +4432,7 @@ export default function LiveAuctionPage() {
                                             .value
                                     )
                                 }
-                                className="w-full sm:flex-1 bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-blue-500"
+                                className="w-full sm:flex-1 bg-surface-elevated border border-border rounded-lg p-3 text-sm text-white focus:outline-none focus:border-primary"
                             />
 
                             <select
@@ -4451,7 +4451,7 @@ export default function LiveAuctionPage() {
                                             .value
                                     )
                                 }
-                                className="w-full sm:w-60 bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-blue-500"
+                                className="w-full sm:w-60 bg-surface-elevated border border-border rounded-lg p-3 text-sm text-white focus:outline-none focus:border-primary"
                             >
 
                                 <option value="">
@@ -4489,14 +4489,14 @@ export default function LiveAuctionPage() {
                                     )
                                 }
                                 className={`px-4 py-3 rounded-lg text-xs font-black uppercase transition flex items-center gap-1.5 border ${onlyTargets
-                                    ? 'bg-amber-500 text-slate-950 border-amber-400'
-                                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-600'
+                                    ? 'bg-accent text-background border-accent-hover'
+                                    : 'bg-surface-elevated text-muted border-border hover:border-border-strong'
                                     }`}
                             >
 
                                 <Star
                                     className={`w-4 h-4 ${onlyTargets
-                                        ? 'fill-slate-950'
+                                        ? 'fill-background'
                                         : ''
                                         }`}
                                 />
@@ -4511,7 +4511,7 @@ export default function LiveAuctionPage() {
 
                             {availablePlayers.length ===
                                 0 ? (
-                                <p className="text-center text-xs text-slate-500 py-6 uppercase font-semibold">
+                                <p className="text-center text-xs text-muted-2 py-6 uppercase font-semibold">
                                     Nessun giocatore trovato
                                 </p>
                             ) : (
@@ -4523,7 +4523,7 @@ export default function LiveAuctionPage() {
                                             key={
                                                 p.id
                                             }
-                                            className="flex justify-between items-center p-3 rounded-xl border bg-slate-800/80 border-slate-700/60"
+                                            className="flex justify-between items-center p-3 rounded-xl border bg-surface-elevated/80 border-border/60"
                                         >
 
                                             <div className="space-y-1 flex items-center gap-2">
@@ -4531,7 +4531,7 @@ export default function LiveAuctionPage() {
                                                 {targetPlayerIds.has(
                                                     p.id
                                                 ) && (
-                                                        <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
+                                                        <Star className="w-4 h-4 text-accent fill-accent shrink-0" />
                                                     )}
 
                                                 <div>
@@ -4543,9 +4543,9 @@ export default function LiveAuctionPage() {
                                                         return (
                                                             <div className="flex items-center gap-1.5 mt-0.5">
                                                                 <TeamFlag teamData={teamInfo} playerTeam={p.team} />
-                                                                <span className="text-xs text-slate-400">
-                                                                    {teamInfo?.alias && <span className="text-slate-500 ml-1 font-bold text-s text-white">{teamInfo.alias.toUpperCase()}</span>}<br />
-                                                                    <span className="text-slate-500 ml-1">{teamInfo ? teamInfo.name : p.team}</span>
+                                                                <span className="text-xs text-muted">
+                                                                    {teamInfo?.alias && <span className="text-muted-2 ml-1 font-bold text-s text-white">{teamInfo.alias.toUpperCase()}</span>}<br />
+                                                                    <span className="text-muted-2 ml-1">{teamInfo ? teamInfo.name : p.team}</span>
                                                                 </span>
                                                             </div>
                                                         )
@@ -4563,7 +4563,7 @@ export default function LiveAuctionPage() {
                                                         p.id, p.role
                                                     )
                                                 }
-                                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg text-xs font-black uppercase transition"
+                                                className="px-4 py-2 bg-success hover:brightness-110 disabled:opacity-50 rounded-lg text-xs font-black uppercase transition"
                                             >
                                                 CHIAMA
                                             </button>
@@ -4590,13 +4590,13 @@ export default function LiveAuctionPage() {
             {gkSlotOffer && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
 
-                    <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+                    <div className="bg-surface border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl">
 
                         <h2 className="text-xl font-black uppercase text-white mb-1">
                             Completa il reparto portieri
                         </h2>
 
-                        <p className="text-slate-400 text-sm mb-4">
+                        <p className="text-muted text-sm mb-4">
                             Hai ancora {gkSlotOffer.freeSlots} slot
                             {gkSlotOffer.freeSlots > 1 ? ' liberi' : ' libero'} per portieri.
                             Puoi acquistare, se vuoi, gli altri portieri del{' '}
@@ -4608,7 +4608,7 @@ export default function LiveAuctionPage() {
                             {gkSlotOffer.players.map((p: any) => (
                                 <div
                                     key={p.id}
-                                    className="flex justify-between items-center bg-slate-800/80 border border-slate-700/60 rounded-xl p-3"
+                                    className="flex justify-between items-center bg-surface-elevated/80 border border-border/60 rounded-xl p-3"
                                 >
                                     <span className="font-bold text-sm text-white">
                                         {p.name.toUpperCase()}
@@ -4617,7 +4617,7 @@ export default function LiveAuctionPage() {
                                     <button
                                         disabled={isBuyingExtraGK}
                                         onClick={() => buyExtraGK(p)}
-                                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg text-xs font-black uppercase transition"
+                                        className="px-4 py-2 bg-success hover:brightness-110 disabled:opacity-50 rounded-lg text-xs font-black uppercase transition"
                                     >
                                         Compra (1 CR)
                                     </button>
@@ -4628,7 +4628,7 @@ export default function LiveAuctionPage() {
                         <button
                             disabled={isBuyingExtraGK}
                             onClick={() => setGkSlotOffer(null)}
-                            className="w-full py-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl transition border border-slate-700"
+                            className="w-full py-3 bg-surface-elevated hover:bg-surface-hover disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl transition border border-border"
                         >
                             No, grazie
                         </button>
@@ -4663,7 +4663,7 @@ const TeamFlag = ({ teamData, playerTeam }: { teamData?: any; playerTeam: string
 
     return (
         <div
-            className="w-6 h-4 shrink-0 rounded overflow-hidden border border-slate-600 shadow-sm"
+            className="w-6 h-4 shrink-0 rounded overflow-hidden border border-border-strong shadow-sm"
             style={{ background }}
             title={teamData ? `${teamData.name} (${teamData.alias})` : playerTeam}
         />

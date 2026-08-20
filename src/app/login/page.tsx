@@ -25,12 +25,12 @@ export default function LoginPage() {
   }
 
   return (
-  <main className="relative min-h-screen overflow-hidden bg-[#070B14] text-white">
+  <main className="relative min-h-screen overflow-hidden bg-background text-foreground">
     {/* Background */}
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute -top-40 left-1/2 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-blue-600/10 blur-[140px]" />
-      <div className="absolute bottom-[-200px] left-[-100px] h-[450px] w-[450px] rounded-full bg-indigo-600/10 blur-[130px]" />
-      <div className="absolute top-1/2 right-[-150px] h-[400px] w-[400px] rounded-full bg-amber-500/5 blur-[130px]" />
+      <div className="absolute -top-40 left-1/2 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-primary/10 blur-[140px]" />
+      <div className="absolute bottom-[-200px] left-[-100px] h-[450px] w-[450px] rounded-full bg-info/10 blur-[130px]" />
+      <div className="absolute top-1/2 right-[-150px] h-[400px] w-[400px] rounded-full bg-accent/5 blur-[130px]" />
     </div>
 
     {/* Content */}
@@ -39,39 +39,39 @@ export default function LoginPage() {
 
         {/* Brand */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-500/20 bg-blue-500/10 text-3xl shadow-[0_0_40px_rgba(59,130,246,0.12)]">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-3xl shadow-[0_0_40px_rgba(47,158,110,0.12)]">
             ⚽
           </div>
 
           <h1 className="text-4xl font-black tracking-tight">
-            Fanta<span className="text-blue-500">Asta</span>
+            Fanta<span className="text-primary">Asta</span>
           </h1>
 
           <div className="mt-2 flex items-center justify-center gap-2">
-            <span className="h-px w-8 bg-slate-700" />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">
+            <span className="h-px w-8 bg-border-strong" />
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-2">
               Live Fantasy Football
             </span>
-            <span className="h-px w-8 bg-slate-700" />
+            <span className="h-px w-8 bg-border-strong" />
           </div>
         </div>
 
         {/* Login Card */}
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-8">
+        <div className="rounded-3xl border border-border bg-surface/80 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-8">
 
           <div className="mb-7">
             <h2 className="text-xl font-black text-white">
               Bentornato
             </h2>
 
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-muted-2">
               Accedi per entrare nella tua lega.
             </p>
           </div>
 
           {/* Error */}
           {error && (
-            <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400">
+            <div className="mb-5 rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
               {error}
             </div>
           )}
@@ -80,12 +80,12 @@ export default function LoginPage() {
 
             {/* Username */}
             <div>
-              <label className="mb-2 block text-[11px] font-black uppercase tracking-wider text-slate-400">
+              <label className="mb-2 block text-[11px] font-black uppercase tracking-wider text-muted">
                 Username
               </label>
 
               <div className="relative">
-                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-slate-600">
+                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-muted-2">
                   👤
                 </span>
 
@@ -95,19 +95,19 @@ export default function LoginPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Inserisci username"
-                  className="w-full rounded-xl border border-slate-800 bg-[#070B14] py-3.5 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                  className="w-full rounded-xl border border-border bg-background py-3.5 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-muted-2 focus:border-primary focus:ring-2 focus:ring-primary/10"
                 />
               </div>
             </div>
 
             {/* Password */}
             <div>
-              <label className="mb-2 block text-[11px] font-black uppercase tracking-wider text-slate-400">
+              <label className="mb-2 block text-[11px] font-black uppercase tracking-wider text-muted">
                 Password
               </label>
 
               <div className="relative">
-                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-slate-600">
+                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-muted-2">
                   🔒
                 </span>
 
@@ -117,7 +117,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Inserisci password"
-                  className="w-full rounded-xl border border-slate-800 bg-[#070B14] py-3.5 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                  className="w-full rounded-xl border border-border bg-background py-3.5 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-muted-2 focus:border-primary focus:ring-2 focus:ring-primary/10"
                 />
               </div>
             </div>
@@ -126,7 +126,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="mt-2 w-full rounded-xl bg-blue-600 py-3.5 text-sm font-black uppercase tracking-wide text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-500 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-2 w-full rounded-xl bg-primary py-3.5 text-sm font-black uppercase tracking-wide text-white shadow-lg shadow-primary/20 transition hover:bg-primary-hover active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? 'Accesso in corso...' : 'Entra nella Lega'}
             </button>
@@ -134,8 +134,8 @@ export default function LoginPage() {
           </form>
 
           {/* Footer */}
-          <div className="mt-7 border-t border-slate-800 pt-5 text-center">
-            <p className="text-[11px] leading-relaxed text-slate-600">
+          <div className="mt-7 border-t border-border pt-5 text-center">
+            <p className="text-[11px] leading-relaxed text-muted-2">
               Le iscrizioni vengono gestite direttamente
               dall'amministratore della lega.
             </p>
@@ -144,7 +144,7 @@ export default function LoginPage() {
         </div>
 
         {/* Bottom label */}
-        <p className="mt-6 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-slate-700">
+        <p className="mt-6 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-muted-2">
           FantaAsta
         </p>
 
