@@ -19,7 +19,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   FileSpreadsheet,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Trophy,
 } from 'lucide-react'
 
 interface DashboardSidebarUser {
@@ -250,6 +251,29 @@ export default function DashboardSidebar({
 
               {(isSidebarOpen || isMobileMenuOpen) && (
                 <span className="truncate">Listone</span>
+              )}
+            </Link>
+
+            <Link
+              href="/premi"
+              title={!isSidebarOpen ? 'FantaAwards' : undefined}
+              className={`
+                flex items-center
+                ${isSidebarOpen || isMobileMenuOpen ? 'gap-3 px-3.5' : 'justify-center px-0'}
+                h-11
+                rounded-xl
+                text-sm font-semibold
+                ${isActive('/premi')
+                  ? 'text-white bg-primary shadow-md shadow-primary/20'
+                  : 'text-muted hover:text-foreground hover:bg-surface-hover'
+                }
+                transition-all
+              `}
+            >
+              <Trophy className="w-4 h-4 shrink-0" />
+
+              {(isSidebarOpen || isMobileMenuOpen) && (
+                <span className="truncate">FantaAwards</span>
               )}
             </Link>
 
