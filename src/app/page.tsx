@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { getCurrentUser, logout } from '../app/actions/auth'
 import { createAuction } from '../app/actions/auctions'
 import DashboardSidebar from '../components/DashboardSidebar'
+import PresentationModal from '../components/PresentationModal'
 import { supabase } from '../lib/supabaseClient'
 import {
   Shield,
@@ -18,7 +19,10 @@ import {
   Gavel,
   Trophy,
   ChevronRight,
+  PlayCircle,
 } from 'lucide-react'
+
+const PRESENTATION_STORAGE_KEY = 'fantasta_presentation_seen'
 
 interface UserProfile {
   id: string
@@ -149,6 +153,8 @@ export default function DashboardPage() {
   const [leagueName, setLeagueName] = useState('La mia Lega')
   const [initialBudget, setInitialBudget] = useState<number>(500)
 
+  const [showPresentation, setShowPresentation] = useState(false)
+
   /* ==========================================================
      LOAD DATA
   ========================================================== */
@@ -277,6 +283,27 @@ export default function DashboardPage() {
       supabase.removeChannel(channel)
     }
   }, [])
+
+  /* ==========================================================
+     PRESENTAZIONE LEGA (mostrata la prima volta)
+  ========================================================== */
+
+  useEffect(() => {
+    const alreadySeen = localStorage.getItem(PRESENTATION_STORAGE_KEY)
+
+    if (!alreadySeen) {
+      setShowPresentation(true)
+    }
+  }, [])
+
+  const handleOpenPresentation = () => {
+    setShowPresentation(true)
+  }
+
+  const handleClosePresentation = () => {
+    localStorage.setItem(PRESENTATION_STORAGE_KEY, 'true')
+    setShowPresentation(false)
+  }
 
   /* ==========================================================
      ACTIONS
@@ -872,6 +899,22 @@ export default function DashboardPage() {
                     <ChevronRight className="w-3.5 h-3.5 text-muted-2 group-hover:text-muted" />
                   </Link>
 
+                  <button
+                    onClick={handleOpenPresentation}
+                    type="button"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-surface-elevated transition group w-full text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <PlayCircle className="w-4 h-4 text-info" />
+
+                      <span className="text-xs font-semibold text-muted group-hover:text-foreground">
+                        Rivedi la presentazione
+                      </span>
+                    </div>
+
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-2 group-hover:text-muted" />
+                  </button>
+
                 </div>
 
               </section>
@@ -883,6 +926,11 @@ export default function DashboardPage() {
         </div>
 
       </main>
+
+      <PresentationModal
+        isOpen={showPresentation}
+        onClose={handleClosePresentation}
+      />
     </div>
   )
 }
