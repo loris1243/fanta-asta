@@ -320,10 +320,13 @@ export default function ObiettiviPage() {
   // ============================================================
 
   useEffect(() => {
-    setShowWarning(
-      totalDistributed > maxBudget
-    )
-  }, [totalDistributed, maxBudget])
+    if (budgetMode === 'percentage') {
+      const totalPercentage = percentBudget.P + percentBudget.D + percentBudget.C + percentBudget.A
+      setShowWarning(totalPercentage > 100)
+    } else {
+      setShowWarning(totalDistributed > maxBudget)
+    }
+  }, [percentBudget, fixedBudget, totalDistributed, maxBudget, budgetMode])
 
   // ============================================================
   // SALVATAGGIO AUTOMATICO (UPSERT SU UN UNICO RECORD)
@@ -371,189 +374,115 @@ export default function ObiettiviPage() {
   // MODIFICA BUDGET
   // ============================================================
 
-const getTotal = (b: { P: number; D: number; C: number; A: number }) =>
-  b.P + b.D + b.C + b.A
+  const updateBudget = (
+    roleKey: 'P' | 'D' | 'C' | 'A',
+    value: number
+  ) => {
+    const safeValue = isNaN(value) ? 0 : Math.max(0, value)
 
-const updateBudget = (
-  roleKey: 'P' | 'D' | 'C' | 'A',
-  value: number
-) => {
-  const safeValue = isNaN(value) ? 0 : Math.max(0, value)
-
-  if (budgetMode === 'percentage') {
-    setPercentBudget((prev) => {
-      const updated = {
-        ...prev,
-        [roleKey]: Math.min(100, safeValue),
-      }
-
-      let total = getTotal(updated)
-      const otherRoles = roles.filter(r => r !== roleKey)
-
-      // 🔴 se supera 100 → riduco gli altri
-      if (total > 100) {
-        let overflow = total - 100
-
-        for (const r of otherRoles) {
-          if (overflow <= 0) break
-          const reducible = Math.min(updated[r], overflow)
-          updated[r] -= reducible
-          overflow -= reducible
-        }
-      }
-
-      // 🔵 se sotto 100 → distribuisco
-      if (total < 100) {
-        let deficit = 100 - total
-        const perRole = deficit / otherRoles.length
-
-        for (const r of otherRoles) {
-          updated[r] += perRole
-        }
-      }
-
-      // 🧠 arrotondamento safe
-      const rounded = {
-        P: Math.round(updated.P),
-        D: Math.round(updated.D),
-        C: Math.round(updated.C),
-        A: Math.round(updated.A),
-      }
-
-      return rounded
-    })
-  } else {
-    setFixedBudget((prev) => {
-      const updated = {
+    if (budgetMode === 'percentage') {
+      setPercentBudget((prev) => ({
         ...prev,
         [roleKey]: safeValue,
-      }
-
-      let total = getTotal(updated)
-      const otherRoles = roles.filter(r => r !== roleKey)
-
-      // 🔴 se supera budget → riduco altri
-      if (total > maxBudget) {
-        let overflow = total - maxBudget
-
-        for (const r of otherRoles) {
-          if (overflow <= 0) break
-          const reducible = Math.min(updated[r], overflow)
-          updated[r] -= reducible
-          overflow -= reducible
-        }
-      }
-
-      return updated
-    })
-  }
-}
-
-const roles: ('P' | 'D' | 'C' | 'A')[] = ['P', 'D', 'C', 'A']
-
-const normalizePercentage = (data: any) => {
-  const total =
-    data.P + data.D + data.C + data.A
-
-  if (total === 0) return { P: 25, D: 25, C: 25, A: 25 }
-
-  const factor = 100 / total
-
-  const normalized = {
-    P: Math.round(data.P * factor),
-    D: Math.round(data.D * factor),
-    C: Math.round(data.C * factor),
-    A: Math.round(data.A * factor),
-  }
-
-  // fix rounding (porta a 100 preciso)
-  const diff =
-    100 -
-    (normalized.P +
-      normalized.D +
-      normalized.C +
-      normalized.A)
-
-  normalized.A += diff
-
-  return normalized
-}
-
-const convertFixedToPercentage = (
-  fixed: any,
-  maxBudget: number
-) => {
-  if (maxBudget === 0) {
-    return { P: 25, D: 25, C: 25, A: 25 }
-  }
-
-  const raw = {
-    P: (fixed.P / maxBudget) * 100,
-    D: (fixed.D / maxBudget) * 100,
-    C: (fixed.C / maxBudget) * 100,
-    A: (fixed.A / maxBudget) * 100,
-  }
-
-  return normalizePercentage(raw)
-}
-
-const convertPercentageToFixed = (
-  percent: any,
-  maxBudget: number
-) => {
-  const raw = {
-    P: (percent.P / 100) * maxBudget,
-    D: (percent.D / 100) * maxBudget,
-    C: (percent.C / 100) * maxBudget,
-    A: (percent.A / 100) * maxBudget,
-  }
-
-  const rounded = {
-    P: Math.round(raw.P),
-    D: Math.round(raw.D),
-    C: Math.round(raw.C),
-    A: Math.round(raw.A),
-  }
-
-  // fix overflow da rounding
-  let total =
-    rounded.P + rounded.D + rounded.C + rounded.A
-
-  if (total > maxBudget) {
-    let overflow = total - maxBudget
-
-    for (const r of roles) {
-      if (overflow <= 0) break
-
-      const reducible = Math.min(rounded[r], overflow)
-      rounded[r] -= reducible
-      overflow -= reducible
+      }))
+    } else {
+      setFixedBudget((prev) => ({
+        ...prev,
+        [roleKey]: safeValue,
+      }))
     }
   }
 
-  return rounded
-}
+  const roles: ('P' | 'D' | 'C' | 'A')[] = ['P', 'D', 'C', 'A']
 
+  const normalizePercentage = (data: any) => {
+    const total =
+      data.P + data.D + data.C + data.A
 
-const toggleMode = (newMode: 'percentage' | 'fixed') => {
-  if (newMode === budgetMode) return
+    if (total === 0) return { P: 25, D: 25, C: 25, A: 25 }
 
-  if (newMode === 'percentage') {
-    const converted = convertFixedToPercentage(
-      fixedBudget,
-      maxBudget
-    )
-    setPercentBudget(converted)
-  } else {
-    const converted = convertPercentageToFixed(
-      percentBudget,
-      maxBudget
-    )
-    setFixedBudget(converted)
+    const factor = 100 / total
+
+    const normalized = {
+      P: Math.round(data.P * factor),
+      D: Math.round(data.D * factor),
+      C: Math.round(data.C * factor),
+      A: Math.round(data.A * factor),
+    }
+
+    // fix rounding (porta a 100 preciso)
+    const diff =
+      100 -
+      (normalized.P +
+        normalized.D +
+        normalized.C +
+        normalized.A)
+
+    normalized.A += diff
+
+    return normalized
   }
 
-  setBudgetMode(newMode)
-}
+  const convertFixedToPercentage = (
+    fixed: any,
+    maxBudget: number
+  ) => {
+    if (maxBudget === 0) {
+      return { P: 25, D: 25, C: 25, A: 25 }
+    }
+
+    const raw = {
+      P: (fixed.P / maxBudget) * 100,
+      D: (fixed.D / maxBudget) * 100,
+      C: (fixed.C / maxBudget) * 100,
+      A: (fixed.A / maxBudget) * 100,
+    }
+
+    return normalizePercentage(raw)
+  }
+
+  const convertPercentageToFixed = (
+    percent: any,
+    maxBudget: number
+  ) => {
+    const raw = {
+      P: (percent.P / 100) * maxBudget,
+      D: (percent.D / 100) * maxBudget,
+      C: (percent.C / 100) * maxBudget,
+      A: (percent.A / 100) * maxBudget,
+    }
+
+    const rounded = {
+      P: Math.round(raw.P),
+      D: Math.round(raw.D),
+      C: Math.round(raw.C),
+      A: Math.round(raw.A),
+    }
+
+    return rounded
+  }
+
+
+  const toggleMode = (newMode: 'percentage' | 'fixed') => {
+    if (newMode === budgetMode) return
+
+    if (newMode === 'percentage') {
+      const converted = convertFixedToPercentage(
+        fixedBudget,
+        maxBudget
+      )
+      setPercentBudget(converted)
+    } else {
+      const converted = convertPercentageToFixed(
+        percentBudget,
+        maxBudget
+      )
+      setFixedBudget(converted)
+    }
+
+    setBudgetMode(newMode)
+  }
+
   // ============================================================
   // RIMOZIONE OBIETTIVO
   // ============================================================
@@ -585,10 +514,7 @@ const toggleMode = (newMode: 'percentage' | 'fixed') => {
   // RUOLI
   // ============================================================
 
-  const remaining =
-  budgetMode === 'percentage'
-    ? 100 - getTotal(percentBudget)
-    : maxBudget - getTotal(fixedBudget)
+  const totalPercentage = percentBudget.P + percentBudget.D + percentBudget.C + percentBudget.A
 
   const roleTitles: Record<string, string> = {
     P: 'Portieri',
@@ -708,7 +634,10 @@ const toggleMode = (newMode: 'percentage' | 'fixed') => {
                 </h3>
 
                 <p className="text-xs text-danger/70 mt-0.5">
-                  Hai distribuito {totalDistributed} crediti su un massimo di {maxBudget}. Riduci le quote.
+                  {budgetMode === 'percentage'
+                    ? `Hai distribuito il ${totalPercentage}% su un massimo del 100%. Riduci le quote.`
+                    : `Hai distribuito ${totalDistributed} crediti su un massimo di ${maxBudget}. Riduci le quote.`
+                  }
                 </p>
 
               </div>
@@ -838,9 +767,9 @@ const toggleMode = (newMode: 'percentage' | 'fixed') => {
                       type="number"
                       min="0"
                       value={currentActiveBudget[roleKey]}
-onChange={(e) =>
-  updateBudget(roleKey, Number(e.target.value))
-}
+                      onChange={(e) =>
+                        updateBudget(roleKey, Number(e.target.value))
+                      }
                       className="
                         w-full
                         bg-surface
@@ -877,13 +806,16 @@ onChange={(e) =>
                 className={`
                   text-xs font-black
                   ${
-                    totalDistributed > maxBudget
+                    showWarning
                       ? 'text-danger'
                       : 'text-success'
                   }
                 `}
               >
-                {totalDistributed} / {maxBudget} cr.
+                {budgetMode === 'percentage'
+                  ? `${totalPercentage}% / 100%`
+                  : `${totalDistributed} / ${maxBudget} cr.`
+                }
               </span>
 
             </div>
