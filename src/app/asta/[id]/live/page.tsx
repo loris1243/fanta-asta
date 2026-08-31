@@ -12,9 +12,10 @@ import {
     Wallet,
     Star,
     LogOut,
-    ChevronDown
+    ChevronDown,
+    Search,
+    Filter
 } from 'lucide-react'
-import { AnyCaaRecord } from 'dns'
 
 const ROLE_LIMITS: Record<string, number> = {
     P: 3,
@@ -85,7 +86,7 @@ export default function LiveAuctionPage() {
     const [loadingRosterTeamId, setLoadingRosterTeamId] = useState<string | null>(null)
 
     const [myTeamId, setMyTeamId] = useState<string | null>(null)
-    const myTeamIdRef = useRef(null); // Aggiungi questa riga
+    const myTeamIdRef = useRef<string | null>(null)
     const [myBudget, setMyBudget] = useState<number>(0)
 
     const [myRoleBudget, setMyRoleBudget] =
@@ -162,22 +163,9 @@ export default function LiveAuctionPage() {
         )
     }
 
-    // ============================================================
-    // SQUADRE PARTECIPANTI
-    // ============================================================
-
-    // ============================================================
-    // OFFERTA PORTIERI EXTRA (stesso real_team, 1 credito, opzionale)
-    // Nessuna approvazione admin: viene proposta direttamente al
-    // client della squadra che ha appena vinto un portiere, se ha
-    // ancora slot P liberi e restano altri portieri di quella
-    // squadra reale non ancora assegnati.
-    // ============================================================
-
     const checkGkSlotOffer = async (player: any) => {
         if (!myTeamId || !player?.realTeam) return
 
-        // 1. conteggio portieri gia' in rosa (query fresca, niente stato locale)
         const { data: myRosterRows, error: myRosterError } = await supabase
             .from('league_team_players')
             .select('player_id, role')
@@ -198,8 +186,6 @@ export default function LiveAuctionPage() {
 
         if (freeSlots <= 0) return
 
-        // 2. tutti i giocatori gia' assegnati nell'asta (di qualunque squadra),
-        // per non riproporre portieri gia' presi da altri
         const { data: allAssignedRows, error: allAssignedError } =
             await supabase
                 .from('league_team_players')
@@ -217,7 +203,6 @@ export default function LiveAuctionPage() {
                 .filter(Boolean)
         )
 
-        // 3. altri portieri della stessa squadra reale, ancora disponibili
         const { data: teamGKs, error: teamGKsError } = await supabase
             .from('players')
             .select('id, name, team, role')
@@ -243,16 +228,6 @@ export default function LiveAuctionPage() {
         })
     }
 
-    // ============================================================
-    // AVANZAMENTO RUOLO (condiviso tra chiusura asta e acquisti diretti)
-    // Stessa logica di finalizeAuctionItem: se TUTTE le squadre hanno
-    // completato gli slot per il ruolo indicato, si passa al ruolo
-    // successivo ripartendo dalla prima squadra. Va richiamata ogni
-    // volta che un giocatore entra in una rosa fuori dal normale
-    // flusso d'asta (es. acquisto diretto di un portiere extra),
-    // altrimenti il controllo non scatta mai per quello slot.
-    // ============================================================
-
     const checkAndAdvanceRoleIfComplete = async (completedRole: string) => {
         const { data: roleRows, error: roleRowsError } = await supabase
             .from('league_team_players')
@@ -269,10 +244,10 @@ export default function LiveAuctionPage() {
         }
 
         const roleCountByTeam: Record<string, number> = {}
-            ; (roleRows || []).forEach((row: any) => {
-                roleCountByTeam[row.team_id] =
-                    (roleCountByTeam[row.team_id] || 0) + 1
-            })
+        ; (roleRows || []).forEach((row: any) => {
+            roleCountByTeam[row.team_id] =
+                (roleCountByTeam[row.team_id] || 0) + 1
+        })
 
         const roleLimit = ROLE_LIMITS[completedRole] || 0
 
@@ -383,7 +358,6 @@ export default function LiveAuctionPage() {
             }
 
             await fetchMyRoleCounts(myTeamId)
-
             await checkAndAdvanceRoleIfComplete('P')
 
             setGkSlotOffer((prev) => {
@@ -412,32 +386,25 @@ export default function LiveAuctionPage() {
         }
     }
 
-    const handlePassTurn = async () => {
+    const handlePassTurn = async (options?: { silent?: boolean }) => {
         try {
-
-            const nextTurnTeamId =
-                getNextTurnTeamId(
-                    currentTurnTeamId,
-                    teamsData
-                )
-
-
+            const teamIdBeingPassed = currentTurnTeamId
+            const nextTurnTeamId = getNextTurnTeamId(currentTurnTeamId, teamsData)
             const { error } = await supabase
                 .from('auctions')
-                .update({
-                    current_turn_team_id:
-                        nextTurnTeamId
-                })
-                .eq('id', id);
+                .update({ current_turn_team_id: nextTurnTeamId })
+                .eq('id', id)
+                // Passa il turno solo se è ancora il turno che ci aspettiamo:
+                // evita che due client (es. due tab, o auto-pass + click manuale)
+                // facciano avanzare il turno due volte per errore.
+                .eq('current_turn_team_id', teamIdBeingPassed);
 
             if (error) throw error;
-
-            // Oppure, se gestisci tutto via stato locale / websocket, richiama la funzione di aggiornamento dati
-            // fetchAuctionData();
-
         } catch (err) {
             console.error("Errore durante il passaggio del turno:", err);
-            alert("Impossibile passare il turno. Riprova.");
+            if (!options?.silent) {
+                alert("Impossibile passare il turno. Riprova.");
+            }
         }
     };
 
@@ -485,50 +452,24 @@ export default function LiveAuctionPage() {
                 .filter(Boolean)
 
         setTeamsData(orderedTeams)
-
         return orderedTeams
     }
-
-    // ============================================================
-    // TROVA PROSSIMA SQUADRA DEL TURNO
-    // ============================================================
 
     const getNextTurnTeamId = (
         currentTeamId: string | null,
         teams: any[]
     ): string | null => {
-        if (!teams || teams.length === 0) {
-            return null
-        }
+        if (!teams || teams.length === 0) return null
+        if (!currentTeamId) return teams[0]?.id || null
 
-        if (!currentTeamId) {
-            return teams[0]?.id || null
-        }
+        const currentIndex = teams.findIndex((team) => team.id === currentTeamId)
+        if (currentIndex === -1) return teams[0]?.id || null
 
-        const currentIndex =
-            teams.findIndex(
-                (team) =>
-                    team.id === currentTeamId
-            )
-
-        if (currentIndex === -1) {
-            return teams[0]?.id || null
-        }
-
-        const nextIndex =
-            (currentIndex + 1) %
-            teams.length
-
+        const nextIndex = (currentIndex + 1) % teams.length
         return teams[nextIndex]?.id || null
     }
 
-    // ============================================================
-    // AGGIORNAMENTO MIA SQUADRA
-    // ============================================================
-
-    const refreshMyTeamData = async (
-        teamId: string | null = myTeamId
-    ) => {
+    const refreshMyTeamData = async (teamId: string | null = myTeamId) => {
         if (!teamId) return
 
         const { data, error } = await supabase
@@ -538,37 +479,23 @@ export default function LiveAuctionPage() {
             .maybeSingle()
 
         if (error) {
-            console.error(
-                'Errore aggiornamento squadra:',
-                error
-            )
+            console.error('Errore aggiornamento squadra:', error)
             return
         }
 
         if (data) {
             setMyBudget(data.budget || 0)
-
             setTeamsData((prev) =>
                 prev.map((team) =>
                     team.id === data.id
-                        ? {
-                            ...team,
-                            budget: data.budget
-                        }
+                        ? { ...team, budget: data.budget }
                         : team
                 )
             )
         }
     }
 
-    // ============================================================
-    // BUDGET RUOLO
-    // ============================================================
-
-    const fetchRoleBudgetInfo = async (
-        teamId: string,
-        role: string
-    ) => {
+    const fetchRoleBudgetInfo = async (teamId: string, role: string) => {
         if (!teamId || !role) {
             setMyRoleBudget(null)
             setMyRoleSpent(0)
@@ -576,7 +503,6 @@ export default function LiveAuctionPage() {
         }
 
         const colName = ROLE_COLUMN_MAP[role]
-
         if (!colName) {
             setMyRoleBudget(null)
             setMyRoleSpent(0)
@@ -588,39 +514,25 @@ export default function LiveAuctionPage() {
             .select('initial_budget')
             .single()
 
-        const maxBudgetTotal =
-            leagueSettings?.initial_budget || 500
-
-        const { data: sessionData } =
-            await supabase.auth.getSession()
-
-        const userId =
-            sessionData?.session?.user?.id
+        const maxBudgetTotal = leagueSettings?.initial_budget || 500
+        const { data: sessionData } = await supabase.auth.getSession()
+        const userId = sessionData?.session?.user?.id
 
         if (!userId) return
 
-        const { data: roleBudgetRow } =
-            await supabase
-                .from('user_role_budgets')
-                .select('*')
-                .eq('user_id', userId)
-                .maybeSingle()
+        const { data: roleBudgetRow } = await supabase
+            .from('user_role_budgets')
+            .select('*')
+            .eq('user_id', userId)
+            .maybeSingle()
 
-        if (
-            roleBudgetRow &&
-            roleBudgetRow[colName] !== undefined &&
-            roleBudgetRow[colName] !== null
-        ) {
+        if (roleBudgetRow && roleBudgetRow[colName] !== undefined && roleBudgetRow[colName] !== null) {
             const rawVal = roleBudgetRow[colName]
-            const mode =
-                roleBudgetRow.mode || 'percentage'
+            const mode = roleBudgetRow.mode || 'percentage'
 
             const calculatedBudget =
                 mode === 'percentage'
-                    ? Math.round(
-                        (maxBudgetTotal * rawVal) /
-                        100
-                    )
+                    ? Math.round((maxBudgetTotal * rawVal) / 100)
                     : rawVal
 
             if (calculatedBudget > 0) {
@@ -629,20 +541,15 @@ export default function LiveAuctionPage() {
                 setMyRoleBudget(null)
             }
 
-            const { data: spentData } =
-                await supabase
-                    .from('league_team_players')
-                    .select('price')
-                    .eq('auction_id', id)
-                    .eq('team_id', teamId)
-                    .eq('role', role)
+            const { data: spentData } = await supabase
+                .from('league_team_players')
+                .select('price')
+                .eq('auction_id', id)
+                .eq('team_id', teamId)
+                .eq('role', role)
 
             const totalSpent =
-                spentData?.reduce(
-                    (acc, curr) =>
-                        acc + (curr.price || 0),
-                    0
-                ) || 0
+                spentData?.reduce((acc, curr) => acc + (curr.price || 0), 0) || 0
 
             setMyRoleSpent(totalSpent)
         } else {
@@ -675,10 +582,6 @@ export default function LiveAuctionPage() {
         setMyRoleCounts(counts)
     }
 
-    // ============================================================
-    // TOGGLE ROSA SQUADRA (accordion nella card Partecipanti)
-    // ============================================================
-
     const toggleTeamRoster = async (teamId: string) => {
         if (expandedTeamId === teamId) {
             setExpandedTeamId(null)
@@ -686,13 +589,9 @@ export default function LiveAuctionPage() {
         }
 
         setExpandedTeamId(teamId)
-
-        if (teamRosters[teamId]) {
-            return
-        }
+        if (teamRosters[teamId]) return
 
         setLoadingRosterTeamId(teamId)
-
         const { data, error } = await supabase
             .from('league_team_players')
             .select('player_id, player_name, role, price')
@@ -713,376 +612,178 @@ export default function LiveAuctionPage() {
         }))
     }
 
-    // ============================================================
-    // TARGET
-    // ============================================================
-
     const loadUserTargets = async () => {
-        const { data: sessionData } =
-            await supabase.auth.getSession()
-
+        const { data: sessionData } = await supabase.auth.getSession()
         if (!sessionData?.session?.user) return
 
-        const { data: targetsData } =
-            await supabase
-                .from('user_targets')
-                .select('player_id')
-                .eq(
-                    'user_id',
-                    sessionData.session.user.id
-                )
+        const { data: targetsData } = await supabase
+            .from('user_targets')
+            .select('player_id')
+            .eq('user_id', sessionData.session.user.id)
 
         if (targetsData) {
-            setTargetPlayerIds(
-                new Set(
-                    targetsData.map(
-                        (t: any) => t.player_id
-                    )
-                )
-            )
+            setTargetPlayerIds(new Set(targetsData.map((t: any) => t.player_id)))
         }
     }
 
-    // ============================================================
-    // OFFERTE
-    // ============================================================
-
-    const fetchBids = async (
-        nominationId: number
-    ) => {
-        const { data, error } =
-            await supabase
-                .from('auction_bids')
-                .select(
-                    'id, team_id, amount, created_at'
-                )
-                .eq(
-                    'nomination_id',
-                    nominationId
-                )
-                .order(
-                    'created_at',
-                    {
-                        ascending: true
-                    }
-                )
+    const fetchBids = async (nominationId: number) => {
+        const { data, error } = await supabase
+            .from('auction_bids')
+            .select('id, team_id, amount, created_at')
+            .eq('nomination_id', nominationId)
+            .order('created_at', { ascending: true })
 
         if (error) {
-            console.error(
-                'Errore caricamento offerte:',
-                error
-            )
+            console.error('Errore caricamento offerte:', error)
             return
         }
 
         setBids(data || [])
     }
 
-    // ============================================================
-    // RITIRI
-    // ============================================================
-
-    const fetchWithdrawals = async (
-        nominationId: number
-    ) => {
-        const { data, error } =
-            await supabase
-                .from('auction_withdrawals')
-                .select(
-                    'id, team_id, created_at'
-                )
-                .eq(
-                    'nomination_id',
-                    nominationId
-                )
-                .order(
-                    'created_at',
-                    {
-                        ascending: true
-                    }
-                )
+    const fetchWithdrawals = async (nominationId: number) => {
+        const { data, error } = await supabase
+            .from('auction_withdrawals')
+            .select('id, team_id, created_at')
+            .eq('nomination_id', nominationId)
+            .order('created_at', { ascending: true })
 
         if (error) {
-            console.error(
-                'Errore caricamento ritiri:',
-                error
-            )
+            console.error('Errore caricamento ritiri:', error)
             return
         }
 
-        const rows =
-            (data || []) as WithdrawalRow[]
-
-        const teamIds = rows.map(
-            (row) => row.team_id
-        )
-
+        const rows = (data || []) as WithdrawalRow[]
+        const teamIds = rows.map((row) => row.team_id)
         let teamNames: Record<string, string> = {}
 
         if (teamIds.length > 0) {
-            const { data: teams } =
-                await supabase
-                    .from('league_teams')
-                    .select('id, name')
-                    .in('id', teamIds)
+            const { data: teams } = await supabase
+                .from('league_teams')
+                .select('id, name')
+                .in('id', teamIds)
 
             teams?.forEach((team: any) => {
                 teamNames[team.id] = team.name
             })
         }
 
-        const enrichedRows = rows.map(
-            (row) => ({
-                ...row,
-                teamName:
-                    teamNames[row.team_id] ||
-                    teamsData.find(
-                        (team) =>
-                            team.id ===
-                            row.team_id
-                    )?.name ||
-                    'Squadra'
-            })
-        )
+        const enrichedRows = rows.map((row) => ({
+            ...row,
+            teamName:
+                teamNames[row.team_id] ||
+                teamsData.find((team) => team.id === row.team_id)?.name ||
+                'Squadra'
+        }))
 
-        setWithdrawnTeamIds(
-            new Set(teamIds)
-        )
-
-        setWithdrawalMessages(
-            enrichedRows
-        )
+        setWithdrawnTeamIds(new Set(teamIds))
+        setWithdrawalMessages(enrichedRows)
     }
 
-    // ============================================================
-    // NOMINATION CORRENTE
-    // ============================================================
-
     const fetchCurrentNomination = async () => {
-        const {
-            data: nomination,
-            error
-        } = await supabase
+        const { data: nomination, error } = await supabase
             .from('auction_nominations')
             .select('*, players(*)')
-            .eq(
-                'auction_id',
-                id
-            )
-            .eq(
-                'status',
-                'in_corso'
-            )
+            .eq('auction_id', id)
+            .eq('status', 'in_corso')
             .maybeSingle()
 
         if (error) {
-            console.error(
-                'Errore nomination:',
-                error
-            )
+            console.error('Errore nomination:', error)
             return
         }
 
-        setCurrentNomination(
-            nomination
-        )
+        setCurrentNomination(nomination)
 
         if (!nomination) {
             setCurrentBid(0)
             setHighestTeamId(null)
             setBids([])
-            setWithdrawnTeamIds(
-                new Set()
-            )
+            setWithdrawnTeamIds(new Set())
             setWithdrawalMessages([])
             return
         }
 
-        const initialBid =
-            nomination.current_bid ??
-            nomination.base_price ??
-            1
-
-        setCurrentBid(
-            initialBid
-        )
-
-        setHighestTeamId(
-            nomination.highest_bidder_team_id ||
-            null
-        )
+        const initialBid = nomination.current_bid ?? nomination.base_price ?? 1
+        setCurrentBid(initialBid)
+        setHighestTeamId(nomination.highest_bidder_team_id || null)
 
         await Promise.all([
-            fetchBids(
-                nomination.id
-            ),
-            fetchWithdrawals(
-                nomination.id
-            )
+            fetchBids(nomination.id),
+            fetchWithdrawals(nomination.id)
         ])
     }
 
-    // ============================================================
-    // MIGLIOR OFFERTA ATTIVA
-    // ============================================================
-
-    const getBestActiveBid = (
-        bidRows: BidRow[],
-        withdrawnIds: Set<string>
-    ) => {
-        const bestByTeam =
-            new Map<string, number>()
+    const getBestActiveBid = (bidRows: BidRow[], withdrawnIds: Set<string>) => {
+        const bestByTeam = new Map<string, number>()
 
         for (const bid of bidRows) {
-            if (
-                withdrawnIds.has(
-                    bid.team_id
-                )
-            ) {
-                continue
-            }
-
-            const previous =
-                bestByTeam.get(
-                    bid.team_id
-                ) || 0
-
-            if (
-                bid.amount >
-                previous
-            ) {
-                bestByTeam.set(
-                    bid.team_id,
-                    bid.amount
-                )
+            if (withdrawnIds.has(bid.team_id)) continue
+            const previous = bestByTeam.get(bid.team_id) || 0
+            if (bid.amount > previous) {
+                bestByTeam.set(bid.team_id, bid.amount)
             }
         }
 
-        let winningTeamId:
-            string | null = null
-
+        let winningTeamId: string | null = null
         let winningAmount = 0
 
-        for (
-            const [
-                teamId,
-                amount
-            ] of bestByTeam.entries()
-        ) {
-            if (
-                amount >
-                winningAmount
-            ) {
-                winningTeamId =
-                    teamId
-
-                winningAmount =
-                    amount
+        for (const [teamId, amount] of bestByTeam.entries()) {
+            if (amount > winningAmount) {
+                winningTeamId = teamId
+                winningAmount = amount
             }
         }
 
-        return {
-            teamId:
-                winningTeamId,
-            amount:
-                winningAmount
-        }
+        return { teamId: winningTeamId, amount: winningAmount }
     }
 
-    // ============================================================
-    // MOSTRA RISULTATO ASTA
-    // ============================================================
-
-    const showAuctionResult = async (
-        nomination: any
-    ) => {
+    const showAuctionResult = async (nomination: any) => {
         if (!nomination) return
 
-        const currentTeamId = myTeamIdRef.current;
+        const currentTeamId = myTeamIdRef.current
         const playerData = nomination.players
         const winningTeamId = nomination.highest_bidder_team_id
-
-        const winningAmount =
-            nomination.current_bid ??
-            nomination.base_price ??
-            1
+        const winningAmount = nomination.current_bid ?? nomination.base_price ?? 1
 
         if (!winningTeamId) return
 
-        let winningTeamName =
-            teamsData.find(
-                (team) =>
-                    team.id ===
-                    winningTeamId
-            )?.name
+        let winningTeamName = teamsData.find((team) => team.id === winningTeamId)?.name
 
         if (!winningTeamName) {
-            const { data: team } =
-                await supabase
-                    .from('league_teams')
-                    .select('id, name')
-                    .eq(
-                        'id',
-                        winningTeamId
-                    )
-                    .maybeSingle()
+            const { data: team } = await supabase
+                .from('league_teams')
+                .select('id, name')
+                .eq('id', winningTeamId)
+                .maybeSingle()
 
-            winningTeamName =
-                team?.name ||
-                'Squadra'
+            winningTeamName = team?.name || 'Squadra'
         }
 
         setCongratulatedPlayer({
             playerId: nomination.player_id,
-            name:
-                playerData?.name ||
-                'Giocatore',
-            role:
-                playerData?.role ||
-                '',
-            price:
-                winningAmount,
-            teamName:
-                winningTeamName,
-            isMyTeam:
-                winningTeamId ===
-                currentTeamId,
-            realTeam: playerData.team,
+            name: playerData?.name || 'Giocatore',
+            role: playerData?.role || '',
+            price: winningAmount,
+            teamName: winningTeamName,
+            isMyTeam: winningTeamId === currentTeamId,
+            realTeam: playerData?.team,
             winningTeamId: winningTeamId
         })
 
-        setIsCongratulationModalOpen(
-            true
-        )
+        setIsCongratulationModalOpen(true)
 
-        if (
-            winningTeamId ===
-            currentTeamId
-        ) {
-            await refreshMyTeamData(
-                currentTeamId
-            )
-
+        if (winningTeamId === currentTeamId) {
+            await refreshMyTeamData(currentTeamId)
             if (playerData?.role) {
-                await fetchRoleBudgetInfo(
-                    currentTeamId!,
-                    playerData.role
-                )
+                await fetchRoleBudgetInfo(currentTeamId!, playerData.role)
             }
             await fetchMyRoleCounts(currentTeamId!)
         }
     }
 
-    // ============================================================
-    // STATISTICHE FINE ASTA
-    // Interroga auction_transactions (gia' persistita da ogni chiamata
-    // andata a buon fine) cosi' ogni client puo' ricalcolare le stesse
-    // statistiche in autonomia, senza doverle propagare via realtime.
-    // ============================================================
-
     const fetchAuctionStats = async () => {
         setIsLoadingAuctionStats(true)
-
         try {
             const { data: transactions, error: txError } = await supabase
                 .from('auction_transactions')
@@ -1105,11 +806,7 @@ export default function LiveAuctionPage() {
             }
 
             const teamIds = Array.from(
-                new Set(
-                    (participants || [])
-                        .map((p: any) => p.team_id)
-                        .filter(Boolean)
-                )
+                new Set((participants || []).map((p: any) => p.team_id).filter(Boolean))
             )
 
             const { data: teams, error: teamsError } = await supabase
@@ -1123,13 +820,13 @@ export default function LiveAuctionPage() {
             }
 
             const rows = transactions || []
-
             const teamNameById: Record<string, string> = {}
             const teamBudgetById: Record<string, number> = {}
-                ; (teams || []).forEach((t: any) => {
-                    teamNameById[t.id] = t.name
-                    teamBudgetById[t.id] = t.budget || 0
-                })
+
+            ; (teams || []).forEach((t: any) => {
+                teamNameById[t.id] = t.name
+                teamBudgetById[t.id] = t.budget || 0
+            })
 
             const pickLabel = (tx: any) => ({
                 playerName: tx.player_name,
@@ -1139,18 +836,14 @@ export default function LiveAuctionPage() {
                 teamName: teamNameById[tx.team_id] || 'Squadra'
             })
 
-            // Colpo piu' caro dell'asta (in assoluto)
             const topPickOverall = rows.reduce(
-                (best: any, tx: any) =>
-                    !best || tx.price > best.price ? tx : best,
+                (best: any, tx: any) => (!best || tx.price > best.price ? tx : best),
                 null
             )
 
-            // Spesa totale per squadra
             const spentByTeam: Record<string, number> = {}
             rows.forEach((tx: any) => {
-                spentByTeam[tx.team_id] =
-                    (spentByTeam[tx.team_id] || 0) + (tx.price || 0)
+                spentByTeam[tx.team_id] = (spentByTeam[tx.team_id] || 0) + (tx.price || 0)
             })
 
             const spendingEntries = teamIds.map((tid) => ({
@@ -1169,7 +862,6 @@ export default function LiveAuctionPage() {
                 null
             )
 
-            // Budget residuo per squadra, ordinato dal piu' ricco al piu' povero
             const residualBudgets = teamIds
                 .map((tid) => ({
                     teamId: tid,
@@ -1178,42 +870,28 @@ export default function LiveAuctionPage() {
                 }))
                 .sort((a, b) => b.budget - a.budget)
 
-            // Colpo piu' caro per ruolo, in assoluto (tra tutte le squadre)
             const topPickByRole: Record<string, any> = {}
             ROLE_ORDER.forEach((role) => {
-                const picksForRole = rows.filter(
-                    (tx: any) => tx.role === role
-                )
+                const picksForRole = rows.filter((tx: any) => tx.role === role)
                 const best = picksForRole.reduce(
-                    (acc: any, tx: any) =>
-                        !acc || tx.price > acc.price ? tx : acc,
+                    (acc: any, tx: any) => (!acc || tx.price > acc.price ? tx : acc),
                     null
                 )
-                if (best) {
-                    topPickByRole[role] = pickLabel(best)
-                }
+                if (best) topPickByRole[role] = pickLabel(best)
             })
 
-            // Colpo piu' caro per squadra (il miglior acquisto di ciascuna)
             const topPickByTeam: Record<string, any> = {}
             teamIds.forEach((tid) => {
-                const picksForTeam = rows.filter(
-                    (tx: any) => tx.team_id === tid
-                )
+                const picksForTeam = rows.filter((tx: any) => tx.team_id === tid)
                 const best = picksForTeam.reduce(
-                    (acc: any, tx: any) =>
-                        !acc || tx.price > acc.price ? tx : acc,
+                    (acc: any, tx: any) => (!acc || tx.price > acc.price ? tx : acc),
                     null
                 )
-                if (best) {
-                    topPickByTeam[tid] = pickLabel(best)
-                }
+                if (best) topPickByTeam[tid] = pickLabel(best)
             })
 
             setAuctionStats({
-                topPickOverall: topPickOverall
-                    ? pickLabel(topPickOverall)
-                    : null,
+                topPickOverall: topPickOverall ? pickLabel(topPickOverall) : null,
                 topSpender,
                 lowestSpender,
                 residualBudgets,
@@ -1227,1737 +905,735 @@ export default function LiveAuctionPage() {
         }
     }
 
-    // ============================================================
-    // CHIUSURA ASTA
-    // ============================================================
+    const finalizeAuctionItem = async () => {
+        if (finalizingRef.current) return
+        finalizingRef.current = true
 
-    const finalizeAuctionItem =
-        async () => {
-            if (
-                finalizingRef.current
-            ) {
+        try {
+            const { data: freshNomination, error } = await supabase
+                .from('auction_nominations')
+                .select('id, status, player_id, current_bid, base_price, highest_bidder_team_id, players(name, role)')
+                .eq('auction_id', id)
+                .eq('status', 'in_corso')
+                .maybeSingle()
+
+            if (error) {
+                console.error('Errore recupero asta:', error)
                 return
             }
 
-            finalizingRef.current =
-                true
+            if (!freshNomination) return
 
-            try {
-                const {
-                    data:
-                    freshNomination,
-                    error
-                } =
-                    await supabase
-                        .from(
-                            'auction_nominations'
-                        )
-                        .select(
-                            'id, status, player_id, current_bid, base_price, highest_bidder_team_id, players(name, role)'
-                        )
-                        .eq(
-                            'auction_id',
-                            id
-                        )
-                        .eq(
-                            'status',
-                            'in_corso'
-                        )
-                        .maybeSingle()
-
-                if (error) {
-                    console.error(
-                        'Errore recupero asta:',
-                        error
-                    )
-                    return
-                }
-
-                if (
-                    !freshNomination
-                ) {
-                    return
-                }
-
-                const [
-                    {
-                        data:
-                        freshBids
-                    },
-                    {
-                        data:
-                        freshWithdrawals
-                    }
-                ] =
-                    await Promise.all([
-                        supabase
-                            .from(
-                                'auction_bids'
-                            )
-                            .select(
-                                'id, team_id, amount, created_at'
-                            )
-                            .eq(
-                                'nomination_id',
-                                freshNomination.id
-                            ),
-
-                        supabase
-                            .from(
-                                'auction_withdrawals'
-                            )
-                            .select(
-                                'team_id'
-                            )
-                            .eq(
-                                'nomination_id',
-                                freshNomination.id
-                            )
-                    ])
-
-                const withdrawnIds =
-                    new Set<string>(
-                        (
-                            freshWithdrawals ||
-                            []
-                        ).map(
-                            (row: any) =>
-                                row.team_id
-                        )
-                    )
-
-                const {
-                    teamId:
-                    winningTeamId,
-                    amount:
-                    winningAmount
-                } =
-                    getBestActiveBid(
-                        (
-                            freshBids ||
-                            []
-                        ) as BidRow[],
-                        withdrawnIds
-                    )
-
-                let finalWinningTeamId =
-                    winningTeamId
-
-                let finalWinningAmount =
-                    winningAmount
-
-                const activeTeams =
-                    teamsData.filter(
-                        (team) =>
-                            !withdrawnIds.has(
-                                team.id
-                            )
-                    )
-
-                if (
-                    !finalWinningTeamId
-                ) {
-                    if (
-                        activeTeams.length ===
-                        1
-                    ) {
-                        finalWinningTeamId =
-                            activeTeams[0].id
-
-                        finalWinningAmount =
-                            freshNomination
-                                .base_price ||
-                            1
-                    } else {
-                        alert(
-                            'Non è possibile chiudere l’asta: non ci sono offerte valide.'
-                        )
-
-                        return
-                    }
-                }
-
-                if (
-                    finalWinningAmount <=
-                    0
-                ) {
-                    finalWinningAmount =
-                        freshNomination
-                            .base_price ||
-                        1
-                }
-
-                const {
-                    error:
-                    closeError
-                } =
-                    await supabase
-                        .from(
-                            'auction_nominations'
-                        )
-                        .update({
-                            status:
-                                'chiusa',
-                            current_bid:
-                                finalWinningAmount,
-                            highest_bidder_team_id:
-                                finalWinningTeamId
-                        })
-                        .eq(
-                            'id',
-                            freshNomination.id
-                        )
-                        .eq(
-                            'status',
-                            'in_corso'
-                        )
-
-                if (closeError) {
-                    throw closeError
-                }
-
-                const playerId =
-                    freshNomination.player_id
-
-                const playerData =
-                    freshNomination.players as any
-
-                const playerName =
-                    playerData?.name
-
-                const playerRole =
-                    playerData?.role
-
-                const {
-                    data:
-                    existingTx
-                } =
-                    await supabase
-                        .from(
-                            'auction_transactions'
-                        )
-                        .select(
-                            'id'
-                        )
-                        .eq(
-                            'auction_id',
-                            id
-                        )
-                        .eq(
-                            'player_id',
-                            playerId
-                        )
-                        .maybeSingle()
-
-                if (!existingTx) {
-                    const {
-                        error:
-                        txError
-                    } =
-                        await supabase
-                            .from(
-                                'auction_transactions'
-                            )
-                            .insert({
-                                auction_id:
-                                    id,
-                                team_id:
-                                    finalWinningTeamId,
-                                player_id:
-                                    playerId,
-                                player_name:
-                                    playerName,
-                                role:
-                                    playerRole,
-                                price:
-                                    finalWinningAmount
-                            })
-
-                    if (txError) {
-                        throw txError
-                    }
-
-                    const {
-                        error:
-                        playerError
-                    } =
-                        await supabase
-                            .from(
-                                'league_team_players'
-                            )
-                            .insert({
-                                auction_id:
-                                    id,
-                                team_id:
-                                    finalWinningTeamId,
-                                player_id:
-                                    playerId,
-                                player_name:
-                                    playerName,
-                                role:
-                                    playerRole,
-                                price:
-                                    finalWinningAmount
-                            })
-
-                    if (
-                        playerError
-                    ) {
-                        throw playerError
-                    }
-
-                    setTeamRosters((prev) => {
-                        if (!finalWinningTeamId) {
-                            return prev
-                        }
-
-                        // Se la squadra non era ancora stata aperta/caricata in memoria, 
-                        // lasciamo com'è (verrà caricata la prima volta che l'utente aprirà l'accordion)
-                        if (!prev[finalWinningTeamId]) {
-                            return prev
-                        }
-
-                        const currentTeamRoster = prev[finalWinningTeamId]
-
-                        // Evitiamo duplicati nel caso di eventi doppi
-                        const alreadyExists = currentTeamRoster.some(p => p.player_id === playerId)
-                        if (alreadyExists) return prev
-
-                        const newPlayerEntry = {
-                            player_id: playerId,
-                            player_name: playerName,
-                            role: playerRole,
-                            price: finalWinningAmount
-                        }
-
-                        return {
-                            ...prev,
-                            [finalWinningTeamId]: [...currentTeamRoster, newPlayerEntry]
-                        }
-                    })
-
-                    if (finalWinningTeamId === myTeamId) {
-                        await fetchMyRoleCounts(myTeamId!);
-                    }
-
-                    const targetTeam =
-                        teamsData.find(
-                            (team) =>
-                                team.id ===
-                                finalWinningTeamId
-                        )
-
-                    if (targetTeam) {
-                        const newBudget =
-                            Math.max(
-                                0,
-                                (
-                                    targetTeam.budget ||
-                                    0
-                                ) -
-                                finalWinningAmount
-                            )
-
-                        const {
-                            error:
-                            budgetError
-                        } =
-                            await supabase
-                                .from(
-                                    'league_teams'
-                                )
-                                .update({
-                                    budget:
-                                        newBudget
-                                })
-                                .eq(
-                                    'id',
-                                    finalWinningTeamId
-                                )
-
-                        if (
-                            budgetError
-                        ) {
-                            console.error(
-                                'Errore aggiornamento budget:',
-                                budgetError
-                            )
-                        }
-                    }
-                }
-
-                // ============================================================
-                // AVANZAMENTO TURNO E RUOLO
-                // Se TUTTE le squadre hanno completato gli slot per il ruolo
-                // corrente, si passa al ruolo successivo ripartendo dalla
-                // prima squadra. Altrimenti si mantiene la logica esistente
-                // di rotazione al turno successivo.
-                // ============================================================
-
-                let nextTurnTeamId: string | null = null
-                let nextRequiredRole: string = requiredRole
-
-                const {
-                    data: roleRows,
-                    error: roleRowsError
-                } = await supabase
-                    .from('league_team_players')
+            const [{ data: freshBids }, { data: freshWithdrawals }] = await Promise.all([
+                supabase
+                    .from('auction_bids')
+                    .select('id, team_id, amount, created_at')
+                    .eq('nomination_id', freshNomination.id),
+                supabase
+                    .from('auction_withdrawals')
                     .select('team_id')
-                    .eq('auction_id', id)
-                    .eq('role', playerRole)
+                    .eq('nomination_id', freshNomination.id)
+            ])
 
-                if (roleRowsError) {
-                    console.error(
-                        'Errore conteggio ruoli per avanzamento turno:',
-                        roleRowsError
-                    )
-                }
+            const withdrawnIds = new Set<string>(
+                (freshWithdrawals || []).map((row: any) => row.team_id)
+            )
 
-                const roleCountByTeam: Record<string, number> = {}
-                    ; (roleRows || []).forEach((row: any) => {
-                        roleCountByTeam[row.team_id] =
-                            (roleCountByTeam[row.team_id] || 0) + 1
-                    })
+            const { teamId: winningTeamId, amount: winningAmount } = getBestActiveBid(
+                (freshBids || []) as BidRow[],
+                withdrawnIds
+            )
 
-                const roleLimit = ROLE_LIMITS[playerRole] || 0
+            let finalWinningTeamId = winningTeamId
+            let finalWinningAmount = winningAmount
+            const activeTeams = teamsData.filter((team) => !withdrawnIds.has(team.id))
 
-                const allTeamsRoleComplete =
-                    teamsData.length > 0 &&
-                    teamsData.every(
-                        (team) =>
-                            (roleCountByTeam[team.id] || 0) >= roleLimit
-                    )
-
-                if (allTeamsRoleComplete) {
-                    const currentRoleIndex = ROLE_ORDER.indexOf(playerRole)
-                    const upcomingRole = ROLE_ORDER[currentRoleIndex + 1]
-
-                    if (upcomingRole) {
-                        nextRequiredRole = upcomingRole
-                        nextTurnTeamId = teamsData[0]?.id || null
-                    } else {
-                        await fetchAuctionStats()
-
-                        await supabase
-                            .from('auctions')
-                            .update({ status: 'conclusa' })
-                            .eq('id', id)
-
-                        setIsAuctionEnded(true)
-                        return
-                    }
+            if (!finalWinningTeamId) {
+                if (activeTeams.length === 1) {
+                    finalWinningTeamId = activeTeams[0].id
+                    finalWinningAmount = freshNomination.base_price || 1
                 } else {
-                    nextTurnTeamId =
-                        getNextTurnTeamId(
-                            currentTurnTeamId,
-                            teamsData
-                        )
-                }
-
-                if (nextTurnTeamId || allTeamsRoleComplete) {
-                    const {
-                        error:
-                        turnError
-                    } =
-                        await supabase
-                            .from(
-                                'auctions'
-                            )
-                            .update({
-                                current_turn_team_id:
-                                    nextTurnTeamId,
-                                required_role:
-                                    nextRequiredRole
-                            })
-                            .eq(
-                                'id',
-                                id
-                            )
-
-                    if (turnError) {
-                        console.error(
-                            'Errore aggiornamento turno:',
-                            turnError
-                        )
-                    } else {
-                        setCurrentTurnTeamId(
-                            nextTurnTeamId
-                        )
-
-                        setRequiredRole(
-                            nextRequiredRole
-                        )
-
-                        setAuction(
-                            (prev: any) =>
-                                prev
-                                    ? {
-                                        ...prev,
-                                        current_turn_team_id:
-                                            nextTurnTeamId,
-                                        required_role:
-                                            nextRequiredRole
-                                    }
-                                    : prev
-                        )
-                    }
-                }
-
-                setCurrentNomination(null)
-                setCurrentBid(0)
-                setHighestTeamId(null)
-                setBids([])
-                setWithdrawnTeamIds(
-                    new Set()
-                )
-                setWithdrawalMessages([])
-
-                await fetchParticipantsAndTeams()
-            } catch (error) {
-                console.error(
-                    'Errore chiusura asta:',
-                    error
-                )
-
-                alert(
-                    'Errore durante la chiusura dell’asta.'
-                )
-            } finally {
-                finalizingRef.current =
-                    false
-            }
-        }
-
-    // ============================================================
-    // RITIRO
-    // ============================================================
-
-    const handleWithdraw =
-        async (options?: { silent?: boolean }) => {
-            if (
-                !currentNomination ||
-                !myTeamId ||
-                isWithdrawing
-            ) {
-                return
-            }
-
-            if (
-                withdrawnTeamIds.has(
-                    myTeamId
-                )
-            ) {
-                return
-            }
-
-            if (highestTeamId === myTeamId) {
-                if (!options?.silent) {
-                    alert(
-                        'Sei in vantaggio con l’offerta più alta: non puoi ritirarti da questa asta.'
-                    )
-                }
-
-                return
-            }
-
-            if (!options?.silent) {
-                const confirmed =
-                    window.confirm(
-                        'Vuoi davvero ritirarti da questa asta? Non potrai più fare offerte su questo giocatore.'
-                    )
-
-                if (!confirmed) {
+                    alert('Non è possibile chiudere l’asta: non ci sono offerte valide.')
                     return
                 }
             }
 
-            setIsWithdrawing(true)
-
-            try {
-                const {
-                    error
-                } =
-                    await supabase
-                        .from(
-                            'auction_withdrawals'
-                        )
-                        .insert({
-                            auction_id:
-                                id,
-                            nomination_id:
-                                currentNomination.id,
-                            team_id:
-                                myTeamId
-                        })
-
-                if (error) {
-                    if (
-                        error.code ===
-                        '23505'
-                    ) {
-                        return
-                    }
-
-                    throw error
-                }
-
-                const myTeamName =
-                    teamsData.find(
-                        (team) =>
-                            team.id ===
-                            myTeamId
-                    )?.name ||
-                    'Squadra'
-
-                const nextWithdrawn =
-                    new Set(
-                        withdrawnTeamIds
-                    )
-
-                nextWithdrawn.add(
-                    myTeamId
-                )
-
-                setWithdrawnTeamIds(
-                    nextWithdrawn
-                )
-
-                setWithdrawalMessages(
-                    (prev) => [
-                        ...prev,
-                        {
-                            id:
-                                Date.now(),
-                            team_id:
-                                myTeamId,
-                            created_at:
-                                new Date().toISOString(),
-                            teamName:
-                                myTeamName
-                        }
-                    ]
-                )
-
-                const activeTeams =
-                    teamsData.filter(
-                        (team) =>
-                            !nextWithdrawn.has(
-                                team.id
-                            )
-                    )
-
-                if (
-                    activeTeams.length ===
-                    1
-                ) {
-                    await finalizeAuctionItem()
-                }
-            } catch (error) {
-                console.error(
-                    'Errore ritiro:',
-                    error
-                )
-
-                alert(
-                    'Non è stato possibile ritirarsi dall’asta.'
-                )
-            } finally {
-                setIsWithdrawing(
-                    false
-                )
-            }
-        }
-
-    // ============================================================
-    // NUOVA CHIAMATA
-    // ============================================================
-
-    const handleNominatePlayer =
-        async (
-            playerId: number, playerRole: string
-        ) => {
-            const currentCount = myRoleCounts[playerRole] || 0;
-            const limit = ROLE_LIMITS[playerRole];
-
-            if (currentCount >= limit) {
-                alert(`Hai raggiunto il limite massimo di ${limit} per il ruolo ${ROLE_NAMES[playerRole]}. Il turno passa alla prossima squadra.`);
-
-                const nextTeamId = getNextTurnTeamId(myTeamId, teamsData);
-                await supabase.from('auctions').update({ current_turn_team_id: nextTeamId }).eq('id', id);
-                return;
+            if (finalWinningAmount <= 0) {
+                finalWinningAmount = freshNomination.base_price || 1
             }
 
-            if (
-                isSubmitting
-            ) {
-                return
-            }
+            const { error: closeError } = await supabase
+                .from('auction_nominations')
+                .update({
+                    status: 'chiusa',
+                    current_bid: finalWinningAmount,
+                    highest_bidder_team_id: finalWinningTeamId
+                })
+                .eq('id', freshNomination.id)
+                .eq('status', 'in_corso')
 
-            if (
-                !myTeamId ||
-                currentTurnTeamId !==
-                myTeamId
-            ) {
-                alert(
-                    'Non è il tuo turno di chiamata.'
-                )
+            if (closeError) throw closeError
 
-                return
-            }
+            const playerId = freshNomination.player_id
+            const playerData = freshNomination.players as any
+            const playerName = playerData?.name
+            const playerRole = playerData?.role
 
-            if (
-                currentNomination
-            ) {
-                alert(
-                    'C’è già un giocatore all’asta.'
-                )
+            const { data: existingTx } = await supabase
+                .from('auction_transactions')
+                .select('id')
+                .eq('auction_id', id)
+                .eq('player_id', playerId)
+                .maybeSingle()
 
-                return
-            }
-
-            const basePrice =
-                parseInt(
-                    basePriceValue
-                )
-
-            if (
-                isNaN(basePrice) ||
-                basePrice < 1
-            ) {
-                alert(
-                    'Il prezzo base deve essere almeno 1 CR.'
-                )
-
-                return
-            }
-
-            setIsSubmitting(
-                true
-            )
-
-            try {
-                const {
-                    error
-                } =
-                    await supabase.rpc(
-                        'nominate_player',
-                        {
-                            p_auction_id:
-                                id,
-                            p_player_id:
-                                playerId
-                        }
-                    )
-
-                if (error) {
-                    throw error
-                }
-
-                const {
-                    data:
-                    newNomination,
-                    error:
-                    nominationError
-                } =
-                    await supabase
-                        .from(
-                            'auction_nominations'
-                        )
-                        .select(
-                            'id'
-                        )
-                        .eq(
-                            'auction_id',
-                            id
-                        )
-                        .eq(
-                            'player_id',
-                            playerId
-                        )
-                        .eq(
-                            'status',
-                            'in_corso'
-                        )
-                        .maybeSingle()
-
-                if (
-                    nominationError ||
-                    !newNomination
-                ) {
-                    throw (
-                        nominationError ||
-                        new Error(
-                            'Impossibile recuperare la nuova asta.'
-                        )
-                    )
-                }
-
-                const {
-                    error:
-                    priceError
-                } =
-                    await supabase
-                        .from(
-                            'auction_nominations'
-                        )
-                        .update({
-                            base_price:
-                                basePrice,
-                            current_bid:
-                                basePrice,
-                            highest_bidder_team_id:
-                                myTeamId
-                        })
-                        .eq(
-                            'id',
-                            newNomination.id
-                        )
-
-                if (priceError) {
-                    throw priceError
-                }
-
-                const {
-                    error:
-                    bidError
-                } =
-                    await supabase
-                        .from(
-                            'auction_bids'
-                        )
-                        .insert({
-                            auction_id:
-                                id,
-                            nomination_id:
-                                newNomination.id,
-                            team_id:
-                                myTeamId,
-                            amount:
-                                basePrice
-                        })
-
-                if (bidError) {
-                    throw bidError
-                }
-
-                setBids([])
-                setWithdrawnTeamIds(
-                    new Set()
-                )
-                setWithdrawalMessages(
-                    []
-                )
-
-                setIsNominateModalOpen(
-                    false
-                )
-
-                setBasePriceValue(
-                    '1'
-                )
-
-                await fetchCurrentNomination()
-            } catch (error) {
-                console.error(
-                    'Errore chiamata:',
-                    error
-                )
-
-                alert(
-                    'Errore durante la chiamata del giocatore. Riprova.'
-                )
-            } finally {
-                setIsSubmitting(
-                    false
-                )
-            }
-        }
-
-    // ============================================================
-    // OFFERTA
-    // ============================================================
-
-    const handlePlaceBid =
-        async (
-            newAmount: number,
-            skipRoleBudgetWarning = false
-        ) => {
-            if (
-                !currentNomination ||
-                !myTeamId
-            ) {
-                return
-            }
-
-            if (
-                withdrawnTeamIds.has(
-                    myTeamId
-                )
-            ) {
-                alert(
-                    'Ti sei ritirato da questa asta.'
-                )
-
-                return
-            }
-
-            if (
-                highestTeamId ===
-                myTeamId
-            ) {
-                alert(
-                    'Sei già in vantaggio: non puoi rilanciare contro la tua stessa offerta.'
-                )
-
-                return
-            }
-
-            if (
-                newAmount <=
-                currentBid
-            ) {
-                alert(
-                    "L'offerta deve essere superiore all'offerta corrente!"
-                )
-
-                return
-            }
-
-            if (
-                newAmount >
-                myBudget
-            ) {
-                alert(
-                    "Non hai abbastanza Crediti (CR) per effettuare questa offerta!"
-                )
-
-                return
-            }
-
-            if (
-                myRoleBudget !== null &&
-                !skipRoleBudgetWarning
-            ) {
-                const myPreviousBestBid =
-                    bids
-                        .filter(
-                            (bid) =>
-                                bid.team_id ===
-                                myTeamId
-                        )
-                        .reduce(
-                            (
-                                max,
-                                bid
-                            ) =>
-                                Math.max(
-                                    max,
-                                    bid.amount
-                                ),
-                            0
-                        )
-
-                const effectiveCostDelta =
-                    newAmount -
-                    myPreviousBestBid
-
-                const roleBudgetRemaining =
-                    myRoleBudget -
-                    myRoleSpent
-
-                if (
-                    effectiveCostDelta >
-                    roleBudgetRemaining
-                ) {
-                    const exceededAmount =
-                        effectiveCostDelta -
-                        roleBudgetRemaining
-
-                    setPendingBidAmount(
-                        newAmount
-                    )
-
-                    setPendingRoleBudgetExceeded(
-                        exceededAmount
-                    )
-
-                    setIsRoleBudgetWarningOpen(
-                        true
-                    )
-
-                    return
-                }
-            }
-
-            const {
-                data:
-                bidRow,
-                error:
-                bidInsertError
-            } =
-                await supabase
-                    .from(
-                        'auction_bids'
-                    )
+            if (!existingTx) {
+                const { error: txError } = await supabase
+                    .from('auction_transactions')
                     .insert({
-                        auction_id:
-                            id,
-                        nomination_id:
-                            currentNomination.id,
-                        team_id:
-                            myTeamId,
-                        amount:
-                            newAmount
+                        auction_id: id,
+                        team_id: finalWinningTeamId,
+                        player_id: playerId,
+                        player_name: playerName,
+                        role: playerRole,
+                        price: finalWinningAmount
                     })
-                    .select(
-                        'id, team_id, amount, created_at'
-                    )
-                    .single()
 
-            if (
-                bidInsertError
-            ) {
-                console.error(
-                    'Errore inserimento offerta:',
-                    bidInsertError
-                )
+                if (txError) throw txError
 
-                alert(
-                    "Errore durante l'offerta. Riprova."
-                )
+                const { error: playerError } = await supabase
+                    .from('league_team_players')
+                    .insert({
+                        auction_id: id,
+                        team_id: finalWinningTeamId,
+                        player_id: playerId,
+                        player_name: playerName,
+                        role: playerRole,
+                        price: finalWinningAmount
+                    })
 
-                return
-            }
+                if (playerError) throw playerError
 
-            if (bidRow) {
-                setBids(
-                    (prev) => [
+                setTeamRosters((prev) => {
+                    if (!finalWinningTeamId || !prev[finalWinningTeamId]) return prev
+                    const currentTeamRoster = prev[finalWinningTeamId]
+                    const alreadyExists = currentTeamRoster.some((p) => p.player_id === playerId)
+                    if (alreadyExists) return prev
+
+                    const newPlayerEntry = {
+                        player_id: playerId,
+                        player_name: playerName,
+                        role: playerRole,
+                        price: finalWinningAmount
+                    }
+
+                    return {
                         ...prev,
-                        bidRow as BidRow
-                    ]
-                )
+                        [finalWinningTeamId]: [...currentTeamRoster, newPlayerEntry]
+                    }
+                })
+
+                if (finalWinningTeamId === myTeamId) {
+                    await fetchMyRoleCounts(myTeamId!)
+                }
+
+                const targetTeam = teamsData.find((team) => team.id === finalWinningTeamId)
+                if (targetTeam) {
+                    const newBudget = Math.max(0, (targetTeam.budget || 0) - finalWinningAmount)
+                    const { error: budgetError } = await supabase
+                        .from('league_teams')
+                        .update({ budget: newBudget })
+                        .eq('id', finalWinningTeamId)
+
+                    if (budgetError) {
+                        console.error('Errore aggiornamento budget:', budgetError)
+                    }
+                }
             }
 
-            const {
-                error:
-                nominationError
-            } =
-                await supabase
-                    .from(
-                        'auction_nominations'
-                    )
+            let nextTurnTeamId: string | null = null
+            let nextRequiredRole: string = requiredRole
+
+            const { data: roleRows, error: roleRowsError } = await supabase
+                .from('league_team_players')
+                .select('team_id')
+                .eq('auction_id', id)
+                .eq('role', playerRole)
+
+            if (roleRowsError) {
+                console.error('Errore conteggio ruoli per avanzamento turno:', roleRowsError)
+            }
+
+            const roleCountByTeam: Record<string, number> = {}
+            ; (roleRows || []).forEach((row: any) => {
+                roleCountByTeam[row.team_id] = (roleCountByTeam[row.team_id] || 0) + 1
+            })
+
+            const roleLimit = ROLE_LIMITS[playerRole] || 0
+            const allTeamsRoleComplete =
+                teamsData.length > 0 &&
+                teamsData.every((team) => (roleCountByTeam[team.id] || 0) >= roleLimit)
+
+            if (allTeamsRoleComplete) {
+                const currentRoleIndex = ROLE_ORDER.indexOf(playerRole)
+                const upcomingRole = ROLE_ORDER[currentRoleIndex + 1]
+
+                if (upcomingRole) {
+                    nextRequiredRole = upcomingRole
+                    nextTurnTeamId = teamsData[0]?.id || null
+                } else {
+                    await fetchAuctionStats()
+                    await supabase
+                        .from('auctions')
+                        .update({ status: 'conclusa' })
+                        .eq('id', id)
+
+                    setIsAuctionEnded(true)
+                    return
+                }
+            } else {
+                nextTurnTeamId = getNextTurnTeamId(currentTurnTeamId, teamsData)
+            }
+
+            if (nextTurnTeamId || allTeamsRoleComplete) {
+                const { error: turnError } = await supabase
+                    .from('auctions')
                     .update({
-                        current_bid:
-                            newAmount,
-                        highest_bidder_team_id:
-                            myTeamId
+                        current_turn_team_id: nextTurnTeamId,
+                        required_role: nextRequiredRole
                     })
-                    .eq(
-                        'id',
-                        currentNomination.id
+                    .eq('id', id)
+
+                if (turnError) {
+                    console.error('Errore aggiornamento turno:', turnError)
+                } else {
+                    setCurrentTurnTeamId(nextTurnTeamId)
+                    setRequiredRole(nextRequiredRole)
+                    setAuction((prev: any) =>
+                        prev
+                            ? {
+                                ...prev,
+                                current_turn_team_id: nextTurnTeamId,
+                                required_role: nextRequiredRole
+                            }
+                            : prev
                     )
-
-            if (
-                nominationError
-            ) {
-                console.error(
-                    'Errore aggiornamento nomination:',
-                    nominationError
-                )
-
-                alert(
-                    "L'offerta è stata salvata nello storico, ma non è stato possibile aggiornare l'asta."
-                )
-
-                return
+                }
             }
 
-            setCurrentBid(
-                newAmount
-            )
+            setCurrentNomination(null)
+            setCurrentBid(0)
+            setHighestTeamId(null)
+            setBids([])
+            setWithdrawnTeamIds(new Set())
+            setWithdrawalMessages([])
 
-            setHighestTeamId(
-                myTeamId
-            )
-
-            setCustomBidValue('')
+            await fetchParticipantsAndTeams()
+        } catch (error) {
+            console.error('Errore chiusura asta:', error)
+            alert('Errore durante la chiusura dell’asta.')
+        } finally {
+            finalizingRef.current = false
         }
+    }
 
-    const confirmRoleBudgetBid = async () => {
-        if (pendingBidAmount === null) {
+    const handleWithdraw = async (options?: { silent?: boolean }) => {
+        if (!currentNomination || !myTeamId || isWithdrawing) return
+        if (withdrawnTeamIds.has(myTeamId)) return
+
+        if (highestTeamId === myTeamId) {
+            if (!options?.silent) {
+                alert('Sei in vantaggio con l’offerta più alta: non puoi ritirarti da questa asta.')
+            }
             return
         }
 
+        if (!options?.silent) {
+            const confirmed = window.confirm(
+                'Vuoi davvero ritirarti da questa asta? Non potrai più fare offerte su questo giocatore.'
+            )
+            if (!confirmed) return
+        }
+
+        setIsWithdrawing(true)
+
+        try {
+            const { error } = await supabase
+                .from('auction_withdrawals')
+                .insert({
+                    auction_id: id,
+                    nomination_id: currentNomination.id,
+                    team_id: myTeamId
+                })
+
+            if (error) {
+                if (error.code === '23505') return
+                throw error
+            }
+
+            const myTeamName =
+                teamsData.find((team) => team.id === myTeamId)?.name || 'Squadra'
+
+            const nextWithdrawn = new Set(withdrawnTeamIds)
+            nextWithdrawn.add(myTeamId)
+
+            setWithdrawnTeamIds(nextWithdrawn)
+            setWithdrawalMessages((prev) => [
+                ...prev,
+                {
+                    id: Date.now(),
+                    team_id: myTeamId,
+                    created_at: new Date().toISOString(),
+                    teamName: myTeamName
+                }
+            ])
+
+            const activeTeams = teamsData.filter((team) => !nextWithdrawn.has(team.id))
+            if (activeTeams.length === 1) {
+                await finalizeAuctionItem()
+            }
+        } catch (error) {
+            console.error('Errore ritiro:', error)
+            alert('Non è stato possibile ritirarsi dall’asta.')
+        } finally {
+            setIsWithdrawing(false)
+        }
+    }
+
+    const handleNominatePlayer = async (playerId: number, playerRole: string) => {
+        const currentCount = myRoleCounts[playerRole] || 0
+        const limit = ROLE_LIMITS[playerRole]
+
+        if (currentCount >= limit) {
+            alert(`Hai raggiunto il limite massimo di ${limit} per il ruolo ${ROLE_NAMES[playerRole]}. Il turno passa alla prossima squadra.`)
+            const nextTeamId = getNextTurnTeamId(myTeamId, teamsData)
+            await supabase.from('auctions').update({ current_turn_team_id: nextTeamId }).eq('id', id)
+            return
+        }
+
+        if (isSubmitting) return
+
+        if (!myTeamId || currentTurnTeamId !== myTeamId) {
+            alert('Non è il tuo turno di chiamata.')
+            return
+        }
+
+        if (currentNomination) {
+            alert('C’è già un giocatore all’asta.')
+            return
+        }
+
+        const basePrice = parseInt(basePriceValue)
+        if (isNaN(basePrice) || basePrice < 1) {
+            alert('Il prezzo base deve essere almeno 1 CR.')
+            return
+        }
+
+        setIsSubmitting(true)
+
+        try {
+            const { error } = await supabase.rpc('nominate_player', {
+                p_auction_id: id,
+                p_player_id: playerId
+            })
+
+            if (error) throw error
+
+            const { data: newNomination, error: nominationError } = await supabase
+                .from('auction_nominations')
+                .select('id')
+                .eq('auction_id', id)
+                .eq('player_id', playerId)
+                .eq('status', 'in_corso')
+                .maybeSingle()
+
+            if (nominationError || !newNomination) {
+                throw nominationError || new Error('Impossibile recuperare la nuova asta.')
+            }
+
+            const { error: priceError } = await supabase
+                .from('auction_nominations')
+                .update({
+                    base_price: basePrice,
+                    current_bid: basePrice,
+                    highest_bidder_team_id: myTeamId
+                })
+                .eq('id', newNomination.id)
+
+            if (priceError) throw priceError
+
+            const { error: bidError } = await supabase
+                .from('auction_bids')
+                .insert({
+                    auction_id: id,
+                    nomination_id: newNomination.id,
+                    team_id: myTeamId,
+                    amount: basePrice
+                })
+
+            if (bidError) throw bidError
+
+            setBids([])
+            setWithdrawnTeamIds(new Set())
+            setWithdrawalMessages([])
+            setIsNominateModalOpen(false)
+            setBasePriceValue('1')
+
+            await fetchCurrentNomination()
+        } catch (error) {
+            console.error('Errore chiamata:', error)
+            alert('Errore durante la chiamata del giocatore. Riprova.')
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const handlePlaceBid = async (newAmount: number, skipRoleBudgetWarning = false) => {
+        if (!currentNomination || !myTeamId) return
+
+        if (withdrawnTeamIds.has(myTeamId)) {
+            alert('Ti sei ritirato da questa asta.')
+            return
+        }
+
+        if (highestTeamId === myTeamId) {
+            alert('Sei già in vantaggio: non puoi rilanciare contro la tua stessa offerta.')
+            return
+        }
+
+        if (newAmount <= currentBid) {
+            alert("L'offerta deve essere superiore all'offerta corrente!")
+            return
+        }
+
+        if (newAmount > myBudget) {
+            alert("Non hai abbastanza Crediti (CR) per effettuare questa offerta!")
+            return
+        }
+
+        if (myRoleBudget !== null && !skipRoleBudgetWarning) {
+            const myPreviousBestBid = bids
+                .filter((bid) => bid.team_id === myTeamId)
+                .reduce((max, bid) => Math.max(max, bid.amount), 0)
+
+            const effectiveCostDelta = newAmount - myPreviousBestBid
+            const roleBudgetRemaining = myRoleBudget - myRoleSpent
+
+            if (effectiveCostDelta > roleBudgetRemaining) {
+                const exceededAmount = effectiveCostDelta - roleBudgetRemaining
+                setPendingBidAmount(newAmount)
+                setPendingRoleBudgetExceeded(exceededAmount)
+                setIsRoleBudgetWarningOpen(true)
+                return
+            }
+        }
+
+        const { data: bidRow, error: bidInsertError } = await supabase
+            .from('auction_bids')
+            .insert({
+                auction_id: id,
+                nomination_id: currentNomination.id,
+                team_id: myTeamId,
+                amount: newAmount
+            })
+            .select('id, team_id, amount, created_at')
+            .single()
+
+        if (bidInsertError) {
+            console.error('Errore inserimento offerta:', bidInsertError)
+            alert("Errore durante l'offerta. Riprova.")
+            return
+        }
+
+        if (bidRow) {
+            setBids((prev) => [...prev, bidRow as BidRow])
+        }
+
+        const { error: nominationError } = await supabase
+            .from('auction_nominations')
+            .update({
+                current_bid: newAmount,
+                highest_bidder_team_id: myTeamId
+            })
+            .eq('id', currentNomination.id)
+
+        if (nominationError) {
+            console.error('Errore aggiornamento nomination:', nominationError)
+            alert("L'offerta è stata salvata nello storico, ma non è stato possibile aggiornare l'asta.")
+            return
+        }
+
+        setCurrentBid(newAmount)
+        setHighestTeamId(myTeamId)
+        setCustomBidValue('')
+    }
+
+    const confirmRoleBudgetBid = async () => {
+        if (pendingBidAmount === null) return
         const amount = pendingBidAmount
 
         setIsRoleBudgetWarningOpen(false)
         setPendingBidAmount(null)
         setPendingRoleBudgetExceeded(0)
 
-        await handlePlaceBid(
-            amount,
-            true
-        )
+        await handlePlaceBid(amount, true)
     }
-
-    // ============================================================
-    // INIT
-    // ============================================================
 
     useEffect(() => {
         if (!id) return
-
         let isMounted = true
-
-        const initId =
-            ++initSequenceRef.current
-
-        const channelTopic =
-            `auction-room-${id}`
+        const initId = ++initSequenceRef.current
+        const channelTopic = `auction-room-${id}`
 
         async function initAuctionRoom() {
-            const {
-                data: {
-                    session
-                }
-            } =
-                await supabase.auth.getSession()
-
-            if (
-                !session?.user
-            ) {
-                router.push(
-                    '/login'
-                )
-
+            const { data: { session } } = await supabase.auth.getSession()
+            if (!session?.user) {
+                router.push('/login')
                 return
             }
 
-            const {
-                data: profile
-            } =
-                await supabase
-                    .from(
-                        'profiles'
-                    )
-                    .select(
-                        'role'
-                    )
-                    .eq(
-                        'id',
-                        session.user.id
-                    )
-                    .maybeSingle()
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', session.user.id)
+                .maybeSingle()
 
-            if (
-                !isMounted ||
-                initId !==
-                initSequenceRef.current
-            ) {
-                return
-            }
+            if (!isMounted || initId !== initSequenceRef.current) return
 
-            const admin =
-                profile?.role ===
-                'admin'
-
-            setIsAdmin(
-                admin
-            )
-
+            setIsAdmin(profile?.role === 'admin')
             await loadUserTargets()
 
-            const {
-                data:
-                auctionData
-            } =
-                await supabase
-                    .from(
-                        'auctions'
-                    )
-                    .select('*')
-                    .eq(
-                        'id',
-                        id
-                    )
-                    .maybeSingle()
+            const { data: auctionData } = await supabase
+                .from('auctions')
+                .select('*')
+                .eq('id', id)
+                .maybeSingle()
 
-            if (
-                !auctionData
-            ) {
-                router.push(
-                    '/'
-                )
-
+            if (!auctionData) {
+                router.push('/')
                 return
             }
 
-            setAuction(
-                auctionData
-            )
+            setAuction(auctionData)
 
             if (auctionData.status === 'conclusa') {
                 setIsAuctionEnded(true)
                 fetchAuctionStats()
             }
 
-            const initialRole =
-                auctionData.required_role ||
-                'P'
+            const initialRole = auctionData.required_role || 'P'
+            setRequiredRole(initialRole)
+            setCurrentTurnTeamId(auctionData.current_turn_team_id || null)
 
-            setRequiredRole(
-                initialRole
-            )
-
-            setCurrentTurnTeamId(
-                auctionData.current_turn_team_id ||
-                null
-            )
-
-            const {
-                data:
-                realTeams
-            } =
-                await supabase
-                    .from(
-                        'teams'
-                    )
-                    .select('*')
-
-            if (
-                realTeams &&
-                isMounted
-            ) {
-                setRealTeamsData(
-                    realTeams
-                )
+            const { data: realTeams } = await supabase.from('teams').select('*')
+            if (realTeams && isMounted) {
+                setRealTeamsData(realTeams)
             }
 
+            const { data: teamData } = await supabase
+                .from('league_teams')
+                .select('id, budget')
+                .eq('user_id', session.user.id)
+                .maybeSingle()
 
-            const {
-                data:
-                teamData
-            } =
-                await supabase
-                    .from(
-                        'league_teams'
-                    )
-                    .select(
-                        'id, budget'
-                    )
-                    .eq(
-                        'user_id',
-                        session.user.id
-                    )
-                    .maybeSingle()
-
-            if (
-                teamData &&
-                isMounted
-            ) {
+            if (teamData && isMounted) {
                 setMyTeamId(teamData.id)
-                myTeamIdRef.current = teamData.id;
+                myTeamIdRef.current = teamData.id
+                setMyBudget(teamData.budget || 0)
 
-                setMyBudget(
-                    teamData.budget ||
-                    0
-                )
-
-                await fetchRoleBudgetInfo(
-                    teamData.id,
-                    initialRole
-                )
+                await fetchRoleBudgetInfo(teamData.id, initialRole)
                 await fetchMyRoleCounts(teamData.id)
             }
 
-            const fetchedTeams =
-                await fetchParticipantsAndTeams()
+            const fetchedTeams = await fetchParticipantsAndTeams()
+            let activeTurnId = auctionData.current_turn_team_id
 
-            let activeTurnId =
-                auctionData.current_turn_team_id
-
-            if (
-                !activeTurnId &&
-                fetchedTeams.length >
-                0
-            ) {
-                activeTurnId =
-                    fetchedTeams[0]?.id
-
+            if (!activeTurnId && fetchedTeams.length > 0) {
+                activeTurnId = fetchedTeams[0]?.id
                 await supabase
-                    .from(
-                        'auctions'
-                    )
-                    .update({
-                        current_turn_team_id:
-                            activeTurnId
-                    })
-                    .eq(
-                        'id',
-                        id
-                    )
+                    .from('auctions')
+                    .update({ current_turn_team_id: activeTurnId })
+                    .eq('id', id)
             }
 
-            setCurrentTurnTeamId(
-                activeTurnId ||
-                null
-            )
-
+            setCurrentTurnTeamId(activeTurnId || null)
             await fetchCurrentNomination()
+            setLoading(false)
 
-            setLoading(
-                false
-            )
+            const existingChannel = supabase
+                .getChannels()
+                .find((ch: any) => ch.topic === `realtime:${channelTopic}`)
 
-            const existingChannel =
-                supabase
-                    .getChannels()
-                    .find(
-                        (ch: any) =>
-                            ch.topic ===
-                            `realtime:${channelTopic}`
-                    )
-
-            if (
-                existingChannel
-            ) {
-                await supabase.removeChannel(
-                    existingChannel
-                )
+            if (existingChannel) {
+                await supabase.removeChannel(existingChannel)
             }
 
-            if (
-                !isMounted ||
-                initId !==
-                initSequenceRef.current
-            ) {
-                return
-            }
+            if (!isMounted || initId !== initSequenceRef.current) return
 
-            const channel =
-                supabase
-                    .channel(
-                        channelTopic
-                    )
-                    .on(
-                        'postgres_changes',
-                        {
-                            event:
-                                '*',
-                            schema:
-                                'public',
-                            table:
-                                'auctions',
-                            filter:
-                                `id=eq.${id}`
-                        },
-                        async (
-                            payload: any
-                        ) => {
-                            if (
-                                !payload.new ||
-                                !isMounted
-                            ) {
-                                return
-                            }
+            const channel = supabase
+                .channel(channelTopic)
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'auctions', filter: `id=eq.${id}` },
+                    async (payload: any) => {
+                        if (!payload.new || !isMounted) return
+                        const previousTurn = currentTurnTeamId
+                        const newTurn = payload.new.current_turn_team_id || null
 
-                            const previousTurn =
-                                currentTurnTeamId
+                        setAuction(payload.new)
+                        setCurrentTurnTeamId(newTurn)
 
-                            const newTurn =
-                                payload.new
-                                    .current_turn_team_id ||
-                                null
-
-                            setAuction(
-                                payload.new
-                            )
-
-                            setCurrentTurnTeamId(
-                                newTurn
-                            )
-
-                            if (payload.new.status === 'conclusa') {
-                                setIsAuctionEnded(true)
-                                await fetchAuctionStats()
-                            }
-
-                            const newRole =
-                                payload.new
-                                    .required_role ||
-                                'P'
-
-                            setRequiredRole(
-                                newRole
-                            )
-
-                            if (
-                                teamData?.id
-                            ) {
-                                await fetchRoleBudgetInfo(
-                                    teamData.id,
-                                    newRole
-                                )
-                            }
-
-                            if (
-                                isCongratulationModalOpen &&
-                                newTurn !==
-                                previousTurn
-                            ) {
-                                setIsCongratulationModalOpen(
-                                    false
-                                )
-
-                                setCongratulatedPlayer(
-                                    null
-                                )
-
-                                await fetchCurrentNomination()
-                            }
+                        if (payload.new.status === 'conclusa') {
+                            setIsAuctionEnded(true)
+                            await fetchAuctionStats()
                         }
-                    )
-                    .on(
-                        'postgres_changes',
-                        {
-                            event:
-                                '*',
-                            schema:
-                                'public',
-                            table:
-                                'auction_nominations',
-                            filter:
-                                `auction_id=eq.${id}`
-                        },
-                        async (
-                            payload: any
-                        ) => {
-                            if (
-                                !isMounted
-                            ) {
-                                return
-                            }
 
-                            if (
-                                payload.new?.status ===
-                                'in_corso'
-                            ) {
-                                await fetchCurrentNomination()
-                                return
-                            }
+                        const newRole = payload.new.required_role || 'P'
+                        setRequiredRole(newRole)
 
-                            if (
-                                payload.new?.status ===
-                                'chiusa'
-                            ) {
-                                const {
-                                    data:
-                                    closedNomination
-                                } =
-                                    await supabase
-                                        .from(
-                                            'auction_nominations'
-                                        )
-                                        .select(
-                                            'id, player_id, current_bid, base_price, highest_bidder_team_id, status, players(*)'
-                                        )
-                                        .eq(
-                                            'id',
-                                            payload.new.id
-                                        )
-                                        .maybeSingle()
-
-                                if (
-                                    closedNomination &&
-                                    closedNomination.highest_bidder_team_id
-                                ) {
-                                    await showAuctionResult(
-                                        closedNomination
-                                    )
-
-                                    const wonTeamId =
-                                        closedNomination.highest_bidder_team_id
-
-                                    setTeamRosters((prev) => {
-                                        if (!prev[wonTeamId]) {
-                                            return prev
-                                        }
-
-                                        const next = { ...prev }
-                                        delete next[wonTeamId]
-                                        return next
-                                    })
-                                }
-
-                                setCurrentNomination(
-                                    null
-                                )
-
-                                setCurrentBid(
-                                    0
-                                )
-
-                                setHighestTeamId(
-                                    null
-                                )
-
-                                setBids(
-                                    []
-                                )
-
-                                setWithdrawnTeamIds(
-                                    new Set()
-                                )
-
-                                setWithdrawalMessages(
-                                    []
-                                )
-
-                                await fetchParticipantsAndTeams()
-
-                                if (
-                                    teamData?.id
-                                ) {
-                                    await refreshMyTeamData(
-                                        teamData.id
-                                    )
-
-                                    await fetchMyRoleCounts(
-                                        teamData.id
-                                    )
-                                }
-                            }
+                        if (teamData?.id) {
+                            await fetchRoleBudgetInfo(teamData.id, newRole)
                         }
-                    )
-                    .on(
-                        'postgres_changes',
-                        {
-                            event:
-                                '*',
-                            schema:
-                                'public',
-                            table:
-                                'auction_bids',
-                            filter:
-                                `auction_id=eq.${id}`
-                        },
-                        async () => {
-                            if (
-                                !isMounted
-                            ) {
-                                return
-                            }
 
-                            const {
-                                data:
-                                nomination
-                            } =
-                                await supabase
-                                    .from(
-                                        'auction_nominations'
-                                    )
-                                    .select(
-                                        'id'
-                                    )
-                                    .eq(
-                                        'auction_id',
-                                        id
-                                    )
-                                    .eq(
-                                        'status',
-                                        'in_corso'
-                                    )
-                                    .maybeSingle()
-
-                            if (
-                                nomination
-                            ) {
-                                await fetchBids(
-                                    nomination.id
-                                )
-
-                                await fetchCurrentNomination()
-                            }
-                        }
-                    )
-                    .on(
-                        'postgres_changes',
-                        {
-                            event:
-                                '*',
-                            schema:
-                                'public',
-                            table:
-                                'auction_withdrawals',
-                            filter:
-                                `auction_id=eq.${id}`
-                        },
-                        async () => {
-                            if (
-                                !isMounted
-                            ) {
-                                return
-                            }
-
-                            const {
-                                data:
-                                nomination
-                            } =
-                                await supabase
-                                    .from(
-                                        'auction_nominations'
-                                    )
-                                    .select(
-                                        'id'
-                                    )
-                                    .eq(
-                                        'auction_id',
-                                        id
-                                    )
-                                    .eq(
-                                        'status',
-                                        'in_corso'
-                                    )
-                                    .maybeSingle()
-
-                            if (
-                                nomination
-                            ) {
-                                await fetchWithdrawals(
-                                    nomination.id
-                                )
-                            }
-                        }
-                    )
-                    .on(
-                        'postgres_changes',
-                        {
-                            event:
-                                '*',
-                            schema:
-                                'public',
-                            table:
-                                'league_teams'
-                        },
-                        async (
-                            payload: any
-                        ) => {
-                            if (
-                                !isMounted
-                            ) {
-                                return
-                            }
-
-                            if (
-                                payload.new
-                            ) {
-                                setTeamsData(
-                                    (prev) => {
-                                        const exists =
-                                            prev.some(
-                                                (
-                                                    team
-                                                ) =>
-                                                    team.id ===
-                                                    payload
-                                                        .new
-                                                        .id
-                                            )
-
-                                        if (
-                                            exists
-                                        ) {
-                                            return prev.map(
-                                                (
-                                                    team
-                                                ) =>
-                                                    team.id ===
-                                                        payload
-                                                            .new
-                                                            .id
-                                                        ? {
-                                                            ...team,
-                                                            ...payload.new
-                                                        }
-                                                        : team
-                                            )
-                                        }
-
-                                        return prev
-                                    }
-                                )
-
-                                if (
-                                    payload.new
-                                        .id ===
-                                    teamData?.id
-                                ) {
-                                    setMyBudget(
-                                        payload.new
-                                            .budget ||
-                                        0
-                                    )
-
-                                    await fetchRoleBudgetInfo(
-                                        payload.new
-                                            .id,
-                                        requiredRole
-                                    )
-                                }
-                            }
-                        }
-                    )
-                    .on(
-                        'broadcast',
-                        {
-                            event: 'auction_continue'
-                        },
-                        async ({ payload }) => {
-                            if (!isMounted) {
-                                return
-                            }
-
+                        if (isCongratulationModalOpen && newTurn !== previousTurn) {
                             setIsCongratulationModalOpen(false)
                             setCongratulatedPlayer(null)
-
                             await fetchCurrentNomination()
+                        }
+                    }
+                )
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'auction_nominations', filter: `auction_id=eq.${id}` },
+                    async (payload: any) => {
+                        if (!isMounted) return
+
+                        if (payload.new?.status === 'in_corso') {
+                            await fetchCurrentNomination()
+                            return
+                        }
+
+                        if (payload.new?.status === 'chiusa') {
+                            const { data: closedNomination } = await supabase
+                                .from('auction_nominations')
+                                .select('id, player_id, current_bid, base_price, highest_bidder_team_id, status, players(*)')
+                                .eq('id', payload.new.id)
+                                .maybeSingle()
+
+                            if (closedNomination && closedNomination.highest_bidder_team_id) {
+                                await showAuctionResult(closedNomination)
+                                const wonTeamId = closedNomination.highest_bidder_team_id
+
+                                setTeamRosters((prev) => {
+                                    if (!prev[wonTeamId]) return prev
+                                    const next = { ...prev }
+                                    delete next[wonTeamId]
+                                    return next
+                                })
+                            }
+
+                            setCurrentNomination(null)
+                            setCurrentBid(0)
+                            setHighestTeamId(null)
+                            setBids([])
+                            setWithdrawnTeamIds(new Set())
+                            setWithdrawalMessages([])
+
+                            await fetchParticipantsAndTeams()
 
                             if (teamData?.id) {
+                                await refreshMyTeamData(teamData.id)
                                 await fetchMyRoleCounts(teamData.id)
                             }
                         }
-                    )
+                    }
+                )
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'auction_bids', filter: `auction_id=eq.${id}` },
+                    async () => {
+                        if (!isMounted) return
+                        const { data: nomination } = await supabase
+                            .from('auction_nominations')
+                            .select('id')
+                            .eq('auction_id', id)
+                            .eq('status', 'in_corso')
+                            .maybeSingle()
 
-            auctionChannelRef.current =
-                channel
+                        if (nomination) {
+                            await fetchBids(nomination.id)
+                            await fetchCurrentNomination()
+                        }
+                    }
+                )
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'auction_withdrawals', filter: `auction_id=eq.${id}` },
+                    async () => {
+                        if (!isMounted) return
+                        const { data: nomination } = await supabase
+                            .from('auction_nominations')
+                            .select('id')
+                            .eq('auction_id', id)
+                            .eq('status', 'in_corso')
+                            .maybeSingle()
 
+                        if (nomination) {
+                            await fetchWithdrawals(nomination.id)
+                        }
+                    }
+                )
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'league_teams' },
+                    async (payload: any) => {
+                        if (!isMounted) return
+                        if (payload.new) {
+                            setTeamsData((prev) => {
+                                const exists = prev.some((team) => team.id === payload.new.id)
+                                if (exists) {
+                                    return prev.map((team) =>
+                                        team.id === payload.new.id ? { ...team, ...payload.new } : team
+                                    )
+                                }
+                                return prev
+                            })
+
+                            if (payload.new.id === teamData?.id) {
+                                setMyBudget(payload.new.budget || 0)
+                                await fetchRoleBudgetInfo(payload.new.id, requiredRole)
+                            }
+                        }
+                    }
+                )
+                .on(
+                    'broadcast',
+                    { event: 'auction_continue' },
+                    async () => {
+                        if (!isMounted) return
+                        setIsCongratulationModalOpen(false)
+                        setCongratulatedPlayer(null)
+                        await fetchCurrentNomination()
+                        if (teamData?.id) {
+                            await fetchMyRoleCounts(teamData.id)
+                        }
+                    }
+                )
+
+            auctionChannelRef.current = channel
             await channel.subscribe()
         }
 
         initAuctionRoom()
 
         return () => {
-            isMounted =
-                false
-
+            isMounted = false
             initSequenceRef.current++
-
-            if (
-                auctionChannelRef.current
-            ) {
-                supabase.removeChannel(
-                    auctionChannelRef.current
-                )
-
-                auctionChannelRef.current =
-                    null
+            if (auctionChannelRef.current) {
+                supabase.removeChannel(auctionChannelRef.current)
+                auctionChannelRef.current = null
             }
         }
     }, [id, router])
-
-    // ============================================================
-    // CARICAMENTO GIOCATORI
-    // ============================================================
 
     useEffect(() => {
         if (!congratulatedPlayer) return
@@ -2969,224 +1645,82 @@ export default function LiveAuctionPage() {
 
     useEffect(() => {
         async function loadPlayers() {
-            if (
-                !isNominateModalOpen
-            ) {
-                return
-            }
+            if (!isNominateModalOpen) return
 
             await loadUserTargets()
 
-            const {
-                data:
-                assignedData
-            } =
-                await supabase
-                    .from(
-                        'league_team_players'
-                    )
-                    .select(
-                        'player_id'
-                    )
-                    .eq(
-                        'auction_id',
-                        id
-                    )
+            const { data: assignedData } = await supabase
+                .from('league_team_players')
+                .select('player_id')
+                .eq('auction_id', id)
 
-            const assignedPlayerIds =
-                new Set(
-                    assignedData
-                        ?.map(
-                            (
-                                item: any
-                            ) =>
-                                item.player_id
-                        )
-                        .filter(
-                            Boolean
-                        ) || []
-                )
+            const assignedPlayerIds = new Set(
+                assignedData?.map((item: any) => item.player_id).filter(Boolean) || []
+            )
 
-            let query =
-                supabase
-                    .from(
-                        'players'
-                    )
-                    .select('*')
-                    .eq('is_out', false)
-                    .order(
-                        'name',
-                        {
-                            ascending:
-                                true
-                        }
-                    )
+            let query = supabase
+                .from('players')
+                .select('*')
+                .eq('is_out', false)
+                .order('name', { ascending: true })
 
-            if (
-                requiredRole
-            ) {
-                query =
-                    query.eq(
-                        'role',
-                        requiredRole
-                    )
+            if (requiredRole) {
+                query = query.eq('role', requiredRole)
             }
 
-            const {
-                data,
-                error
-            } = await query
+            const { data, error } = await query
 
-            if (
-                !error &&
-                data
-            ) {
-                const unassignedPlayers =
-                    data.filter(
-                        (p: any) =>
-                            !assignedPlayerIds.has(
-                                p.id
-                            )
+            if (!error && data) {
+                const unassignedPlayers = data.filter(
+                    (p: any) => !assignedPlayerIds.has(p.id)
+                )
+
+                const uniqueTeams = Array.from(
+                    new Set(unassignedPlayers.map((p: any) => p.team).filter(Boolean))
+                ) as string[]
+
+                setAvailableTeamsList(uniqueTeams.sort())
+
+                let filtered = unassignedPlayers
+
+                if (searchQuery.trim()) {
+                    filtered = filtered.filter((p: any) =>
+                        p.name.toLowerCase().includes(searchQuery.toLowerCase())
                     )
-
-                const uniqueTeams =
-                    Array.from(
-                        new Set(
-                            unassignedPlayers
-                                .map(
-                                    (
-                                        p: any
-                                    ) =>
-                                        p.team
-                                )
-                                .filter(
-                                    Boolean
-                                )
-                        )
-                    ) as string[]
-
-                setAvailableTeamsList(
-                    uniqueTeams.sort()
-                )
-
-                let filtered =
-                    unassignedPlayers
-
-                if (
-                    searchQuery.trim()
-                ) {
-                    filtered =
-                        filtered.filter(
-                            (
-                                p: any
-                            ) =>
-                                p.name
-                                    .toLowerCase()
-                                    .includes(
-                                        searchQuery
-                                            .toLowerCase()
-                                    )
-                        )
                 }
 
-                if (
-                    selectedTeamFilter
-                ) {
-                    filtered =
-                        filtered.filter(
-                            (
-                                p: any
-                            ) =>
-                                p.team ===
-                                selectedTeamFilter
-                        )
+                if (selectedTeamFilter) {
+                    filtered = filtered.filter((p: any) => p.team === selectedTeamFilter)
                 }
 
-                if (
-                    onlyTargets
-                ) {
-                    filtered =
-                        filtered.filter(
-                            (
-                                p: any
-                            ) =>
-                                targetPlayerIds.has(
-                                    p.id
-                                )
-                        )
+                if (onlyTargets) {
+                    filtered = filtered.filter((p: any) => targetPlayerIds.has(p.id))
                 }
 
-                setAvailablePlayers(
-                    filtered
-                )
+                setAvailablePlayers(filtered)
             }
         }
 
         loadPlayers()
-    }, [
-        isNominateModalOpen,
-        requiredRole,
-        searchQuery,
-        selectedTeamFilter,
-        onlyTargets,
-        id
-    ])
-
-    // ============================================================
-    // DATI UI
-    // ============================================================
+    }, [isNominateModalOpen, requiredRole, searchQuery, selectedTeamFilter, onlyTargets, id])
 
     const currentTurnTeamName =
-        teamsData.find(
-            (team) =>
-                team.id ===
-                currentTurnTeamId
-        )?.name ||
-        'Nessuna squadra'
+        teamsData.find((team) => team.id === currentTurnTeamId)?.name || 'Nessuna squadra'
 
     const highestBidderName =
-        teamsData.find(
-            (team) =>
-                team.id ===
-                highestTeamId
-        )?.name ||
-        'Nessuno'
+        teamsData.find((team) => team.id === highestTeamId)?.name || 'Nessuno'
 
-    const roleDisplay =
-        ROLE_NAMES[
-        requiredRole
-        ] || requiredRole
-
-    const isRoleBudgetExceeded =
-        myRoleBudget !== null &&
-        myRoleSpent > myRoleBudget
-
-    // ============================================================
-    // TURNO E DISABILITAZIONE PULSANTI RILANCIO
-    // ============================================================
+    const roleDisplay = ROLE_NAMES[requiredRole] || requiredRole
+    const isRoleBudgetExceeded = myRoleBudget !== null && myRoleSpent > myRoleBudget
 
     const currentRoleCode = currentNomination?.players?.role || requiredRole
     const currentRoleCount = myRoleCounts[currentRoleCode] || 0
     const currentRoleLimit = ROLE_LIMITS[currentRoleCode] || 99
     const isRoleFull = currentRoleCount >= currentRoleLimit
 
-    // ============================================================
-    // RITIRO AUTOMATICO SE RUOLO GIÀ ESAURITO
-    // Se la mia squadra ha già completato gli slot per il ruolo
-    // della chiamata in corso, non sono un partecipante attivo per
-    // questa nomination: mi ritiro in automatico (stesso meccanismo
-    // del ritiro manuale) invece di dover cliccare "Ritirati dall'asta".
-    // ============================================================
-
     useEffect(() => {
-        if (!currentNomination || !myTeamId) {
-            return
-        }
-
-        if (withdrawnTeamIds.has(myTeamId)) {
-            return
-        }
-
+        if (!currentNomination || !myTeamId) return
+        if (withdrawnTeamIds.has(myTeamId)) return
         if (isRoleFull) {
             handleWithdraw({ silent: true })
         }
@@ -3195,32 +1729,30 @@ export default function LiveAuctionPage() {
     const canNominate =
         !!myTeamId &&
         !!currentTurnTeamId &&
-        currentTurnTeamId ===
-        myTeamId &&
+        currentTurnTeamId === myTeamId &&
         !currentNomination
 
-    const hasWithdrawn =
-        !!myTeamId &&
-        withdrawnTeamIds.has(
-            myTeamId
-        )
+    // Se è il mio turno di chiamata ma ho già completato lo slot per il ruolo
+    // richiesto, passo il turno automaticamente: non serve più che io (o
+    // chiunque sia distratto/assente) clicchi manualmente "Passa il turno".
+    // Il ref evita doppie chiamate se l'effetto si ri-esegue più volte per lo
+    // stesso turno (es. re-render dovuti a teamsData).
+    const autoPassedTurnRef = useRef<string | null>(null)
 
-    const activeTeams =
-        teamsData.filter(
-            (team) =>
-                !withdrawnTeamIds.has(
-                    team.id
-                )
-        )
+    useEffect(() => {
+        if (!canNominate) return
+        const myRequiredRoleCount = myRoleCounts[requiredRole] || 0
+        const requiredRoleLimit = ROLE_LIMITS[requiredRole] || 99
+        if (myRequiredRoleCount < requiredRoleLimit) return
+        if (autoPassedTurnRef.current === currentTurnTeamId) return
 
-    const amHighestBidder =
-        !!myTeamId &&
-        highestTeamId ===
-        myTeamId
+        autoPassedTurnRef.current = currentTurnTeamId
+        handlePassTurn({ silent: true })
+    }, [canNominate, requiredRole, myRoleCounts, currentTurnTeamId])
 
-    // ============================================================
-    // RENDER
-    // ============================================================
+    const hasWithdrawn = !!myTeamId && withdrawnTeamIds.has(myTeamId)
+    const activeTeams = teamsData.filter((team) => !withdrawnTeamIds.has(team.id))
+    const amHighestBidder = !!myTeamId && highestTeamId === myTeamId
 
     if (loading) {
         return (
@@ -3256,8 +1788,6 @@ export default function LiveAuctionPage() {
 
                     {stats && (
                         <div className="text-left space-y-4">
-
-                            {/* COLPO PIU' CARO DELL'ASTA */}
                             {stats.topPickOverall && (
                                 <div className="bg-surface/60 border border-accent/30 rounded-xl p-4">
                                     <p className="text-[11px] font-black uppercase tracking-wider text-accent mb-1">
@@ -3279,7 +1809,6 @@ export default function LiveAuctionPage() {
                                 </div>
                             )}
 
-                            {/* SPESA: CHI PIU' CHI MENO */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {stats.topSpender && (
                                     <div className="bg-surface/60 border border-border rounded-xl p-4">
@@ -3314,7 +1843,6 @@ export default function LiveAuctionPage() {
                                 )}
                             </div>
 
-                            {/* COLPO PIU' CARO PER RUOLO */}
                             {Object.keys(stats.topPickByRole || {}).length > 0 && (
                                 <div className="bg-surface/60 border border-border rounded-xl p-4">
                                     <p className="text-[11px] font-black uppercase tracking-wider text-muted mb-2">
@@ -3340,7 +1868,6 @@ export default function LiveAuctionPage() {
                                 </div>
                             )}
 
-                            {/* COLPO PIU' CARO PER SQUADRA */}
                             {Object.keys(stats.topPickByTeam || {}).length > 0 && (
                                 <div className="bg-surface/60 border border-border rounded-xl p-4">
                                     <p className="text-[11px] font-black uppercase tracking-wider text-muted mb-2">
@@ -3364,7 +1891,6 @@ export default function LiveAuctionPage() {
                                 </div>
                             )}
 
-                            {/* BUDGET RESIDUO PER SQUADRA */}
                             {stats.residualBudgets?.length > 0 && (
                                 <div className="bg-surface/60 border border-border rounded-xl p-4">
                                     <p className="text-[11px] font-black uppercase tracking-wider text-muted mb-2">
@@ -3382,7 +1908,6 @@ export default function LiveAuctionPage() {
                                     </div>
                                 </div>
                             )}
-
                         </div>
                     )}
 
@@ -3400,20 +1925,14 @@ export default function LiveAuctionPage() {
     }
 
     return (
-
         <div className="min-h-screen bg-background text-foreground font-sans p-4 md:p-8 flex flex-col">
-
-            {/* HEADER */}
-
             <header className="max-w-7xl mx-auto w-full flex flex-wrap items-center justify-between pb-6 border-b border-border gap-3">
-
                 <h1 className="text-lg font-black uppercase flex items-center gap-2">
                     <Gavel className="w-5 h-5 text-primary" />
                     Asta Live
                 </h1>
 
                 <div className="flex items-center gap-2">
-
                     {myRoleBudget !== null && (
                         <div
                             className={`px-3 py-1 rounded-lg text-xs font-black uppercase flex items-center gap-1.5 transition-all ${isRoleBudgetExceeded
@@ -3422,18 +1941,12 @@ export default function LiveAuctionPage() {
                                 }`}
                         >
                             <Wallet className="w-3.5 h-3.5" />
-
                             Budget {roleDisplay}:{' '}
-
                             <span className="font-black">
                                 {myRoleBudget - myRoleSpent} CR
                             </span>
-
                             <span
-                                className={`font-normal ${isRoleBudgetExceeded
-                                    ? 'text-danger-hover'
-                                    : 'text-muted-2'
-                                    }`}
+                                className={`font-normal ${isRoleBudgetExceeded ? 'text-danger-hover' : 'text-muted-2'}`}
                             >
                                 / {myRoleBudget}
                             </span>
@@ -3441,8 +1954,7 @@ export default function LiveAuctionPage() {
                     )}
 
                     <div className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-lg text-accent text-xs font-black uppercase">
-                        Budget Tot:{' '}
-                        {myBudget} CR
+                        Budget Tot: {myBudget} CR
                     </div>
 
                     <div className="px-3 py-1 bg-success/10 border border-success/20 rounded-lg text-success text-xs font-black uppercase flex items-center gap-2">
@@ -3452,239 +1964,118 @@ export default function LiveAuctionPage() {
                             P:{myRoleCounts.P} D:{myRoleCounts.D} C:{myRoleCounts.C} A:{myRoleCounts.A}
                         </span>
                     </div>
-
                 </div>
-
             </header>
 
-            {/* MAIN */}
-
             <main className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6 py-6 flex-1">
-
                 <div className="lg:col-span-2 space-y-6">
-
                     {currentNomination ? (
                         <div className="bg-surface-elevated/60 border border-border/80 rounded-2xl p-6 md:p-8 space-y-6">
-
-                            {/* GIOCATORE */}
-
                             <div className="flex justify-between items-start gap-4">
-
                                 <div>
-
                                     <div className="flex items-center gap-2 flex-wrap">
-
                                         <span className="text-xs font-bold uppercase px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-lg">
-                                            {
-                                                ROLE_NAMES[
-                                                currentNomination
-                                                    .players
-                                                    ?.role
-                                                ] ||
-                                                currentNomination
-                                                    .players
-                                                    ?.role
-                                            }
+                                            {ROLE_NAMES[currentNomination.players?.role] || currentNomination.players?.role}
                                         </span>
 
                                         <span className="text-xs font-bold uppercase px-3 py-1 bg-white-500/10 text-white-400 border border-white-500/20 rounded-lg">
-                                            {
-                                                currentNomination
-                                                    .players
-                                                    ?.team
-                                            }
+                                            {currentNomination.players?.team}
                                         </span>
 
-                                        {targetPlayerIds.has(
-                                            currentNomination
-                                                .players
-                                                ?.id
-                                        ) && (
-                                                <span className="px-2.5 py-1 bg-accent/20 border border-accent/40 text-accent text-xs font-extrabold rounded-full uppercase tracking-wider">
-                                                    ⭐ Obiettivo
-                                                </span>
-                                            )}
+                                        {targetPlayerIds.has(currentNomination.players?.id) && (
+                                            <span className="px-2.5 py-1 bg-accent/20 border border-accent/40 text-accent text-xs font-extrabold rounded-full uppercase tracking-wider">
+                                                ⭐ Obiettivo
+                                            </span>
+                                        )}
 
-                                        {targetPlayerIds.has(
-                                            currentNomination
-                                                .players
-                                                ?.id
-                                        ) && (
-                                                <span
-                                                    className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider rounded-full bg-info/10 text-info border border-info/30 flex items-center gap-1 ${currentBid > currentNomination.players.fvm ? 'animate-pulse text-danger border-danger bg-danger/10' : ''
-                                                        }`}
-                                                >
-                                                    💎 Fanta-valore Medio: {currentNomination.players.fvm}
-                                                </span>
-                                            )}
-
+                                        {targetPlayerIds.has(currentNomination.players?.id) && (
+                                            <span
+                                                className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider rounded-full bg-info/10 text-info border border-info/30 flex items-center gap-1 ${currentBid > currentNomination.players.fvm ? 'animate-pulse text-danger border-danger bg-danger/10' : ''}`}
+                                            >
+                                                💎 Fanta-valore Medio: {currentNomination.players.fvm}
+                                            </span>
+                                        )}
                                     </div>
 
                                     <h2 className="text-3xl font-black uppercase text-white mt-3">
-                                        {
-                                            currentNomination
-                                                .players
-                                                ?.name
-                                        }
+                                        {currentNomination.players?.name}
                                     </h2>
 
                                     <p className="text-muted text-xs mt-2">
                                         Chiamato da{' '}
                                         <span className="text-accent font-bold">
-                                            {
-                                                currentTurnTeamName
-                                            }
+                                            {currentTurnTeamName}
                                         </span>
                                     </p>
-
                                 </div>
 
                                 <div className="text-right">
                                     <span className="text-xs text-muted uppercase font-semibold">
                                         Offerta
                                     </span>
-
                                     <span className="text-5xl font-black text-accent block">
-                                        {
-                                            currentBid
-                                        }{' '}
-                                        CR
+                                        {currentBid} CR
                                     </span>
                                 </div>
-
                             </div>
 
-                            {/* STATO ASTA */}
-
                             <div className="flex justify-between items-center bg-surface/60 p-3 rounded-xl border border-border/50 flex-wrap gap-2">
-
                                 <div className="text-xs font-bold text-muted uppercase">
                                     In vantaggio:{' '}
                                     <span className="text-white font-black">
-                                        {
-                                            highestBidderName
-                                        }
+                                        {highestBidderName}
                                     </span>
                                 </div>
 
                                 <div className="text-xs font-black text-muted bg-surface-elevated px-3 py-1 rounded-lg">
-                                    Squadre ancora in gara:{' '}
-                                    {
-                                        activeTeams.length
-                                    }
+                                    Squadre ancora in gara: {activeTeams.length}
                                 </div>
-
                             </div>
 
-                            {/* RITIRI */}
-
-                            {withdrawalMessages.length >
-                                0 && (
-                                    <div className="bg-danger/5 border border-danger/20 rounded-xl p-4">
-
-                                        <div className="flex items-center gap-2 text-xs font-black uppercase text-danger-hover mb-3">
-                                            <LogOut className="w-4 h-4" />
-                                            Ritiri
-                                        </div>
-
-                                        <div className="space-y-2">
-
-                                            {withdrawalMessages.map(
-                                                (
-                                                    message
-                                                ) => (
-                                                    <div
-                                                        key={
-                                                            message.id
-                                                        }
-                                                        className="text-sm text-muted"
-                                                    >
-                                                        🔥{' '}
-                                                        <span className="font-black text-white">
-                                                            {
-                                                                message.teamName
-                                                            }
-                                                        </span>{' '}
-                                                        si è ritirata
-                                                        dall'asta
-                                                    </div>
-                                                )
-                                            )}
-
-                                        </div>
-
+                            {withdrawalMessages.length > 0 && (
+                                <div className="bg-danger/5 border border-danger/20 rounded-xl p-4">
+                                    <div className="flex items-center gap-2 text-xs font-black uppercase text-danger-hover mb-3">
+                                        <LogOut className="w-4 h-4" />
+                                        Ritiri
                                     </div>
-                                )}
-
-                            {/* OFFERTE */}
-
-                            {bids.length >
-                                0 && (
-                                    <div className="bg-surface/60 border border-border/50 rounded-xl p-4">
-
-                                        <h3 className="text-xs font-black uppercase text-muted mb-3">
-                                            Ultime offerte
-                                        </h3>
-
-                                        <div className="space-y-2 max-h-40 overflow-y-auto">
-
-                                            {bids
-                                                .slice()
-                                                .reverse()
-                                                .map(
-                                                    (
-                                                        bid
-                                                    ) => {
-                                                        const team =
-                                                            teamsData.find(
-                                                                (
-                                                                    t
-                                                                ) =>
-                                                                    t.id ===
-                                                                    bid.team_id
-                                                            )
-
-                                                        const withdrawn =
-                                                            withdrawnTeamIds.has(
-                                                                bid.team_id
-                                                            )
-
-                                                        return (
-                                                            <div
-                                                                key={
-                                                                    bid.id
-                                                                }
-                                                                className={`flex justify-between items-center text-xs ${withdrawn
-                                                                    ? 'opacity-40 line-through'
-                                                                    : ''
-                                                                    }`}
-                                                            >
-
-                                                                <span className="font-bold">
-                                                                    {
-                                                                        team?.name ||
-                                                                        'Squadra'
-                                                                    }
-                                                                </span>
-
-                                                                <span className="font-black text-accent">
-                                                                    {
-                                                                        bid.amount
-                                                                    }{' '}
-                                                                    CR
-                                                                </span>
-
-                                                            </div>
-                                                        )
-                                                    }
-                                                )}
-
-                                        </div>
-
+                                    <div className="space-y-2">
+                                        {withdrawalMessages.map((message) => (
+                                            <div key={message.id} className="text-sm text-muted">
+                                                🔥 <span className="font-black text-white">{message.teamName}</span> si è ritirata dall'asta
+                                            </div>
+                                        ))}
                                     </div>
-                                )}
+                                </div>
+                            )}
 
-                            {/* MESSAGGIO SLOT PIENI */}
+                            {bids.length > 0 && (
+                                <div className="bg-surface/60 border border-border/50 rounded-xl p-4">
+                                    <h3 className="text-xs font-black uppercase text-muted mb-3">
+                                        Ultime offerte
+                                    </h3>
+                                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                                        {bids.slice().reverse().map((bid) => {
+                                            const team = teamsData.find((t) => t.id === bid.team_id)
+                                            const withdrawn = withdrawnTeamIds.has(bid.team_id)
+
+                                            return (
+                                                <div
+                                                    key={bid.id}
+                                                    className={`flex justify-between items-center text-xs ${withdrawn ? 'opacity-40 line-through' : ''}`}
+                                                >
+                                                    <span className="font-bold">
+                                                        {team?.name || 'Squadra'}
+                                                    </span>
+                                                    <span className="font-black text-accent">
+                                                        {bid.amount} CR
+                                                    </span>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
                             {isRoleFull && (
                                 <div className="bg-accent/10 border border-accent/30 rounded-xl p-3 text-center">
                                     <p className="text-xs font-black uppercase text-accent">
@@ -3693,216 +2084,121 @@ export default function LiveAuctionPage() {
                                 </div>
                             )}
 
-                            {/* BOTTONI ASTA */}
-
                             {!hasWithdrawn ? (
                                 <>
                                     {amHighestBidder ? (
                                         <div className="bg-success/10 border border-success/30 rounded-xl p-5 text-center">
-
                                             <div className="text-success text-sm font-black uppercase">
                                                 Sei in vantaggio
                                             </div>
-
                                             <p className="text-xs text-muted mt-1">
-                                                Non puoi rilanciare
-                                                contro la tua stessa
-                                                offerta.
+                                                Non puoi rilanciare contro la tua stessa offerta.
                                             </p>
-
                                         </div>
                                     ) : (
                                         <>
                                             <div className="grid grid-cols-3 gap-3">
-
                                                 <button
                                                     disabled={isRoleFull}
-                                                    onClick={() =>
-                                                        handlePlaceBid(
-                                                            currentBid +
-                                                            1
-                                                        )
-                                                    }
-                                                    className="py-3 bg-surface-elevated hover:bg-surface-hover disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold uppercase text-sm transition"
+                                                    onClick={() => handlePlaceBid(currentBid + 1)}
+                                                    className="py-3 bg-surface-elevated hover:bg-surface-hover disabled:opacity-45 disabled:cursor-not-allowed rounded-xl font-bold uppercase text-sm transition"
                                                 >
                                                     +1
                                                 </button>
 
                                                 <button
                                                     disabled={isRoleFull}
-                                                    onClick={() =>
-                                                        handlePlaceBid(
-                                                            currentBid +
-                                                            5
-                                                        )
-                                                    }
-                                                    className="py-3 bg-surface-elevated hover:bg-surface-hover disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold uppercase text-sm transition"
+                                                    onClick={() => handlePlaceBid(currentBid + 5)}
+                                                    className="py-3 bg-surface-elevated hover:bg-surface-hover disabled:opacity-45 disabled:cursor-not-allowed rounded-xl font-bold uppercase text-sm transition"
                                                 >
                                                     +5
                                                 </button>
 
                                                 <button
                                                     disabled={isRoleFull}
-                                                    onClick={() =>
-                                                        handlePlaceBid(
-                                                            currentBid +
-                                                            10
-                                                        )
-                                                    }
-                                                    className="py-3 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold uppercase text-sm transition"
+                                                    onClick={() => handlePlaceBid(currentBid + 10)}
+                                                    className="py-3 bg-primary hover:bg-primary-hover disabled:opacity-45 disabled:cursor-not-allowed rounded-xl font-bold uppercase text-sm transition"
                                                 >
                                                     +10
                                                 </button>
-
                                             </div>
 
                                             <div className="flex gap-2 pt-2 border-t border-border/50">
-
                                                 <input
                                                     type="number"
                                                     disabled={isRoleFull}
                                                     placeholder={isRoleFull ? "Slot ruolo esauriti" : `Offerta personalizzata (> ${currentBid})`}
-                                                    value={
-                                                        customBidValue
-                                                    }
-                                                    onChange={(
-                                                        e
-                                                    ) =>
-                                                        setCustomBidValue(
-                                                            e
-                                                                .target
-                                                                .value
-                                                        )
-                                                    }
-                                                    className="flex-1 bg-surface border border-border disabled:opacity-40 disabled:cursor-not-allowed rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary"
+                                                    value={customBidValue}
+                                                    onChange={(e) => setCustomBidValue(e.target.value)}
+                                                    className="flex-1 bg-surface border border-border disabled:opacity-45 disabled:cursor-not-allowed rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary"
                                                 />
 
                                                 <button
                                                     disabled={isRoleFull}
                                                     onClick={() => {
-                                                        const value =
-                                                            parseInt(
-                                                                customBidValue
-                                                            )
-
-                                                        if (
-                                                            isNaN(
-                                                                value
-                                                            ) ||
-                                                            value <=
-                                                            currentBid
-                                                        ) {
-                                                            alert(
-                                                                "L'offerta deve essere superiore all'offerta corrente!"
-                                                            )
-
+                                                        const value = parseInt(customBidValue)
+                                                        if (isNaN(value) || value <= currentBid) {
+                                                            alert("L'offerta deve essere superiore all'offerta corrente!")
                                                             return
                                                         }
-
-                                                        handlePlaceBid(
-                                                            value
-                                                        )
+                                                        handlePlaceBid(value)
                                                     }}
-                                                    className="px-6 py-3 bg-success hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-black text-xs uppercase transition"
+                                                    className="px-6 py-3 bg-success hover:brightness-110 disabled:opacity-45 disabled:cursor-not-allowed rounded-xl font-black text-xs uppercase transition"
                                                 >
                                                     Rilancia
                                                 </button>
-
                                             </div>
                                         </>
                                     )}
 
                                     {!amHighestBidder && (
                                         <button
-                                            onClick={
-                                                () => handleWithdraw()
-                                            }
-                                            disabled={
-                                                isWithdrawing
-                                            }
+                                            onClick={() => handleWithdraw()}
+                                            disabled={isWithdrawing}
                                             className="w-full py-3 bg-danger/20 hover:bg-danger/30 border border-danger/40 text-danger-hover rounded-xl font-black text-xs uppercase transition flex items-center justify-center gap-2"
                                         >
                                             <LogOut className="w-4 h-4" />
-
-                                            {isWithdrawing
-                                                ? 'Ritiro...'
-                                                : "Ritirati dall'asta"}
+                                            {isWithdrawing ? 'Ritiro...' : "Ritirati dall'asta"}
                                         </button>
                                     )}
-
                                 </>
                             ) : (
                                 <div className="bg-danger/10 border border-danger/30 rounded-xl p-5 text-center">
-
                                     <LogOut className="w-8 h-8 text-danger mx-auto mb-2" />
-
                                     <p className="text-sm font-black uppercase text-danger-hover">
-                                        Ti sei ritirato
-                                        dall'asta
+                                        Ti sei ritirato dall'asta
                                     </p>
-
                                     <p className="text-xs text-muted mt-1">
-                                        Non puoi più fare
-                                        offerte su questo
-                                        giocatore.
+                                        Non puoi più fare offerte su questo giocatore.
                                     </p>
-
                                 </div>
                             )}
-
-                            {/* ADMIN */}
 
                             {isAdmin && (
                                 <div className="pt-4 border-t border-border/50">
-
                                     <button
                                         onClick={async () => {
-                                            if (
-                                                isClosingAuction
-                                            ) {
-                                                return
-                                            }
+                                            if (isClosingAuction) return
+                                            const confirmed = window.confirm('Vuoi chiudere definitivamente questa asta?')
+                                            if (!confirmed) return
 
-                                            const confirmed =
-                                                window.confirm(
-                                                    'Vuoi chiudere definitivamente questa asta?'
-                                                )
-
-                                            if (
-                                                !confirmed
-                                            ) {
-                                                return
-                                            }
-
-                                            setIsClosingAuction(
-                                                true
-                                            )
-
+                                            setIsClosingAuction(true)
                                             try {
                                                 await finalizeAuctionItem()
                                             } finally {
-                                                setIsClosingAuction(
-                                                    false
-                                                )
+                                                setIsClosingAuction(false)
                                             }
                                         }}
-                                        disabled={
-                                            isClosingAuction
-                                        }
+                                        disabled={isClosingAuction}
                                         className="w-full py-3 bg-primary hover:bg-primary-hover disabled:opacity-50 rounded-xl font-black text-xs uppercase transition"
                                     >
-                                        {isClosingAuction
-                                            ? 'Chiusura...'
-                                            : 'Chiudi asta'}
+                                        {isClosingAuction ? 'Chiusura...' : 'Chiudi asta'}
                                     </button>
-
                                 </div>
                             )}
-
                         </div>
                     ) : (
                         <div className="bg-surface-elevated/40 border border-border/60 rounded-2xl p-12 text-center space-y-4">
-
                             <h3 className="text-xl font-black uppercase">
                                 {canNominate && (myRoleCounts[requiredRole] || 0) >= ROLE_LIMITS[requiredRole]
                                     ? "Hai completato gli slot per il ruolo"
@@ -3913,7 +2209,7 @@ export default function LiveAuctionPage() {
                             <p className="text-xs text-muted">
                                 {canNominate && (myRoleCounts[requiredRole] || 0) >= ROLE_LIMITS[requiredRole] ? (
                                     <span>
-                                        Hai esaurito i posti disponibili per il ruolo di <span className="text-white font-bold">{roleDisplay}</span>. Puoi passare il turno.
+                                        Hai esaurito i posti disponibili per il ruolo di <span className="text-white font-bold">{roleDisplay}</span>. Il turno passa automaticamente alla prossima squadra.
                                     </span>
                                 ) : (
                                     <span>
@@ -3931,15 +2227,20 @@ export default function LiveAuctionPage() {
 
                             {canNominate && (myRoleCounts[requiredRole] || 0) < ROLE_LIMITS[requiredRole] ? (
                                 <button
-                                    onClick={() =>
-                                        setIsNominateModalOpen(true)
-                                    }
+                                    onClick={() => setIsNominateModalOpen(true)}
                                     className="mt-4 px-6 py-3 bg-primary rounded-xl font-black text-xs uppercase hover:bg-primary-hover transition"
                                 >
                                     Chiama {roleDisplay}
                                 </button>
                             ) : canNominate ? (
-                                <div className="mt-4">
+                                <div className="mt-4 space-y-2">
+                                    <div className="flex items-center justify-center gap-2 text-xs text-muted">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Passaggio turno in corso...
+                                    </div>
+                                    {/* Fallback manuale: se per qualche motivo l'auto-pass non
+                                        va a buon fine (es. rete instabile), resta comunque
+                                        possibile passare il turno a mano. */}
                                     <button
                                         onClick={() => handlePassTurn()}
                                         className="px-6 py-3 bg-accent rounded-xl font-black text-xs uppercase hover:brightness-110 transition text-white"
@@ -3949,723 +2250,374 @@ export default function LiveAuctionPage() {
                                 </div>
                             ) : null}
 
+                            {isAdmin && !canNominate && currentTurnTeamId && (
+                                <div className="mt-4 pt-4 border-t border-border/50">
+                                    <button
+                                        onClick={() => {
+                                            const confirmed = window.confirm(
+                                                `Forzare il passaggio del turno di ${currentTurnTeamName}? Da usare solo se la squadra e' assente/distratta.`
+                                            )
+                                            if (!confirmed) return
+                                            handlePassTurn()
+                                        }}
+                                        className="px-4 py-2 bg-surface-elevated/60 border border-border/60 rounded-xl font-black text-[10px] uppercase text-muted hover:text-white hover:border-danger/40 transition"
+                                    >
+                                        Admin: forza passa turno
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
-
                 </div>
 
-                {/* PARTECIPANTI */}
-
                 <div className="bg-surface-elevated/40 border border-border/60 rounded-2xl p-5 space-y-4">
-
                     <h3 className="text-xs font-black uppercase text-muted flex items-center gap-2">
                         <Users className="w-4 h-4" />
                         Partecipanti
                     </h3>
 
-                    {teamsData.map(
-                        (team) => {
-                            const withdrawn =
-                                withdrawnTeamIds.has(
-                                    team.id
-                                )
+                    {teamsData.map((team) => {
+                        const withdrawn = withdrawnTeamIds.has(team.id)
+                        const isExpanded = expandedTeamId === team.id
+                        const isLoadingRoster = loadingRosterTeamId === team.id
+                        const roster = teamRosters[team.id] || []
 
-                            const isExpanded =
-                                expandedTeamId === team.id
-
-                            const isLoadingRoster =
-                                loadingRosterTeamId === team.id
-
-                            const roster =
-                                teamRosters[team.id] || []
-
-                            return (
-                                <div
-                                    key={
-                                        team.id
-                                    }
-                                    className={`rounded-xl border overflow-hidden ${withdrawn
-                                        ? 'bg-danger/5 border-danger/20 opacity-60'
-                                        : team.id ===
-                                            currentTurnTeamId
-                                            ? 'bg-accent/10 border-accent/50'
-                                            : 'bg-surface-elevated/80 border-border'
-                                        }`}
+                        return (
+                            <div
+                                key={team.id}
+                                className={`rounded-xl border overflow-hidden ${withdrawn
+                                    ? 'bg-danger/5 border-danger/20 opacity-60'
+                                    : team.id === currentTurnTeamId
+                                        ? 'bg-accent/10 border-accent/50'
+                                        : 'bg-surface-elevated/80 border-border'
+                                    }`}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => toggleTeamRoster(team.id)}
+                                    className="w-full p-3 flex justify-between items-center text-left"
                                 >
-
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            toggleTeamRoster(team.id)
-                                        }
-                                        className="w-full p-3 flex justify-between items-center text-left"
-                                    >
-
-                                        <div className="flex items-center gap-2">
-
-                                            <ChevronDown
-                                                className={`w-3.5 h-3.5 text-muted-2 transition-transform ${isExpanded ? 'rotate-180' : ''
-                                                    }`}
-                                            />
-
-                                            <div>
-
-                                                <span className="font-bold text-xs">
-                                                    {
-                                                        team.name
-                                                    }
+                                    <div className="flex items-center gap-2">
+                                        <ChevronDown
+                                            className={`w-3.5 h-3.5 text-muted-2 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                                        />
+                                        <div>
+                                            <span className="font-bold text-xs">{team.name}</span>
+                                            {withdrawn && (
+                                                <span className="text-[10px] uppercase font-black text-danger block mt-1">
+                                                    Ritirata
                                                 </span>
-
-                                                {withdrawn && (
-                                                    <span className="text-[10px] uppercase font-black text-danger block mt-1">
-                                                        Ritirata
-                                                    </span>
-                                                )}
-
-                                                {team.id ===
-                                                    currentTurnTeamId && (
-                                                        <span className="text-[10px] uppercase font-black text-accent block mt-1">
-                                                            Turno di chiamata
-                                                        </span>
-                                                    )}
-
-                                            </div>
-
-                                        </div>
-
-                                        <span className="text-xs font-black text-accent">
-                                            {
-                                                team.budget
-                                            }{' '}
-                                            CR
-                                        </span>
-
-                                    </button>
-
-                                    {isExpanded && (
-                                        <div className="px-3 pb-3 pt-1 border-t border-border/60">
-
-                                            {isLoadingRoster ? (
-                                                <div className="flex items-center gap-2 text-xs text-muted-2 py-2">
-                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                    Caricamento rosa...
-                                                </div>
-                                            ) : roster.length === 0 ? (
-                                                <p className="text-xs text-muted-2 py-2">
-                                                    Nessun giocatore acquistato finora.
-                                                </p>
-                                            ) : (
-                                                <div className="space-y-1 pt-2">
-                                                    {ROLE_ORDER.map((role) => {
-                                                        const playersForRole =
-                                                            roster.filter(
-                                                                (p: any) => p.role === role
-                                                            )
-
-                                                        if (playersForRole.length === 0) {
-                                                            return null
-                                                        }
-
-                                                        return (
-                                                            <div key={role} className="mb-2">
-
-                                                                <span className="text-[10px] uppercase font-black text-muted-2">
-                                                                    {ROLE_NAMES[role]}
-                                                                </span>
-
-                                                                <div className="space-y-1 mt-1">
-                                                                    {playersForRole.map((p: any) => (
-                                                                        <div
-                                                                            key={p.player_id}
-                                                                            className="flex justify-between items-center text-xs px-2 py-1.5 rounded-lg bg-surface/60"
-                                                                        >
-                                                                            <span className="text-foreground">
-                                                                                {p.player_name}
-                                                                            </span>
-                                                                            <span className="text-success font-bold">
-                                                                                {p.price} CR
-                                                                            </span>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-
-                                                            </div>
-                                                        )
-                                                    })}
-                                                </div>
                                             )}
-
+                                            {team.id === currentTurnTeamId && (
+                                                <span className="text-[10px] uppercase font-black text-accent block mt-1">
+                                                    Turno di chiamata
+                                                </span>
+                                            )}
                                         </div>
-                                    )}
+                                    </div>
+                                    <span className="text-xs font-black text-accent">
+                                        {team.budget} CR
+                                    </span>
+                                </button>
 
-                                </div>
-                            )
-                        }
-                    )}
+                                {isExpanded && (
+                                    <div className="px-3 pb-3 pt-1 border-t border-border/60">
+                                        {isLoadingRoster ? (
+                                            <div className="flex items-center gap-2 text-xs text-muted-2 py-2">
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                Caricamento rosa...
+                                            </div>
+                                        ) : roster.length === 0 ? (
+                                            <p className="text-xs text-muted-2 py-2">
+                                                Nessun giocatore acquistato finora.
+                                            </p>
+                                        ) : (
+                                            <div className="space-y-1 pt-2">
+                                                {ROLE_ORDER.map((role) => {
+                                                    const playersForRole = roster.filter((p: any) => p.role === role)
+                                                    if (playersForRole.length === 0) return null
 
+                                                    return (
+                                                        <div key={role} className="mb-2">
+                                                            <span className="text-[10px] uppercase font-black text-muted-2">
+                                                                {ROLE_NAMES[role]}
+                                                            </span>
+                                                            <div className="space-y-1 mt-1">
+                                                                {playersForRole.map((p: any) => (
+                                                                    <div
+                                                                        key={p.player_id}
+                                                                        className="flex justify-between items-center text-xs px-2 py-1.5 rounded-lg bg-surface/60"
+                                                                    >
+                                                                        <span className="text-foreground">{p.player_name}</span>
+                                                                        <span className="text-success font-bold">{p.price} CR</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })}
                 </div>
-
             </main>
 
             {/* ===================================================
-    WARNING BUDGET RUOLO
-=================================================== */}
-
-            {isRoleBudgetWarningOpen &&
-                pendingBidAmount !== null && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                        <div className="w-full max-w-md bg-surface border border-danger/30 rounded-2xl shadow-2xl p-6">
-
-                            <div className="flex items-center gap-3 mb-5">
-
-                                <div className="w-11 h-11 rounded-xl bg-danger/15 border border-danger/30 flex items-center justify-center">
-                                    <Wallet className="w-5 h-5 text-danger" />
-                                </div>
-
-                                <div>
-                                    <h2 className="text-lg font-black text-white uppercase">
-                                        Budget ruolo superato
-                                    </h2>
-
-                                    <p className="text-xs text-muted font-bold uppercase">
-                                        {ROLE_NAMES[requiredRole]}
-                                    </p>
-                                </div>
-
-                            </div>
-
-                            <div className="bg-surface-elevated/60 border border-border rounded-xl p-4 mb-5 space-y-3">
-
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted">
-                                        Budget impostato
-                                    </span>
-
-                                    <span className="text-white font-black">
-                                        {myRoleBudget} CR
-                                    </span>
-                                </div>
-
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted">
-                                        Già spesi
-                                    </span>
-
-                                    <span className="text-white font-black">
-                                        {myRoleSpent} CR
-                                    </span>
-                                </div>
-
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted">
-                                        Nuova offerta
-                                    </span>
-
-                                    <span className="text-accent font-black">
-                                        {pendingBidAmount} CR
-                                    </span>
-                                </div>
-
-                                <div className="border-t border-border pt-3 flex justify-between">
-                                    <span className="text-danger-hover font-bold">
-                                        Superamento
-                                    </span>
-
-                                    <span className="text-danger font-black">
-                                        +{pendingRoleBudgetExceeded} CR
-                                    </span>
-                                </div>
-
-                            </div>
-
-                            <p className="text-sm text-muted leading-relaxed mb-6">
-                                Questa offerta supera il budget che hai
-                                impostato per questo ruolo.
-                                <br />
-                                <br />
-                                Il budget per ruolo è indicativo.
-                                Vuoi comunque effettuare l'offerta?
-                            </p>
-
-                            <div className="flex gap-3">
-
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setIsRoleBudgetWarningOpen(false)
-                                        setPendingBidAmount(null)
-                                        setPendingRoleBudgetExceeded(0)
-                                    }}
-                                    className="flex-1 py-3 bg-surface-elevated hover:bg-surface-hover border border-border rounded-xl font-black text-xs uppercase transition"
-                                >
-                                    Annulla
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={confirmRoleBudgetBid}
-                                    className="flex-1 py-3 bg-danger hover:bg-danger-hover rounded-xl font-black text-xs uppercase transition"
-                                >
-                                    Fai comunque l'offerta
-                                </button>
-
-                            </div>
-
-                        </div>
-                    </div>
-                )}
-
-            {/* ===================================================
-                MODALE ASSEGNAZIONE
+                MODALE CHIAMATA GIOCATORE
             =================================================== */}
-
-            {isCongratulationModalOpen &&
-                congratulatedPlayer && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-
-                        <div className="bg-surface border border-border rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">
-
-                            <Trophy className="w-12 h-12 text-accent mx-auto mb-3 animate-bounce" />
-
-                            <h2 className="text-2xl font-black uppercase text-white mb-1">
-                                Giocatore Assegnato!
-                            </h2>
-
-                            <p className="text-muted text-sm mb-6">
-
-                                {congratulatedPlayer.isMyTeam
-                                    ? "Complimenti! È entrato nella tua rosa."
-                                    : `Assegnato alla squadra ${congratulatedPlayer.teamName}`}
-
-                            </p>
-
-                            <div className="bg-surface-elevated/80 rounded-xl p-4 border border-border/50 mb-6 text-left space-y-2">
-
-                                <div className="text-xl font-black text-white">
-                                    {
-                                        congratulatedPlayer.name
-                                    }
-                                </div>
-
-                                <div className="flex justify-between items-center pt-2 border-t border-border/50 text-sm">
-
-                                    <span className="text-muted">
-                                        Prezzo di chiusura
-                                    </span>
-
-                                    <span className="font-black text-success">
-                                        {
-                                            congratulatedPlayer.price
-                                        }{' '}
-                                        CR
-                                    </span>
-
-                                </div>
-
-                                <div className="flex justify-between items-center pt-2 border-t border-border/50 text-sm">
-
-                                    <span className="text-muted">
-                                        Squadra vincitrice
-                                    </span>
-
-                                    <span className="font-black text-white">
-                                        {
-                                            congratulatedPlayer.teamName
-                                        }
-                                    </span>
-
-                                </div>
-
-                            </div>
-
-                            {isAdmin ? (
-                                <button
-                                    onClick={async () => {
-                                        setIsCongratulationModalOpen(false);
-                                        setCongratulatedPlayer(null);
-
-                                        const channel = auctionChannelRef.current;
-
-                                        if (channel) {
-                                            await channel.send({
-                                                type: "broadcast",
-                                                event: "auction_continue",
-                                                payload: {
-                                                    auctionId: id,
-                                                },
-                                            });
-                                        }
-
-                                        await fetchCurrentNomination();
-
-                                        if (myTeamId) {
-                                            await fetchMyRoleCounts(myTeamId);
-                                        }
-                                    }}
-                                    className="w-full py-3 bg-primary hover:bg-primary-hover text-white font-black text-xs uppercase tracking-wider rounded-xl transition"
-                                >
-                                    Continua l'Asta
-                                </button>
-                            ) : (
-                                <div className="bg-surface-elevated/80 border border-border rounded-xl p-3">
-                                    <p className="text-xs font-black uppercase text-muted">
-                                        In attesa dell'amministratore
-                                    </p>
-
-                                    <p className="text-[10px] text-muted-2 mt-1">
-                                        L'asta continuerà quando l'amministratore procederà.
-                                    </p>
-                                </div>
-                            )}
-
-                        </div>
-
-                    </div>
-                )}
-
-            {/* ===================================================
-                MODAL CHIAMATA
-            =================================================== */}
-
             {isNominateModalOpen && (
-                <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-
-                    <div className="bg-surface border border-border rounded-2xl w-full max-w-3xl p-6 space-y-4 relative">
-
-                        {isSubmitting && (
-                            <div className="absolute inset-0 bg-background/60 backdrop-blur-xs z-10 flex flex-col items-center justify-center gap-3 rounded-2xl">
-
-                                <Loader2 className="w-8 h-8 text-primary animate-spin" />
-
-                                <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                                    Chiamata in corso...
-                                </span>
-
-                            </div>
-                        )}
-
-                        <div className="flex justify-between items-center">
-
-                            <h3 className="text-sm font-black uppercase text-white">
-                                Chiama{' '}
-                                {roleDisplay}
-                            </h3>
-
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+                    <div className="bg-surface border border-border rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl">
+                        <div className="flex justify-between items-center pb-4 border-b border-border">
+                            <h2 className="text-lg font-black uppercase text-white flex items-center gap-2">
+                                <Gavel className="w-5 h-5 text-primary" />
+                                Chiama un {roleDisplay}
+                            </h2>
                             <button
-                                disabled={
-                                    isSubmitting
-                                }
-                                onClick={() => {
-                                    setBasePriceValue(
-                                        '1'
-                                    )
-
-                                    setIsNominateModalOpen(
-                                        false
-                                    )
-                                }}
-                                className="text-muted hover:text-white"
+                                onClick={() => setIsNominateModalOpen(false)}
+                                className="p-1 hover:bg-surface-elevated rounded-lg text-muted hover:text-white transition"
                             >
                                 <X className="w-5 h-5" />
                             </button>
-
                         </div>
 
-                        <div className="bg-surface-elevated/80 border border-border rounded-xl p-4">
+                        <div className="py-4 space-y-4 flex-1 overflow-hidden flex flex-col">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div className="relative">
+                                    <Search className="w-4 h-4 text-muted absolute left-3 top-3.5" />
+                                    <input
+                                        type="text"
+                                        placeholder="Cerca giocatore..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full bg-surface-elevated border border-border rounded-xl pl-9 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-primary"
+                                    />
+                                </div>
 
-                            <label className="text-xs font-black uppercase text-muted block mb-2">
-                                Prezzo base
-                            </label>
+                                <select
+                                    value={selectedTeamFilter}
+                                    onChange={(e) => setSelectedTeamFilter(e.target.value)}
+                                    className="bg-surface-elevated border border-border rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-primary"
+                                >
+                                    <option value="">Tutte le squadre reali</option>
+                                    {availableTeamsList.map((tName) => (
+                                        <option key={tName} value={tName}>{tName}</option>
+                                    ))}
+                                </select>
 
-                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setOnlyTargets(!onlyTargets)}
+                                    className={`px-4 py-2.5 rounded-xl border text-xs font-bold uppercase transition flex items-center justify-center gap-2 ${onlyTargets
+                                        ? 'bg-accent/20 border-accent text-accent'
+                                        : 'bg-surface-elevated border-border text-muted hover:text-white'
+                                        }`}
+                                >
+                                    <Star className="w-3.5 h-3.5" />
+                                    Solo obiettivi
+                                </button>
+                            </div>
 
+                            <div className="flex items-center gap-3 bg-surface-elevated/40 p-3 rounded-xl border border-border/50">
+                                <label className="text-xs font-bold uppercase text-muted shrink-0">
+                                    Prezzo base (CR):
+                                </label>
                                 <input
                                     type="number"
                                     min="1"
-                                    value={
-                                        basePriceValue
-                                    }
-                                    disabled={
-                                        isSubmitting
-                                    }
-                                    onChange={(
-                                        e
-                                    ) =>
-                                        setBasePriceValue(
-                                            e
-                                                .target
-                                                .value
-                                        )
-                                    }
-                                    className="w-full bg-surface border border-border rounded-lg px-4 py-3 text-white font-black focus:outline-none focus:border-primary"
+                                    value={basePriceValue}
+                                    onChange={(e) => setBasePriceValue(e.target.value)}
+                                    className="w-24 bg-surface border border-border rounded-lg px-3 py-1.5 text-xs text-white font-black text-center focus:outline-none focus:border-primary"
                                 />
-
-                                <span className="text-sm font-black text-accent">
-                                    CR
-                                </span>
-
                             </div>
 
-                            <p className="text-[10px] text-muted-2 mt-2 uppercase">
-                                Default: 1 CR
-                            </p>
-
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row items-center gap-2">
-
-                            <input
-                                type="text"
-                                placeholder="Cerca per nome..."
-                                value={
-                                    searchQuery
-                                }
-                                disabled={
-                                    isSubmitting
-                                }
-                                onChange={(
-                                    e
-                                ) =>
-                                    setSearchQuery(
-                                        e
-                                            .target
-                                            .value
-                                    )
-                                }
-                                className="w-full sm:flex-1 bg-surface-elevated border border-border rounded-lg p-3 text-sm text-white focus:outline-none focus:border-primary"
-                            />
-
-                            <select
-                                value={
-                                    selectedTeamFilter
-                                }
-                                disabled={
-                                    isSubmitting
-                                }
-                                onChange={(
-                                    e
-                                ) =>
-                                    setSelectedTeamFilter(
-                                        e
-                                            .target
-                                            .value
-                                    )
-                                }
-                                className="w-full sm:w-60 bg-surface-elevated border border-border rounded-lg p-3 text-sm text-white focus:outline-none focus:border-primary"
-                            >
-
-                                <option value="">
-                                    Tutte le squadre
-                                </option>
-
-                                {availableTeamsList.map(
-                                    (
-                                        teamName
-                                    ) => (
-                                        <option
-                                            key={
-                                                teamName
-                                            }
-                                            value={
-                                                teamName
-                                            }
-                                        >
-                                            {
-                                                teamName
-                                            }
-                                        </option>
-                                    )
-                                )}
-
-                            </select>
-
-                            <button
-                                disabled={
-                                    isSubmitting
-                                }
-                                onClick={() =>
-                                    setOnlyTargets(
-                                        !onlyTargets
-                                    )
-                                }
-                                className={`px-4 py-3 rounded-lg text-xs font-black uppercase transition flex items-center gap-1.5 border ${onlyTargets
-                                    ? 'bg-accent text-background border-accent-hover'
-                                    : 'bg-surface-elevated text-muted border-border hover:border-border-strong'
-                                    }`}
-                            >
-
-                                <Star
-                                    className={`w-4 h-4 ${onlyTargets
-                                        ? 'fill-background'
-                                        : ''
-                                        }`}
-                                />
-
-                                Obiettivi
-
-                            </button>
-
-                        </div>
-
-                        <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
-
-                            {availablePlayers.length ===
-                                0 ? (
-                                <p className="text-center text-xs text-muted-2 py-6 uppercase font-semibold">
-                                    Nessun giocatore trovato
-                                </p>
-                            ) : (
-                                availablePlayers.map(
-                                    (
-                                        p
-                                    ) => (
-                                        <div
-                                            key={
-                                                p.id
-                                            }
-                                            className="flex justify-between items-center p-3 rounded-xl border bg-surface-elevated/80 border-border/60"
-                                        >
-
-                                            <div className="space-y-1 flex items-center gap-2">
-
-                                                {targetPlayerIds.has(
-                                                    p.id
-                                                ) && (
-                                                        <Star className="w-4 h-4 text-accent fill-accent shrink-0" />
-                                                    )}
-
-                                                <div>
-                                                    <span className="font-bold text-sm text-white">
-                                                        {p.name.toUpperCase()}
-                                                    </span>
-                                                    {(() => {
-                                                        const teamInfo = getRealTeamData(p.team)
-                                                        return (
-                                                            <div className="flex items-center gap-1.5 mt-0.5">
-                                                                <TeamFlag teamData={teamInfo} playerTeam={p.team} />
-                                                                <span className="text-xs text-muted">
-                                                                    {teamInfo?.alias && <span className="text-muted-2 ml-1 font-bold text-s text-white">{teamInfo.alias.toUpperCase()}</span>}<br />
-                                                                    <span className="text-muted-2 ml-1">{teamInfo ? teamInfo.name : p.team}</span>
-                                                                </span>
-                                                            </div>
-                                                        )
-                                                    })()}
+                            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                                {availablePlayers.length === 0 ? (
+                                    <p className="text-center text-muted text-xs py-10">
+                                        Nessun giocatore disponibile trovato per questo ruolo.
+                                    </p>
+                                ) : (
+                                    availablePlayers.map((player) => {
+                                        const isTarget = targetPlayerIds.has(player.id)
+                                        return (
+                                            <div
+                                                key={player.id}
+                                                className="flex items-center justify-between p-3 rounded-xl bg-surface-elevated/60 border border-border/60 hover:border-primary/50 transition"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-bold text-sm text-white">{player.name}</span>
+                                                            <span className="text-[10px] text-muted bg-surface px-2 py-0.5 rounded border border-border">
+                                                                {player.team}
+                                                            </span>
+                                                            {isTarget && (
+                                                                <Star className="w-3.5 h-3.5 text-accent fill-accent" />
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
 
+                                                <button
+                                                    disabled={isSubmitting}
+                                                    onClick={() => handleNominatePlayer(player.id, player.role)}
+                                                    className="px-4 py-2 bg-primary hover:bg-primary-hover disabled:opacity-50 text-white rounded-lg font-black text-xs uppercase transition"
+                                                >
+                                                    Chiama
+                                                </button>
                                             </div>
-
-                                            <button
-                                                disabled={
-                                                    isSubmitting
-                                                }
-                                                onClick={() =>
-                                                    handleNominatePlayer(
-                                                        p.id, p.role
-                                                    )
-                                                }
-                                                className="px-4 py-2 bg-success hover:brightness-110 disabled:opacity-50 rounded-lg text-xs font-black uppercase transition"
-                                            >
-                                                CHIAMA
-                                            </button>
-
-                                        </div>
-                                    )
-                                )
-                            )}
-
+                                        )
+                                    })
+                                )}
+                            </div>
                         </div>
-
                     </div>
-
                 </div>
             )}
+
             {/* ===================================================
-                MODALE OFFERTA PORTIERI EXTRA
-                Proposto solo al client della squadra che ha appena
-                vinto un portiere, se ha ancora slot P liberi.
-                Nessuna approvazione admin: acquisto facoltativo,
-                1 credito a portiere.
+                WARNING BUDGET RUOLO
             =================================================== */}
-
-            {gkSlotOffer && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-
-                    <div className="bg-surface border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl">
-
-                        <h2 className="text-xl font-black uppercase text-white mb-1">
-                            Completa il reparto portieri
-                        </h2>
-
-                        <p className="text-muted text-sm mb-4">
-                            Hai ancora {gkSlotOffer.freeSlots} slot
-                            {gkSlotOffer.freeSlots > 1 ? ' liberi' : ' libero'} per portieri.
-                            Puoi acquistare, se vuoi, gli altri portieri del{' '}
-                            {gkSlotOffer.realTeam} ancora disponibili, a 1 credito ciascuno.
-                            Non sei obbligato a prenderli.
-                        </p>
-
-                        <div className="space-y-2 max-h-72 overflow-y-auto mb-4 pr-1">
-                            {gkSlotOffer.players.map((p: any) => (
-                                <div
-                                    key={p.id}
-                                    className="flex justify-between items-center bg-surface-elevated/80 border border-border/60 rounded-xl p-3"
-                                >
-                                    <span className="font-bold text-sm text-white">
-                                        {p.name.toUpperCase()}
-                                    </span>
-
-                                    <button
-                                        disabled={isBuyingExtraGK}
-                                        onClick={() => buyExtraGK(p)}
-                                        className="px-4 py-2 bg-success hover:brightness-110 disabled:opacity-50 rounded-lg text-xs font-black uppercase transition"
-                                    >
-                                        Compra (1 CR)
-                                    </button>
-                                </div>
-                            ))}
+            {isRoleBudgetWarningOpen && pendingBidAmount !== null && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-md bg-surface border border-danger/30 rounded-2xl shadow-2xl p-6">
+                        <div className="flex items-center gap-3 mb-5">
+                            <div className="w-11 h-11 rounded-xl bg-danger/15 border border-danger/30 flex items-center justify-center">
+                                <Wallet className="w-5 h-5 text-danger" />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-black text-white uppercase">
+                                    Budget ruolo superato
+                                </h2>
+                                <p className="text-xs text-muted font-bold uppercase">
+                                    {ROLE_NAMES[requiredRole]}
+                                </p>
+                            </div>
                         </div>
 
-                        <button
-                            disabled={isBuyingExtraGK}
-                            onClick={() => setGkSlotOffer(null)}
-                            className="w-full py-3 bg-surface-elevated hover:bg-surface-hover disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl transition border border-border"
-                        >
-                            No, grazie
-                        </button>
+                        <div className="bg-surface-elevated/60 border border-border rounded-xl p-4 mb-5 space-y-3">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted">Budget impostato</span>
+                                <span className="text-white font-black">{myRoleBudget} CR</span>
+                            </div>
 
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted">Già spesi</span>
+                                <span className="text-white font-black">{myRoleSpent} CR</span>
+                            </div>
+
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted">Nuova offerta</span>
+                                <span className="text-accent font-black">{pendingBidAmount} CR</span>
+                            </div>
+
+                            <div className="border-t border-border pt-3 flex justify-between">
+                                <span className="text-danger-hover font-bold">Superamento</span>
+                                <span className="text-danger font-black">+{pendingRoleBudgetExceeded} CR</span>
+                            </div>
+                        </div>
+
+                        <p className="text-sm text-muted leading-relaxed mb-6">
+                            Questa offerta supera il budget che hai impostato per questo ruolo.
+                            <br /><br />
+                            Il budget per ruolo è indicativo. Vuoi comunque effettuare l'offerta?
+                        </p>
+
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsRoleBudgetWarningOpen(false)
+                                    setPendingBidAmount(null)
+                                    setPendingRoleBudgetExceeded(0)
+                                }}
+                                className="flex-1 py-3 bg-surface-elevated hover:bg-surface-hover border border-border rounded-xl font-black text-xs uppercase transition"
+                            >
+                                Annulla
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={confirmRoleBudgetBid}
+                                className="flex-1 py-3 bg-danger hover:bg-danger-hover rounded-xl font-black text-xs uppercase transition"
+                            >
+                                Fai comunque l'offerta
+                            </button>
+                        </div>
                     </div>
+                </div>
+            )}
 
+            {/* ===================================================
+                MODALE ASSEGNAZIONE / CONGRATULAZIONI
+            =================================================== */}
+            {isCongratulationModalOpen && congratulatedPlayer && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+                    <div className="bg-surface border border-border rounded-2xl p-8 max-w-md w-full text-center shadow-2xl space-y-6">
+                        <Trophy className="w-12 h-12 text-accent mx-auto animate-bounce" />
+
+                        <div>
+                            <h2 className="text-2xl font-black uppercase text-white mb-1">
+                                Giocatore Assegnato!
+                            </h2>
+                            <p className="text-muted text-sm">
+                                {congratulatedPlayer.isMyTeam
+                                    ? "Complimenti! È entrato nella tua rosa."
+                                    : `Assegnato alla squadra ${congratulatedPlayer.teamName}`}
+                            </p>
+                        </div>
+
+                        <div className="bg-surface-elevated/80 rounded-xl p-4 border border-border/50 text-left space-y-2">
+                            <div className="text-xl font-black text-white">
+                                {congratulatedPlayer.name}
+                            </div>
+                            <div className="flex justify-between items-center pt-2 border-t border-border/50 text-sm">
+                                <span className="text-muted">Prezzo di chiusura</span>
+                                <span className="font-black text-accent">{congratulatedPlayer.price} CR</span>
+                            </div>
+                        </div>
+
+                        {gkSlotOffer && congratulatedPlayer.isMyTeam && congratulatedPlayer.role === 'P' && (
+                            <div className="bg-primary/10 border border-primary/30 rounded-xl p-4 text-left space-y-3">
+                                <div className="text-xs font-black uppercase text-primary">
+                                    Offerta Portiere Extra ({gkSlotOffer.freeSlots} slot liberi)
+                                </div>
+                                <p className="text-xs text-muted">
+                                    Vuoi acquistare un altro portiere della stessa squadra reale ({gkSlotOffer.realTeam}) per 1 CR?
+                                </p>
+                                <div className="space-y-2 max-h-32 overflow-y-auto">
+                                    {gkSlotOffer.players.map((gk) => (
+                                        <div key={gk.id} className="flex justify-between items-center text-xs bg-surface/60 p-2 rounded-lg">
+                                            <span className="text-white font-semibold">{gk.name}</span>
+                                            <button
+                                                disabled={isBuyingExtraGK}
+                                                onClick={() => buyExtraGK(gk)}
+                                                className="px-3 py-1 bg-primary hover:bg-primary-hover text-white rounded font-bold uppercase transition"
+                                            >
+                                                {isBuyingExtraGK ? 'Acquisto...' : 'Prendi (1 CR)'}
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <button
+                            onClick={() => {
+                                setIsCongratulationModalOpen(false)
+                                setCongratulatedPlayer(null)
+                                setGkSlotOffer(null)
+                            }}
+                            className="w-full py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-black text-xs uppercase tracking-wider transition"
+                        >
+                            Chiudi
+                        </button>
+                    </div>
                 </div>
             )}
         </div>
-    )
-}
-
-const getTeamColors = (teamData: any): string[] => {
-    if (!teamData) return ['#334155']
-    if (Array.isArray(teamData.colors) && teamData.colors.length > 0) {
-        return teamData.colors
-    }
-    if (teamData.color) {
-        return [teamData.color]
-    }
-    return ['#334155']
-}
-
-const TeamFlag = ({ teamData, playerTeam }: { teamData?: any; playerTeam: string }) => {
-    const colors = getTeamColors(teamData)
-    const background =
-        colors.length === 1
-            ? colors[0]
-            : `linear-gradient(90deg, ${colors
-                .map((color, index) => `${color} ${(index / colors.length) * 100}%, ${color} ${((index + 1) / colors.length) * 100}%`)
-                .join(', ')})`
-
-    return (
-        <div
-            className="w-6 h-4 shrink-0 rounded overflow-hidden border border-border-strong shadow-sm"
-            style={{ background }}
-            title={teamData ? `${teamData.name} (${teamData.alias})` : playerTeam}
-        />
     )
 }
