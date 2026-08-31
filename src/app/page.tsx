@@ -67,15 +67,14 @@ function AuctionContent({
       <div className="flex items-center gap-3 min-w-0">
         <div className="relative shrink-0">
           <div
-            className={`w-2.5 h-2.5 rounded-full ${
-              isInCorso
+            className={`w-2.5 h-2.5 rounded-full ${isInCorso
                 ? 'bg-accent'
                 : isNuova
-                ? 'bg-primary'
-                : isTerminata
-                ? 'bg-success' 
-                :'bg-muted-2'
-            }`}
+                  ? 'bg-primary'
+                  : isTerminata
+                    ? 'bg-success'
+                    : 'bg-muted-2'
+              }`}
           />
 
           {isInCorso && (
@@ -103,17 +102,16 @@ function AuctionContent({
 
       <div className="flex items-center gap-2 shrink-0">
         <span
-          className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border ${
-            isInCorso
+          className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border ${isInCorso
               ? 'bg-accent/10 text-accent border-accent/20'
               : isNuova
-              ? 'bg-primary/10 text-primary-hover border-primary/20'              
-              : isTerminata
-              ? 'bg-success/10 text-success border-success/20'
-              : 'bg-surface-elevated text-muted border-border'
-          }`}
+                ? 'bg-primary/10 text-primary-hover border-primary/20'
+                : isTerminata
+                  ? 'bg-success/10 text-success border-success/20'
+                  : 'bg-surface-elevated text-muted border-border'
+            }`}
         >
-          {isInCorso ? 'In corso' : isNuova ? 'Nuova' : isTerminata?'Conclusa' : item.status}
+          {isInCorso ? 'In corso' : isNuova ? 'Nuova' : isTerminata ? 'Conclusa' : item.status}
         </span>
 
         {user.role === 'admin' && !isTerminata && (
@@ -154,6 +152,8 @@ export default function DashboardPage() {
   const [initialBudget, setInitialBudget] = useState<number>(500)
 
   const [showPresentation, setShowPresentation] = useState(false)
+  const [outPlayers, setOutPlayers] = useState<any[]>([])
+  const [outPlayersCount, setOutPlayersCount] = useState<number>(0)
 
   /* ==========================================================
      LOAD DATA
@@ -222,8 +222,27 @@ export default function DashboardPage() {
           } else {
             setRemainingBudget(initialBudget)
           }
+
+          const { data: inactivePlayers, error: inactiveError } = await supabase
+            .from('league_team_players')
+            .select(`
+              player_id,
+              players:player_id ( id, name, is_out )
+            `)
+            .eq('team_id', currentTeamId)
+
+          if (!inactiveError && inactivePlayers) {
+            // Filtriamo solo quelli che hanno is_out === true
+            const filteredOut = inactivePlayers
+              .map((item: any) => item.players)
+              .filter((p: any) => p && p.is_out === true)
+
+            setOutPlayers(filteredOut)
+            setOutPlayersCount(filteredOut.length)
+          }
+
         } catch (err) {
-          console.error('Errore calcolo budget:', err)
+          console.error('Errore calcolo budget o giocatori inattivi:', err)
           setRemainingBudget(initialBudget)
         }
       } else {
@@ -489,6 +508,32 @@ export default function DashboardPage() {
                     </Link>
 
                   </div>
+
+                  {outPlayersCount > 0 && (
+                    <div className="mb-6 rounded-2xl border border-danger/30 bg-danger/10 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-danger/20 border border-danger/30 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                          <Trash2 className="w-5 h-5 text-danger" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-black uppercase tracking-wider text-white">
+                            Attenzione: Giocatori non più attivi ({outPlayersCount})
+                          </h4>
+                          <p className="text-xs text-muted-2 mt-0.5">
+                            Nella tua rosa sono presenti {outPlayersCount} giocatori che risultano attualmente ceduti o svincolati ({outPlayers.map(p => p.name).join(', ')}). Ti consigliamo di gestirli nella sezione rosa.
+                          </p>
+                        </div>
+                      </div>
+
+                      <Link
+                        href="/rosa"
+                        className="px-4 py-2 rounded-xl bg-danger text-white text-xs font-bold hover:bg-danger/80 transition shrink-0"
+                      >
+                        Vai alla rosa
+                      </Link>
+                    </div>
+                  )}
+
                 </div>
 
                 <div className="shrink-0 lg:min-w-[230px]">
@@ -645,7 +690,7 @@ export default function DashboardPage() {
                         item.status === 'da_iniziare'
 
                       const conclusa =
-                        item.status === 'conclusa'  
+                        item.status === 'conclusa'
 
                       const handleAuctionClick = (
                         e: React.MouseEvent
@@ -669,10 +714,9 @@ export default function DashboardPage() {
                             flex items-center justify-between
                             text-xs sm:text-sm
                             transition-all
-                            ${
-                              isInCorso
-                                ? 'bg-accent/5 border-accent/20 hover:border-accent/40'
-                                : isNuova
+                            ${isInCorso
+                              ? 'bg-accent/5 border-accent/20 hover:border-accent/40'
+                              : isNuova
                                 ? 'bg-primary/5 border-primary/20 hover:border-primary/40'
                                 : 'bg-background/50 border-border hover:border-border-strong'
                             }
@@ -683,7 +727,7 @@ export default function DashboardPage() {
                               item={item}
                               isInCorso={isInCorso}
                               isNuova={isNuova}
-                              isTerminata = {conclusa}
+                              isTerminata={conclusa}
                               user={user}
                               handleDeleteAuction={
                                 handleDeleteAuction
@@ -698,7 +742,7 @@ export default function DashboardPage() {
                                 item={item}
                                 isInCorso={isInCorso}
                                 isNuova={isNuova}
-                                isTerminata = {conclusa}
+                                isTerminata={conclusa}
                                 user={user}
                                 handleDeleteAuction={
                                   handleDeleteAuction
