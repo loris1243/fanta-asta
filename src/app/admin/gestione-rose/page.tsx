@@ -29,6 +29,7 @@ type TeamWithRoster = {
   id: string
   name: string
   roster: TeamRosterItem[]
+  groupedRoster: Record<string, TeamRosterItem[]>
 }
 
 type FreePlayer = {
@@ -123,9 +124,27 @@ export default function GestioneRosePage() {
           players: Array.isArray(item.players) ? (item.players[0] || null) : (item.players || null)
         }))
 
+        // 1. Ordiniamo i giocatori alfabeticamente per nome
+        formattedRoster.sort((a, b) => {
+          const nameA = a.players?.name || ''
+          const nameB = b.players?.name || ''
+          return nameA.localeCompare(nameB)
+        })
+
+        // 2. Raggruppiamo per ruolo
+        const groupedRoster = formattedRoster.reduce((acc: Record<string, TeamRosterItem[]>, item) => {
+          const role = item.players?.role || 'Senza Ruolo'
+          if (!acc[role]) {
+            acc[role] = []
+          }
+          acc[role].push(item)
+          return acc
+        }, {})
+
         return {
           ...team,
-          roster: formattedRoster
+          roster: formattedRoster,
+          groupedRoster
         }
       })
 
@@ -200,6 +219,14 @@ export default function GestioneRosePage() {
 
   const replacementPrice = swapReplacementMatchPrice ? (selectedItem?.item.price ?? 1) : 1
 
+  // Mappa per ordinare i ruoli rigidamente: Portieri, Difensori, Centrocampisti, Attaccanti
+  const roleOrder: Record<string, number> = {
+    'P': 1, 'Portiere': 1, 'portiere': 1,
+    'D': 2, 'Difensore': 2, 'difensore': 2,
+    'C': 3, 'Centrocampista': 3, 'centrocampista': 3,
+    'A': 4, 'Attaccante': 4, 'attaccante': 4,
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground font-sans flex flex-col md:flex-row">
       <DashboardSidebar
@@ -233,72 +260,92 @@ export default function GestioneRosePage() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {teams.map((team) => (
-            <div key={team.id} className="bg-surface border border-border rounded-2xl p-5 shadow-xl flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between pb-3 mb-4 border-b border-border">
-                  <h2 className="font-bold text-white text-base flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-role-d" />
-                    {team.name}
-                  </h2>
-                  <span className="text-xs font-semibold px-2.5 py-1 bg-surface-elevated text-muted rounded-lg">
-                    {team.roster.length} giocatori
-                  </span>
-                </div>
+          {teams.map((team) => {
+            // Ordiniamo le chiavi dei ruoli in base alla mappa definita sopra
+            const sortedRoles = Object.keys(team.groupedRoster || {}).sort((a, b) => {
+              const orderA = roleOrder[a] || 99
+              const orderB = roleOrder[b] || 99
+              return orderA - orderB
+            })
 
-                {team.roster.length === 0 ? (
-                  <p className="text-xs text-muted-2 italic py-4 text-center">Nessun giocatore in rosa</p>
-                ) : (
-                  <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                    {team.roster.map((item) => (
-                      <div 
-                        key={item.id}
-                        className="flex items-center justify-between p-2.5 bg-surface-elevated/50 hover:bg-surface-elevated rounded-xl transition-all text-xs"
-                      >
-                        <div className="min-w-0 pr-2">
-                          <p className="font-bold text-white truncate">{item.players?.name}</p>
-                          <p className="text-[10px] text-muted uppercase tracking-wider">
-                            {item.players?.role} • {item.players?.team} • <span className="text-primary font-semibold">{item.price} FM</span>
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedItem({ item, fromTeamId: team.id })
-                              setModalType('swap')
-                              setTargetTeamId('')
-                              setTargetTeamPlayerId('')
-                              setFeedback(null)
-                            }}
-                            className="p-1.5 bg-primary/20 hover:bg-primary text-primary-hover hover:text-white rounded-lg transition-all cursor-pointer"
-                            title="Scambia con altra squadra"
-                          >
-                            <ArrowLeftRight className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedItem({ item, fromTeamId: team.id })
-                              setModalType('release')
-                              setReleaseActionType('refund')
-                              setSelectedFreePlayerId('')
-                              setFeedback(null)
-                            }}
-                            className="p-1.5 bg-danger/20 hover:bg-danger text-danger-hover hover:text-white rounded-lg transition-all cursor-pointer"
-                            title="Svincola giocatore"
-                          >
-                            <UserMinus className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+            return (
+              <div key={team.id} className="bg-surface border border-border rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between pb-3 mb-4 border-b border-border">
+                    <h2 className="font-bold text-white text-base flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-role-d" />
+                      {team.name}
+                    </h2>
+                    <span className="text-xs font-semibold px-2.5 py-1 bg-surface-elevated text-muted rounded-lg">
+                      {team.roster.length} giocatori
+                    </span>
                   </div>
-                )}
+
+                  {team.roster.length === 0 ? (
+                    <p className="text-xs text-muted-2 italic py-4 text-center">Nessun giocatore in rosa</p>
+                  ) : (
+                    <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
+                      {sortedRoles.map((role) => {
+                        const items = team.groupedRoster[role]
+                        return (
+                          <div key={role} className="space-y-1.5">
+                            <div className="text-[10px] font-extrabold uppercase tracking-wider text-primary px-1 pt-1 border-b border-border/50 pb-1">
+                              Ruolo: {role} ({items.length})
+                            </div>
+
+                            {items.map((item) => (
+                              <div 
+                                key={item.id}
+                                className="flex items-center justify-between p-2.5 bg-surface-elevated/50 hover:bg-surface-elevated rounded-xl transition-all text-xs"
+                              >
+                                <div className="min-w-0 pr-2">
+                                  <p className="font-bold text-white truncate">{item.players?.name}</p>
+                                  <p className="text-[10px] text-muted uppercase tracking-wider">
+                                    {item.players?.team} • <span className="text-primary font-semibold">{item.price} FM</span>
+                                  </p>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedItem({ item, fromTeamId: team.id })
+                                      setModalType('swap')
+                                      setTargetTeamId('')
+                                      setTargetTeamPlayerId('')
+                                      setFeedback(null)
+                                    }}
+                                    className="p-1.5 bg-primary/20 hover:bg-primary text-primary-hover hover:text-white rounded-lg transition-all cursor-pointer"
+                                    title="Scambia con altra squadra"
+                                  >
+                                    <ArrowLeftRight className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedItem({ item, fromTeamId: team.id })
+                                      setModalType('release')
+                                      setReleaseActionType('refund')
+                                      setSelectedFreePlayerId('')
+                                      setFeedback(null)
+                                    }}
+                                    className="p-1.5 bg-danger/20 hover:bg-danger text-danger-hover hover:text-white rounded-lg transition-all cursor-pointer"
+                                    title="Svincola giocatore"
+                                  >
+                                    <UserMinus className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
 
         {selectedItem && modalType && (
