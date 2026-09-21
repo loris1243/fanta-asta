@@ -9,6 +9,8 @@ export type LeagueSettings = {
   initial_budget: number
   auction_timeout_seconds: number
   call_timeout_seconds: number
+  // Se true, il rimpiazzo preso dagli svincolati costa quanto il giocatore svincolato; se false, costa 1 FM fisso
+  swap_replacement_match_price: boolean
 }
 
 export async function resetLeagueAction() {
@@ -66,6 +68,7 @@ export async function getLeagueSettings(): Promise<LeagueSettings> {
       initial_budget: 500,
       auction_timeout_seconds: 30,
       call_timeout_seconds: 10,
+      swap_replacement_match_price: false,
     }
   }
 
@@ -81,6 +84,7 @@ export async function updateLeagueSettings(formData: FormData) {
   const initial_budget = parseInt(formData.get('initial_budget') as string)
   const auction_timeout_seconds = parseInt(formData.get('auction_timeout_seconds') as string)
   const call_timeout_seconds = parseInt(formData.get('call_timeout_seconds') as string)
+  const swap_replacement_match_price = formData.get('swap_replacement_match_price') === 'on'
 
   // 1. Estrai i valori (con log per debug)
   const settingsData = {
@@ -90,6 +94,7 @@ export async function updateLeagueSettings(formData: FormData) {
     initial_budget: parseInt(formData.get('initial_budget') as string),
     auction_timeout_seconds: parseInt(formData.get('auction_timeout_seconds') as string),
     call_timeout_seconds: parseInt(formData.get('call_timeout_seconds') as string),
+    swap_replacement_match_price,
   }
 
   console.log("Dati inviati a Supabase:", settingsData) // Controlla il terminale del server!
@@ -103,6 +108,7 @@ export async function updateLeagueSettings(formData: FormData) {
       initial_budget,
       auction_timeout_seconds,
       call_timeout_seconds,
+      swap_replacement_match_price,
     })
     .eq('id', 1) // Se usi un id fisso o un altro selettore univoco
 

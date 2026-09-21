@@ -57,6 +57,8 @@ export default function GestioneRosePage() {
   const [releaseActionType, setReleaseActionType] = useState<'refund' | 'swap'>('refund')
   const [selectedFreePlayerId, setSelectedFreePlayerId] = useState('')
 
+  const [swapReplacementMatchPrice, setSwapReplacementMatchPrice] = useState(false)
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<{ success?: string; error?: string } | null>(null)
 
@@ -92,6 +94,13 @@ export default function GestioneRosePage() {
 
       const unassigned = (allPlayersData || []).filter((p) => !assignedIds.has(p.id))
       setFreePlayers(unassigned)
+
+      const { data: leagueSettingsData } = await supabase
+        .from('league_settings')
+        .select('swap_replacement_match_price')
+        .single()
+
+      setSwapReplacementMatchPrice(Boolean(leagueSettingsData?.swap_replacement_match_price))
 
       const teamsWithRostersPromises = teamsData.map(async (team) => {
         const { data: rosterData } = await supabase
@@ -188,6 +197,8 @@ export default function GestioneRosePage() {
 
   const targetTeamData = teams.find(t => t.id === targetTeamId)
   const filteredTargetTeamPlayers = (targetTeamData?.roster || []).filter(item => item.players?.role === currentRoleFilter)
+
+  const replacementPrice = swapReplacementMatchPrice ? (selectedItem?.item.price ?? 1) : 1
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans flex flex-col md:flex-row">
@@ -381,7 +392,7 @@ export default function GestioneRosePage() {
                               : 'bg-surface-elevated border-border text-muted'
                           }`}
                         >
-                          Svincolo + Rimpiazzo (1 FM)
+                          Svincolo + Rimpiazzo ({replacementPrice} FM)
                         </button>
                       </div>
                     </div>

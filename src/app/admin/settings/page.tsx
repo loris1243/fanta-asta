@@ -40,7 +40,8 @@ interface SettingsState
   extends Omit<
     LeagueSettings,
     'auction_timeout_seconds' |
-    'call_timeout_seconds'
+    'call_timeout_seconds' |
+    'swap_replacement_match_price'
   > {
   league_name?: string
 }
@@ -65,6 +66,9 @@ export default function AdminSettingsPage() {
       league_name: '',
     })
 
+  const [swapReplacementMatchPrice, setSwapReplacementMatchPrice] =
+    useState(false)
+
   const [isSidebarOpen, setIsSidebarOpen] =
     useState(true)
   const [isMobileMenuOpen, setIsMobileMenuOpen] =
@@ -85,6 +89,10 @@ export default function AdminSettingsPage() {
           initial_budget:
             data.initial_budget,
         })
+
+        setSwapReplacementMatchPrice(
+          Boolean(data.swap_replacement_match_price)
+        )
 
         setCurrentUser(user)
       } catch (error) {
@@ -518,6 +526,55 @@ export default function AdminSettingsPage() {
                     Budget assegnato ai nuovi
                     partecipanti.
                   </p>
+                </div>
+              </div>
+
+              {/* PREZZO RIMPIAZZO SVINCOLI */}
+
+              <div className="px-5 md:px-6 pb-5 md:pb-6">
+                <div className="rounded-xl bg-background/40 border border-border/70 p-4">
+                  <label className="text-[10px] uppercase tracking-wider text-muted font-bold block mb-1.5">
+                    Prezzo rimpiazzo negli svincoli
+                  </label>
+
+                  <p className="text-[11px] text-muted-2 mb-3 leading-relaxed">
+                    Quando svincoli un giocatore e lo sostituisci con uno
+                    preso dalla lista svincolati, il nuovo giocatore può
+                    costare sempre 1 FM oppure lo stesso prezzo del
+                    giocatore che hai svincolato.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSwapReplacementMatchPrice(false)}
+                      className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
+                        !swapReplacementMatchPrice
+                          ? 'bg-primary/20 border-primary text-primary-hover'
+                          : 'bg-surface border-border text-muted'
+                      }`}
+                    >
+                      Sempre 1 FM
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSwapReplacementMatchPrice(true)}
+                      className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
+                        swapReplacementMatchPrice
+                          ? 'bg-primary/20 border-primary text-primary-hover'
+                          : 'bg-surface border-border text-muted'
+                      }`}
+                    >
+                      Come il giocatore svincolato
+                    </button>
+                  </div>
+
+                  <input
+                    type="hidden"
+                    name="swap_replacement_match_price"
+                    value={swapReplacementMatchPrice ? 'on' : 'off'}
+                  />
                 </div>
               </div>
 

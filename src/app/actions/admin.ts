@@ -146,10 +146,18 @@ export async function releasePlayer(teamPlayerId: string, actionType: 'refund' |
         return { success: false, error: 'Il giocatore di rimpiazzo deve essere dello stesso ruolo.' }
       }
 
-      // Il nuovo giocatore costa 1 credito
-      const newPlayerCost = 1
+      // Recupera dalle impostazioni lega la modalità di prezzo del rimpiazzo
+      const { data: leagueSettings } = await supabaseAdmin
+        .from('league_settings')
+        .select('swap_replacement_match_price')
+        .single()
+
+      const matchPrice = leagueSettings?.swap_replacement_match_price === true
+
+      // Il nuovo giocatore costa quanto il giocatore svincolato (se l'opzione è attiva), altrimenti 1 credito fisso
+      const newPlayerCost = matchPrice ? refundedPrice : 1
       if (newBudget < newPlayerCost) {
-        return { success: false, error: 'Budget insufficiente per acquistare il rimpiazzo a 1 credito.' }
+        return { success: false, error: `Budget insufficiente per acquistare il rimpiazzo a ${newPlayerCost} credit${newPlayerCost === 1 ? 'o' : 'i'}.` }
       }
 
       newBudget -= newPlayerCost
