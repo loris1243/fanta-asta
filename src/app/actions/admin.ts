@@ -73,17 +73,17 @@ export async function swapPlayersBetweenTeams(
     const priceSource = tpSource.price
     const priceTarget = tpTarget.price
 
-    // 3. Esegue lo scambio invertendo sia i team_id che i rispettivi prezzi (nessuna variazione di budget totale)
+    // 3. Esegue lo scambio aggiornando il team_id ma mantenendo il prezzo originale con cui ciascun giocatore è stato pagato
     const { error: updateErrorA } = await supabaseAdmin
       .from('league_team_players')
-      .update({ team_id: teamTargetId, price: priceTarget })
+      .update({ team_id: teamTargetId, price: priceSource })
       .eq('id', playerInSourceTeamId)
 
     if (updateErrorA) throw updateErrorA
 
     const { error: updateErrorB } = await supabaseAdmin
       .from('league_team_players')
-      .update({ team_id: teamSourceId, price: priceSource })
+      .update({ team_id: teamSourceId, price: priceTarget })
       .eq('id', playerInTargetTeamId)
 
     if (updateErrorB) {
