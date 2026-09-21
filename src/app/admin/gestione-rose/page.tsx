@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../../lib/supabaseClient'
 import { swapPlayersBetweenTeams, releasePlayer } from '../../../app/actions/admin'
 import { getCurrentUser, logout } from '../../actions/auth'
-import { ArrowLeftRight, Shield, AlertCircle, CheckCircle2, UserMinus } from 'lucide-react'
+import { ArrowLeftRight, Shield, AlertCircle, CheckCircle2, UserMinus, Search } from 'lucide-react'
 import DashboardSidebar from '../../../components/DashboardSidebar'
 
 interface UserProfile {
@@ -56,16 +56,31 @@ export default function GestioneRosePage() {
   const [targetTeamPlayerId, setTargetTeamPlayerId] = useState('')
   
   const [releaseActionType, setReleaseActionType] = useState<'refund' | 'swap'>('refund')
-  const [selectedFreePlayerId, setSelectedFreePlayerId] = useState('')
+  
+  // Stati per l'Autocomplete del giocatore svincolato
+  const [freePlayerSearch, setFreePlayerSearch] = useState('')
+  const [selectedFreePlayer, setSelectedFreePlayer] = useState<FreePlayer | null>(null)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   const [swapReplacementMatchPrice, setSwapReplacementMatchPrice] = useState(false)
-
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<{ success?: string; error?: string } | null>(null)
 
   const handleLogout = async () => {
     await logout()
   }
+
+  // Chiudi il menu a tendina se si clicca fuori
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const fetchData = async () => {
     setLoading(true)
@@ -124,28 +139,20 @@ export default function GestioneRosePage() {
           players: Array.isArray(item.players) ? (item.players[0] || null) : (item.players || null)
         }))
 
-        // 1. Ordiniamo i giocatori alfabeticamente per nome
         formattedRoster.sort((a, b) => {
           const nameA = a.players?.name || ''
           const nameB = b.players?.name || ''
           return nameA.localeCompare(nameB)
         })
 
-        // 2. Raggruppiamo per ruolo
         const groupedRoster = formattedRoster.reduce((acc: Record<string, TeamRosterItem[]>, item) => {
           const role = item.players?.role || 'Senza Ruolo'
-          if (!acc[role]) {
-            acc[role] = []
-          }
+          if (!acc[role]) acc[role] = []
           acc[role].push(item)
           return acc
         }, {})
 
-        return {
-          ...team,
-          roster: formattedRoster,
-          groupedRoster
-        }
+        return { ...team, roster: formattedRoster, groupedRoster }
       })
 
       const resolvedTeams = await Promise.all(teamsWithRostersPromises)
@@ -163,45 +170,111 @@ export default function GestioneRosePage() {
 
   const handleActionSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedItem) return
+    console.log("=== SUBMIT AVVIATO ===", { modalType, releaseActionType, selectedFreePlayer, targetTeamId, targetTeamPlayerId })
+    
+    if (!selectedItem) {
+      console.log("Errore: selectedItem mancante")
+      return
+    }
 
     setIsSubmitting(true)
     setFeedback(null)
 
-    if (modalType === 'swap') {
-      if (!targetTeamId || !targetTeamPlayerId) return
-      if (selectedItem.fromTeamId === targetTeamId) {
-        setFeedback({ error: 'La squadra di destinazione è uguale a quella attuale!' })
-        setIsSubmitting(false)
-        return
-      }
+    try {
+      if (modalType === 'swap') {
+        if (!targetTeamId || !targetTeamPlayerId) {
+          console.log("Errore: dati scambio mancanti")
+          setIsSubmitting(false)
+          return
+        }
+        if (selectedItem.fromTeamId === targetTeamId) {
+          setFeedback({ error: 'La squadra di destinazione è uguale a quella attuale!' })
+          setIsSubmitting(false)
+          return
+        }
 
-      const res = await swapPlayersBetweenTeams(selectedItem.item.id, targetTeamPlayerId)
-      if (res.success) {
-        setFeedback({ success: 'Scambio effettuato con successo (nessuna modifica ai crediti)!' })
-        setSelectedItem(null)
-        await fetchData()
-      } else {
-        setFeedback({ error: res.error || 'Errore durante lo scambio.' })
-      }
-    } else if (modalType === 'release') {
-      const res = await releasePlayer(
-        selectedItem.item.id, 
-        releaseActionType, 
-        releaseActionType === 'swap' ? selectedFreePlayerId : undefined
-      )
+        console.log("Chiamata a swapPlayersBetweenTeams...")
+        const res = await swapPlayersBetweenTeams(selectedItem.item.id, targetTeamPlayerId)
+        console.log("Risposta swap:", res)
 
-      if (res.success) {
-        setFeedback({ success: releaseActionType === 'refund' ? 'Giocatore svincolato con rimborso crediti!' : 'Giocatore svincolato e rimpiazzato con successo!' })
-        setSelectedItem(null)
-        await fetchData()
-      } else {
-        setFeedback({ error: res.error || 'Errore durante lo svincolo.' })
+        if (res.success) {
+          setFeedback({ success: 'Scambio effettuato con successo!' })
+          setSelectedItem(null)
+          await fetchData()
+        } else {
+          setFeedback({ error: res.error || 'Errore durante lo scambio.' })
+        }
+      } else if (modalType === 'release') {
+        console.log("Chiamata a releasePlayer con:", {
+          teamPlayerId: selectedItem.item.id,
+          releaseActionType,
+          newPlayerId: releaseActionType === 'swap' ? selectedFreePlayer?.id : undefined
+        })
+
+        const res = await releasePlayer(
+          selectedItem.item.id, 
+          releaseActionType, 
+          releaseActionType === 'swap' ? selectedFreePlayer?.id : undefined
+        )
+        console.log("Risposta release:", res)
+
+        if (res.success) {
+          setFeedback({ success: releaseActionType === 'refund' ? 'Giocatore svincolato con rimborso!' : 'Giocatore svincolato e rimpiazzato con successo!' })
+          setSelectedItem(null)
+          await fetchData()
+        } else {
+          setFeedback({ error: res.error || 'Errore durante lo svincolo.' })
+        }
       }
+    } catch (err) {
+      console.error("Eccezione catturata nel submit:", err)
+      setFeedback({ error: 'Errore imprevisto durante l\'operazione.' })
+    } finally {
+      setIsSubmitting(false)
     }
-
-    setIsSubmitting(false)
   }
+
+  // const handleActionSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault()
+  //   if (!selectedItem) return
+
+  //   setIsSubmitting(true)
+  //   setFeedback(null)
+
+  //   if (modalType === 'swap') {
+  //     if (!targetTeamId || !targetTeamPlayerId) return
+  //     if (selectedItem.fromTeamId === targetTeamId) {
+  //       setFeedback({ error: 'La squadra di destinazione è uguale a quella attuale!' })
+  //       setIsSubmitting(false)
+  //       return
+  //     }
+
+  //     const res = await swapPlayersBetweenTeams(selectedItem.item.id, targetTeamPlayerId)
+  //     if (res.success) {
+  //       setFeedback({ success: 'Scambio effettuato con successo!' })
+  //       setSelectedItem(null)
+  //       await fetchData()
+  //     } else {
+  //       setFeedback({ error: res.error || 'Errore durante lo scambio.' })
+  //     }
+  //   } else if (modalType === 'release') {
+  //     const res = await releasePlayer(
+  //       selectedItem.item.id, 
+  //       releaseActionType, 
+  //       releaseActionType === 'swap' ? selectedFreePlayer?.id : undefined
+  //     )
+
+  //     if (res.success) {
+  //       setFeedback({ success: releaseActionType === 'refund' ? 'Giocatore svincolato con rimborso!' : 'Giocatore svincolato e rimpiazzato con successo!' })
+  //       setSelectedItem(null)
+  //       await fetchData()
+  //     } else {
+  //       setFeedback({ error: res.error || 'Errore durante lo svincolo.' })
+  //     }
+  //   }
+
+  //   setIsSubmitting(false)
+  // }
 
   if (loading || !user) {
     return (
@@ -212,14 +285,22 @@ export default function GestioneRosePage() {
   }
 
   const currentRoleFilter = selectedItem?.item.players?.role
-  const filteredFreePlayers = freePlayers.filter(p => p.role === currentRoleFilter)
+  
+  // Filtro per l'Autocomplete degli svincolati dello stesso ruolo
+  const filteredFreePlayers = freePlayers.filter(p => {
+    const matchesRole = p.role?.toLowerCase() === currentRoleFilter?.toLowerCase()
+    const matchesSearch = p.name.toLowerCase().includes(freePlayerSearch.toLowerCase()) || 
+                          p.team.toLowerCase().includes(freePlayerSearch.toLowerCase())
+    return matchesRole && matchesSearch
+  })
 
   const targetTeamData = teams.find(t => t.id === targetTeamId)
-  const filteredTargetTeamPlayers = (targetTeamData?.roster || []).filter(item => item.players?.role === currentRoleFilter)
+  const filteredTargetTeamPlayers = (targetTeamData?.roster || []).filter(
+    item => item.players?.role?.toLowerCase() === currentRoleFilter?.toLowerCase()
+  )
 
   const replacementPrice = swapReplacementMatchPrice ? (selectedItem?.item.price ?? 1) : 1
 
-  // Mappa per ordinare i ruoli rigidamente: Portieri, Difensori, Centrocampisti, Attaccanti
   const roleOrder: Record<string, number> = {
     'P': 1, 'Portiere': 1, 'portiere': 1,
     'D': 2, 'Difensore': 2, 'difensore': 2,
@@ -246,7 +327,7 @@ export default function GestioneRosePage() {
             Gestione Rose e Svincoli
           </h1>
           <p className="text-sm text-muted">
-            Effettua scambi diretti tra rose (senza variazioni di budget) o gestisci gli svincoli.
+            Effettua scambi diretti tra rose o gestisci gli svincoli con rimpiazzo.
           </p>
         </div>
 
@@ -261,7 +342,6 @@ export default function GestioneRosePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {teams.map((team) => {
-            // Ordiniamo le chiavi dei ruoli in base alla mappa definita sopra
             const sortedRoles = Object.keys(team.groupedRoster || {}).sort((a, b) => {
               const orderA = roleOrder[a] || 99
               const orderB = roleOrder[b] || 99
@@ -326,7 +406,8 @@ export default function GestioneRosePage() {
                                       setSelectedItem({ item, fromTeamId: team.id })
                                       setModalType('release')
                                       setReleaseActionType('refund')
-                                      setSelectedFreePlayerId('')
+                                      setSelectedFreePlayer(null)
+                                      setFreePlayerSearch('')
                                       setFeedback(null)
                                     }}
                                     className="p-1.5 bg-danger/20 hover:bg-danger text-danger-hover hover:text-white rounded-lg transition-all cursor-pointer"
@@ -445,27 +526,51 @@ export default function GestioneRosePage() {
                     </div>
 
                     {releaseActionType === 'swap' && (
-                      <div>
-                        <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">
-                          Seleziona Nuovo Giocatore ({currentRoleFilter})
+                      <div className="space-y-2 relative" ref={dropdownRef}>
+                        <label className="block text-xs font-semibold text-muted uppercase tracking-wider">
+                          Cerca Nuovo Giocatore ({currentRoleFilter})
                         </label>
-                        <select
-                          value={selectedFreePlayerId}
-                          onChange={(e) => setSelectedFreePlayerId(e.target.value)}
-                          required
-                          className="w-full bg-surface-elevated border border-border text-white rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-primary"
-                        >
-                          <option value="" disabled>Seleziona svincolato...</option>
-                          {filteredFreePlayers.length === 0 ? (
-                            <option disabled value="">Nessun giocatore disponibile in questo ruolo</option>
-                          ) : (
-                            filteredFreePlayers.map((fp) => (
-                              <option key={fp.id} value={fp.id}>
-                                {fp.name} ({fp.team})
-                              </option>
-                            ))
-                          )}
-                        </select>
+                        
+                        {/* Input Autocomplete */}
+                        <div className="relative">
+                          <Search className="absolute left-3 top-3 w-4 h-4 text-muted" />
+                          <input
+                            type="text"
+                            placeholder="Digita il nome del giocatore..."
+                            value={selectedFreePlayer ? `${selectedFreePlayer.name} (${selectedFreePlayer.team})` : freePlayerSearch}
+                            onChange={(e) => {
+                              setSelectedFreePlayer(null)
+                              setFreePlayerSearch(e.target.value)
+                              setIsDropdownOpen(true)
+                            }}
+                            onFocus={() => setIsDropdownOpen(true)}
+                            className="w-full bg-surface-elevated border border-border text-white rounded-xl pl-9 pr-3.5 py-2.5 text-sm focus:outline-none focus:border-primary"
+                          />
+                        </div>
+
+                        {/* Dropdown dei risultati filtrati */}
+                        {isDropdownOpen && (
+                          <div className="absolute left-0 right-0 mt-1 bg-surface-elevated border border-border rounded-xl shadow-2xl max-h-48 overflow-y-auto z-50">
+                            {filteredFreePlayers.length === 0 ? (
+                              <div className="p-3 text-xs text-muted text-center">Nessun giocatore trovato</div>
+                            ) : (
+                              filteredFreePlayers.map((fp) => (
+                                <div
+                                  key={fp.id}
+                                  onClick={() => {
+                                    setSelectedFreePlayer(fp)
+                                    setFreePlayerSearch('')
+                                    setIsDropdownOpen(false)
+                                  }}
+                                  className="px-3.5 py-2.5 text-xs hover:bg-primary/20 hover:text-white cursor-pointer transition-colors flex items-center justify-between border-b border-border/30 last:border-none"
+                                >
+                                  <span className="font-bold text-white">{fp.name}</span>
+                                  <span className="text-muted">{fp.team}</span>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -481,7 +586,7 @@ export default function GestioneRosePage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={isSubmitting || (modalType === 'swap' && (!targetTeamId || !targetTeamPlayerId)) || (modalType === 'release' && releaseActionType === 'swap' && !selectedFreePlayerId)}
+                    disabled={isSubmitting || (modalType === 'swap' && (!targetTeamId || !targetTeamPlayerId)) || (modalType === 'release' && releaseActionType === 'swap' && !selectedFreePlayer)}
                     className="px-4 py-2 rounded-xl text-sm font-semibold bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/20 transition-all disabled:opacity-50 cursor-pointer"
                   >
                     {isSubmitting ? 'Elaborazione...' : 'Conferma'}

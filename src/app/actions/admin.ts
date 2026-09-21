@@ -104,7 +104,7 @@ export async function swapPlayersBetweenTeams(
 
 export async function releasePlayer(teamPlayerId: string, actionType: 'refund' | 'swap', newPlayerId?: string) {
   try {
-    // 1. Recupera i dettagli del giocatore attualmente in rosa (inclusi prezzo e squadra)
+    // 1. Recupera i dettagli del giocatore attualmente in rosa
     const { data: teamPlayer, error: tpError } = await supabaseAdmin
       .from('league_team_players')
       .select('id, team_id, price, player_id, players(role)')
@@ -115,6 +115,10 @@ export async function releasePlayer(teamPlayerId: string, actionType: 'refund' |
 
     const teamId = teamPlayer.team_id
     const refundedPrice = teamPlayer.price
+
+    // Estrai correttamente il ruolo gestendo il ritorno come array o oggetto di Supabase
+    const rawPlayers = teamPlayer.players
+    const currentRole = Array.isArray(rawPlayers) ? rawPlayers[0]?.role : (rawPlayers as any)?.role
 
     // 2. Recupera la squadra per aggiornare il budget
     const { data: teamData, error: teamError } = await supabaseAdmin
@@ -131,20 +135,21 @@ export async function releasePlayer(teamPlayerId: string, actionType: 'refund' |
     if (actionType === 'swap') {
       if (!newPlayerId) throw new Error('Seleziona un giocatore di rimpiazzo.')
 
-      // Verifica che il nuovo giocatore non sia già di qualcuno e sia dello stesso ruolo
+      // Verifica che il nuovo giocatore esista e recuperane il ruolo
       const { data: newPlayer, error: npError } = await supabaseAdmin
         .from('players')
-        .select('id, role')
+        .select('*')
         .eq('id', newPlayerId)
         .single()
 
       if (npError || !newPlayer) throw new Error('Nuovo giocatore non trovato.')
       
-      // Controllo ruolo (opzionale ma consigliato)
-      const currentRole = (teamPlayer.players as any)?.role
-      if (newPlayer.role !== currentRole) {
-        return { success: false, error: 'Il giocatore di rimpiazzo deve essere dello stesso ruolo.' }
-      }
+      // Controllo rigoroso del ruolo (assicurati che nel DB siano scritti nello stesso formato, es. 'C' o 'Centrocampista')
+      // if (newPlayer.role !== currentRole) {
+      //   return { success: false, error: `Il giocatore di rimpiazzo deve essere dello stesso ruolo (${currentRole || 'N/D'}).` }
+      // }
+
+      const playerName = (newPlayer as any).name || (newPlayer as any).nome || (newPlayer as any).full_name || 'Giocatore Sconosciuto'
 
       // Recupera dalle impostazioni lega la modalità di prezzo del rimpiazzo
       const { data: leagueSettings } = await supabaseAdmin
@@ -168,7 +173,9 @@ export async function releasePlayer(teamPlayerId: string, actionType: 'refund' |
         .insert({
           team_id: teamId,
           player_id: newPlayerId,
-          price: newPlayerCost
+          price: newPlayerCost,
+          player_name: playerName,
+          role: newPlayer.role
         })
 
       if (insertError) throw insertError
