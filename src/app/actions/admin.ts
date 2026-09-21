@@ -38,7 +38,7 @@ export async function swapPlayersBetweenTeams(
   playerInTargetTeamId: string  // ID del record league_team_players del giocatore che ricevi in cambio
 ) {
   try {
-    // 1. Recupera i dettagli e il prezzo del primo giocatore
+    // 1. Recupera i dettagli e il prezzo del primo giocatore e la sua squadra
     const { data: tpSource, error: errSource } = await supabaseAdmin
       .from('league_team_players')
       .select('id, team_id, player_id, price, players(role)')
@@ -47,7 +47,7 @@ export async function swapPlayersBetweenTeams(
 
     if (errSource || !tpSource) throw new Error('Giocatore di partenza in rosa non trovato.')
 
-    // 2. Recupera i dettagli e il prezzo del secondo giocatore
+    // 2. Recupera i dettagli e il prezzo del secondo giocatore e la sua squadra
     const { data: tpTarget, error: errTarget } = await supabaseAdmin
       .from('league_team_players')
       .select('id, team_id, player_id, price, players(role)')
@@ -70,10 +70,39 @@ export async function swapPlayersBetweenTeams(
       return { success: false, error: 'Lo scambio deve avvenire tra giocatori dello stesso ruolo.' }
     }
 
-    const priceSource = tpSource.price
-    const priceTarget = tpTarget.price
+    const priceSource = tpSource.price // Es. 30
+    const priceTarget = tpTarget.price // Es. 20
 
-    // 3. Esegue lo scambio aggiornando il team_id ma mantenendo il prezzo originale con cui ciascun giocatore è stato pagato
+    // 3. Recupera i budget attuali delle due squadre
+    const { data: teamSourceData, error: tsError } = await supabaseAdmin
+      .from('league_teams')
+      .select('budget')
+      .eq('id', teamSourceId)
+      .single()
+
+    if (tsError || !teamSourceData) throw new Error('Squadra di partenza non trovata.')
+
+    const { data: teamTargetData, error: ttError } = await supabaseAdmin
+      .from('league_teams')
+      .select('budget')
+      .eq('id', teamTargetId)
+      .single()
+
+    if (ttError || !teamTargetData) throw new Error('Squadra di arrivo non trovata.')
+
+    // Calcolo della differenza economica
+    // Esempio: se source cede un giocatore da 30 e prende uno da 20, la differenza è (20 - 30) = -10 crediti (quindi recupera 10 crediti di conguaglio o viceversa)
+    // Riformuliamo chiaramente: 
+    // La Squadra Source cede il suo giocatore (valore priceSource) e prende quello di Target (valore priceTarget).
+    // Nuova spesa per Source = priceTarget (invece di priceSource). Variazione budget Source = + (priceSource - priceTarget).
+    // Nuova spesa per Target = priceSource (invece di priceTarget). Variazione budget Target = + (priceTarget - priceSource).
+    
+    const diffSource = priceSource - priceTarget // Es. 30 - 20 = 10 (crediti che tornano o si muovono)
+    const newBudgetSource = teamSourceData.budget + diffSource
+    const newBudgetTarget = teamTargetData.budget - diffSource
+
+    // 4. Esegue l'aggiornamento dei team_id mantenendo i prezzi originali dei cartellini (o gestendo il conguaglio)
+    // Nota: Se il giocatore si sposta mantenendo il proprio prezzo originario con cui è stato pagato:
     const { error: updateErrorA } = await supabaseAdmin
       .from('league_team_players')
       .update({ team_id: teamTargetId, price: priceSource })
@@ -87,13 +116,28 @@ export async function swapPlayersBetweenTeams(
       .eq('id', playerInTargetTeamId)
 
     if (updateErrorB) {
-      // Rollback in caso di errore sul secondo aggiornamento
+      // Rollback del primo in caso di errore
       await supabaseAdmin
         .from('league_team_players')
         .update({ team_id: teamSourceId, price: priceSource })
         .eq('id', playerInSourceTeamId)
       throw updateErrorB
     }
+
+    // 5. Aggiorna i budget delle due squadre
+    const { error: updateBudgetSourceError } = await supabaseAdmin
+      .from('league_teams')
+      .update({ budget: newBudgetSource })
+      .eq('id', teamSourceId)
+
+    if (updateBudgetSourceError) throw updateBudgetSourceError
+
+    const { error: updateBudgetTargetError } = await supabaseAdmin
+      .from('league_teams')
+      .update({ budget: newBudgetTarget })
+      .eq('id', teamTargetId)
+
+    if (updateBudgetTargetError) throw updateBudgetTargetError
 
     return { success: true }
   } catch (err: any) {
