@@ -9,6 +9,7 @@ import {
   Percent,
   DollarSign,
   AlertTriangle,
+  RefreshCw,
 } from 'lucide-react'
 
 import { getCurrentUser, logout } from '../actions/auth'
@@ -42,6 +43,18 @@ interface TargetPlayer {
   id: string
   player_id: number
   player: Player
+  replacement_player_id?: number | null
+}
+
+interface RosterPlayer {
+  id: string
+  price: number
+  players: {
+    id: number
+    name: string
+    team: string
+    role: string
+  } | null
 }
 
 export default function ObiettiviPage() {
@@ -51,38 +64,19 @@ export default function ObiettiviPage() {
 
   const [targets, setTargets] = useState<TargetPlayer[]>([])
   const [teams, setTeams] = useState<Team[]>([])
+  const [userRoster, setUserRoster] = useState<RosterPlayer[]>([])
 
   const [loading, setLoading] = useState(true)
   const [showWarning, setShowWarning] = useState(false)
+  const [isSubmittingAll, setIsSubmittingAll] = useState(false)
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
-  // ============================================================
-  // BUDGET E IMPOSTAZIONI
-  // ============================================================
-
   const [maxBudget, setMaxBudget] = useState<number>(500)
-
-  // Stati separati per gestire in modo indipendente percentuali e crediti fissi
   const [budgetMode, setBudgetMode] = useState<'percentage' | 'fixed'>('percentage')
   
-  const [percentBudget, setPercentBudget] = useState({
-    P: 0,
-    D: 0,
-    C: 0,
-    A: 0,
-  })
-
-  const [fixedBudget, setFixedBudget] = useState({
-    P: 0,
-    D: 0,
-    C: 0,
-    A: 0,
-  })
-
-  // ============================================================
-  // CARICAMENTO DATI
-  // ============================================================
+  const [percentBudget, setPercentBudget] = useState({ P: 0, D: 0, C: 0, A: 0 })
+  const [fixedBudget, setFixedBudget] = useState({ P: 0, D: 0, C: 0, A: 0 })
 
   useEffect(() => {
     async function loadData() {
@@ -95,533 +89,200 @@ export default function ObiettiviPage() {
 
       setUser(currentUser)
 
-      // --------------------------------------------------------
-      // OBIETTIVI
-      // --------------------------------------------------------
-
-      const { data: targetsData, error: targetsError } =
-        await supabase
-          .from('user_targets')
-          .select(`
+      // Caricamento Obiettivi (inclusa la colonna di sostituzione se presente nel DB)
+      const { data: targetsData, error: targetsError } = await supabase
+        .from('user_targets')
+        .select(`
+          id,
+          player_id,
+          replacement_player_id,
+          player:players(
             id,
-            player_id,
-            player:players(
-              id,
-              name,
-              role,
-              team,
-              fvm
-            )
-          `)
-          .eq('user_id', currentUser.id)
+            name,
+            role,
+            team,
+            fvm
+          )
+        `)
+        .eq('user_id', currentUser.id)
 
       if (targetsError) {
-        console.error(
-          'Errore nel caricamento obiettivi:',
-          targetsError
-        )
+        console.error('Errore nel caricamento obiettivi:', targetsError)
       } else if (targetsData) {
-        const formattedTargets: TargetPlayer[] =
-          targetsData
-            .filter((item: any) => item.player)
-            .map((item: any) => ({
-              id: item.id,
-              player_id: item.player_id,
-              player: Array.isArray(item.player)
-                ? item.player[0]
-                : item.player,
-            }))
+        const formattedTargets: TargetPlayer[] = targetsData
+          .filter((item: any) => item.player)
+          .map((item: any) => ({
+            id: item.id,
+            player_id: item.player_id,
+            replacement_player_id: item.replacement_player_id ?? null,
+            player: Array.isArray(item.player) ? item.player[0] : item.player,
+          }))
 
         setTargets(formattedTargets)
       }
 
-      // --------------------------------------------------------
-      // SQUADRE
-      // --------------------------------------------------------
+      // Caricamento Squadre reali
+      const { data: teamsData } = await supabase.from('teams').select('id, name, alias, color, colors')
+      if (teamsData) {
+        setTeams(teamsData.map((team: any) => ({
+          id: team.id,
+          name: team.name,
+          alias: team.alias,
+          color: team.color ?? null,
+          colors: Array.isArray(team.colors) ? team.colors : [],
+        })))
+      }
 
-      const { data: teamsData, error: teamsError } =
-        await supabase
-          .from('teams')
-          .select(
-            'id, name, alias, color, colors'
-          )
+      // Caricamento Rosa della squadra dell'utente per il menu a tendina "chi sostituirebbe"
+      const { data: teamData } = await supabase
+        .from('league_teams')
+        .select('id, name')
+        .eq('user_id', currentUser.id)
+        .maybeSingle()
 
-      if (teamsError) {
-        console.error(
-          'Errore nel caricamento squadre:',
-          teamsError
-        )
-      } else if (teamsData) {
-        const formattedTeams: Team[] =
-          teamsData.map((team: any) => ({
-            id: team.id,
-            name: team.name,
-            alias: team.alias,
-            color: team.color ?? null,
-            colors: Array.isArray(team.colors)
-              ? team.colors
-              : [],
+      if (teamData) {
+        const { data: rosterData } = await supabase
+          .from('league_team_players')
+          .select(`
+            id,
+            price,
+            players (
+              id,
+              name,
+              team,
+              role
+            )
+          `)
+          .eq('team_id', teamData.id)
+
+        if (rosterData) {
+          const formattedRoster = rosterData.map((item: any) => ({
+            id: item.id,
+            price: item.price,
+            players: Array.isArray(item.players) ? (item.players[0] || null) : (item.players || null)
           }))
-
-        setTeams(formattedTeams)
+          setUserRoster(formattedRoster)
+        }
       }
 
-      // --------------------------------------------------------
-      // SETTINGS
-      // --------------------------------------------------------
+      const { data: settingsData } = await supabase.from('settings').select('*').single()
+      if (settingsData?.max_budget) setMaxBudget(settingsData.max_budget)
 
-      const { data: settingsData } =
-        await supabase
-          .from('settings')
-          .select('*')
-          .single()
-
-      if (settingsData?.max_budget) {
-        setMaxBudget(settingsData.max_budget)
-      }
-
-      // --------------------------------------------------------
-      // BUDGET UTENTE
-      // --------------------------------------------------------
-
-      const { data: userBudgetPref } =
-        await supabase
-          .from('user_role_budgets')
-          .select('*')
-          .eq('user_id', currentUser.id)
-          .single()
+      const { data: userBudgetPref } = await supabase
+        .from('user_role_budgets')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .single()
 
       if (userBudgetPref) {
-        const mode =
-          userBudgetPref.mode === 'fixed'
-            ? 'fixed'
-            : 'percentage'
-
+        const mode = userBudgetPref.mode === 'fixed' ? 'fixed' : 'percentage'
         setBudgetMode(mode)
-
         const loadedValues = {
           P: userBudgetPref.p_val ?? 0,
           D: userBudgetPref.d_val ?? 0,
           C: userBudgetPref.c_val ?? 0,
           A: userBudgetPref.a_val ?? 0,
         }
-
-        if (mode === 'fixed') {
-          setFixedBudget(loadedValues)
-        } else {
-          setPercentBudget(loadedValues)
-        }
+        if (mode === 'fixed') setFixedBudget(loadedValues)
+        else setPercentBudget(loadedValues)
       }
 
-       const initialBudget =
-            settingsData?.initial_budget ??
-            currentUser.budget ??
-            500
+      const initialBudget = settingsData?.initial_budget ?? currentUser.budget ?? 500
+      const { data: boughtPlayers } = await supabase
+        .from('league_team_players')
+        .select('price')
+        .eq('team_id', teamData?.id)
 
-        const { data: teamData } = await supabase
-          .from('league_teams')
-          .select('id, name, logo_url')
-          .eq('user_id', currentUser.id)
-          .maybeSingle()
+      const totalSpent = boughtPlayers?.reduce((acc, player) => acc + (player.price || 0), 0) ?? 0
+      setRemainingBudget(Math.max(initialBudget - totalSpent, 0))
 
-          const { data: boughtPlayers, error: boughtError } =
-            await supabase
-              .from('league_team_players')
-              .select('price')
-              .eq('team_id', teamData?.id)
-
-          if (boughtError) {
-            console.error(
-              'Errore caricamento giocatori acquistati:',
-              boughtError
-            )
-          }
-
-          const totalSpent =
-            boughtPlayers?.reduce(
-              (acc, player) =>
-                acc + (player.price || 0),
-              0
-            ) ?? 0
-
-          setRemainingBudget(
-            Math.max(
-              initialBudget - totalSpent,
-              0
-            )
-          )
-
-      setLoading(false)      
+      setLoading(false)
     }
 
     loadData()
   }, [])
 
-  // ============================================================
-  // LOGOUT
-  // ============================================================
-
   const handleLogout = async () => {
     await logout()
   }
 
-  // ============================================================
-  // TROVA LA SQUADRA DEL GIOCATORE
-  // ============================================================
-
-  const getPlayerTeam = (
-    playerTeam: string
-  ): Team | null => {
+  const getPlayerTeam = (playerTeam: string): Team | null => {
     if (!playerTeam) return null
-
-    const normalizedPlayerTeam =
-      playerTeam.trim().toLowerCase()
-
-    return (
-      teams.find(
-        (team) =>
-          team.alias?.trim().toLowerCase() ===
-          normalizedPlayerTeam
-      ) ?? null
-    )
+    const normalizedPlayerTeam = playerTeam.trim().toLowerCase()
+    return teams.find((team) => team.alias?.trim().toLowerCase() === normalizedPlayerTeam) ?? null
   }
 
-  // ============================================================
-  // CALCOLO CREDITI PER RUOLO
-  // ============================================================
+  const currentActiveBudget = budgetMode === 'percentage' ? percentBudget : fixedBudget
 
-  const currentActiveBudget =
-    budgetMode === 'percentage'
-      ? percentBudget
-      : fixedBudget
-
-  const getEffectiveCredits = (
-    roleKey: 'P' | 'D' | 'C' | 'A'
-  ): number => {
+  const getEffectiveCredits = (roleKey: 'P' | 'D' | 'C' | 'A'): number => {
     const value = currentActiveBudget[roleKey]
-
-    if (budgetMode === 'percentage') {
-      return Math.round(
-        (maxBudget * value) / 100
-      )
-    }
-
+    if (budgetMode === 'percentage') return Math.round((maxBudget * value) / 100)
     return value
   }
 
-  const totalDistributed =
-    getEffectiveCredits('P') +
-    getEffectiveCredits('D') +
-    getEffectiveCredits('C') +
-    getEffectiveCredits('A')
-
-  // ============================================================
-  // CONTROLLO BUDGET
-  // ============================================================
+  const totalDistributed = getEffectiveCredits('P') + getEffectiveCredits('D') + getEffectiveCredits('C') + getEffectiveCredits('A')
 
   useEffect(() => {
-    setShowWarning(
-      totalDistributed > maxBudget
-    )
+    setShowWarning(totalDistributed > maxBudget)
   }, [totalDistributed, maxBudget])
 
-  // ============================================================
-  // SALVATAGGIO AUTOMATICO (UPSERT SU UN UNICO RECORD)
-  // ============================================================
-
-  useEffect(() => {
+  // 1. FUNZIONE PER CANCELLARE TUTTI GLI OBIETTIVI
+  const removeAllTargets = async () => {
     if (!user?.id) return
+    if (!window.confirm("Sei sicuro di voler eliminare tutti gli obiettivi salvati?")) return
 
-    const timer = setTimeout(async () => {
-      const activeData =
-        budgetMode === 'percentage'
-          ? percentBudget
-          : fixedBudget
-
-      const { error } = await supabase
-        .from('user_role_budgets')
-        .upsert(
-          {
-            user_id: user.id,
-            mode: budgetMode,
-            p_val: activeData.P,
-            d_val: activeData.D,
-            c_val: activeData.C,
-            a_val: activeData.A,
-            updated_at:
-              new Date().toISOString(),
-          },
-          {
-            onConflict: 'user_id',
-          }
-        )
-
-      if (error) {
-        console.error(
-          'Errore salvataggio budget:',
-          error
-        )
-      }
-    }, 800)
-
-    return () => clearTimeout(timer)
-  }, [budgetMode, percentBudget, fixedBudget, user?.id])
-
-  // ============================================================
-  // MODIFICA BUDGET
-  // ============================================================
-
-const getTotal = (b: { P: number; D: number; C: number; A: number }) =>
-  b.P + b.D + b.C + b.A
-
-const updateBudget = (
-  roleKey: 'P' | 'D' | 'C' | 'A',
-  value: number
-) => {
-  const safeValue = isNaN(value) ? 0 : Math.max(0, value)
-
-  if (budgetMode === 'percentage') {
-    setPercentBudget((prev) => {
-      const updated = {
-        ...prev,
-        [roleKey]: Math.min(100, safeValue),
-      }
-
-      let total = getTotal(updated)
-      const otherRoles = roles.filter(r => r !== roleKey)
-
-      // 🔴 se supera 100 → riduco gli altri
-      if (total > 100) {
-        let overflow = total - 100
-
-        for (const r of otherRoles) {
-          if (overflow <= 0) break
-          const reducible = Math.min(updated[r], overflow)
-          updated[r] -= reducible
-          overflow -= reducible
-        }
-      }
-
-      // 🔵 se sotto 100 → distribuisco
-      if (total < 100) {
-        let deficit = 100 - total
-        const perRole = deficit / otherRoles.length
-
-        for (const r of otherRoles) {
-          updated[r] += perRole
-        }
-      }
-
-      // 🧠 arrotondamento safe
-      const rounded = {
-        P: Math.round(updated.P),
-        D: Math.round(updated.D),
-        C: Math.round(updated.C),
-        A: Math.round(updated.A),
-      }
-
-      return rounded
-    })
-  } else {
-    setFixedBudget((prev) => {
-      const updated = {
-        ...prev,
-        [roleKey]: safeValue,
-      }
-
-      let total = getTotal(updated)
-      const otherRoles = roles.filter(r => r !== roleKey)
-
-      // 🔴 se supera budget → riduco altri
-      if (total > maxBudget) {
-        let overflow = total - maxBudget
-
-        for (const r of otherRoles) {
-          if (overflow <= 0) break
-          const reducible = Math.min(updated[r], overflow)
-          updated[r] -= reducible
-          overflow -= reducible
-        }
-      }
-
-      return updated
-    })
-  }
-}
-
-const roles: ('P' | 'D' | 'C' | 'A')[] = ['P', 'D', 'C', 'A']
-
-const normalizePercentage = (data: any) => {
-  const total =
-    data.P + data.D + data.C + data.A
-
-  if (total === 0) return { P: 25, D: 25, C: 25, A: 25 }
-
-  const factor = 100 / total
-
-  const normalized = {
-    P: Math.round(data.P * factor),
-    D: Math.round(data.D * factor),
-    C: Math.round(data.C * factor),
-    A: Math.round(data.A * factor),
-  }
-
-  // fix rounding (porta a 100 preciso)
-  const diff =
-    100 -
-    (normalized.P +
-      normalized.D +
-      normalized.C +
-      normalized.A)
-
-  normalized.A += diff
-
-  return normalized
-}
-
-const convertFixedToPercentage = (
-  fixed: any,
-  maxBudget: number
-) => {
-  if (maxBudget === 0) {
-    return { P: 25, D: 25, C: 25, A: 25 }
-  }
-
-  const raw = {
-    P: (fixed.P / maxBudget) * 100,
-    D: (fixed.D / maxBudget) * 100,
-    C: (fixed.C / maxBudget) * 100,
-    A: (fixed.A / maxBudget) * 100,
-  }
-
-  return normalizePercentage(raw)
-}
-
-const convertPercentageToFixed = (
-  percent: any,
-  maxBudget: number
-) => {
-  const raw = {
-    P: (percent.P / 100) * maxBudget,
-    D: (percent.D / 100) * maxBudget,
-    C: (percent.C / 100) * maxBudget,
-    A: (percent.A / 100) * maxBudget,
-  }
-
-  const rounded = {
-    P: Math.round(raw.P),
-    D: Math.round(raw.D),
-    C: Math.round(raw.C),
-    A: Math.round(raw.A),
-  }
-
-  // fix overflow da rounding
-  let total =
-    rounded.P + rounded.D + rounded.C + rounded.A
-
-  if (total > maxBudget) {
-    let overflow = total - maxBudget
-
-    for (const r of roles) {
-      if (overflow <= 0) break
-
-      const reducible = Math.min(rounded[r], overflow)
-      rounded[r] -= reducible
-      overflow -= reducible
-    }
-  }
-
-  return rounded
-}
-
-
-const toggleMode = (newMode: 'percentage' | 'fixed') => {
-  if (newMode === budgetMode) return
-
-  if (newMode === 'percentage') {
-    const converted = convertFixedToPercentage(
-      fixedBudget,
-      maxBudget
-    )
-    setPercentBudget(converted)
-  } else {
-    const converted = convertPercentageToFixed(
-      percentBudget,
-      maxBudget
-    )
-    setFixedBudget(converted)
-  }
-
-  setBudgetMode(newMode)
-}
-  // ============================================================
-  // RIMOZIONE OBIETTIVO
-  // ============================================================
-
-  const removeTarget = async (
-    targetId: string
-  ) => {
+    setIsSubmittingAll(true)
     const { error } = await supabase
       .from('user_targets')
       .delete()
+      .eq('user_id', user.id)
+
+    if (error) {
+      console.error('Errore durante la cancellazione di tutti gli obiettivi:', error)
+    } else {
+      setTargets([])
+    }
+    setIsSubmittingAll(false)
+  }
+
+  const removeTarget = async (targetId: string) => {
+    const { error } = await supabase.from('user_targets').delete().eq('id', targetId)
+    if (!error) {
+      setTargets((prev) => prev.filter((target) => target.id !== targetId))
+    }
+  }
+
+  // 2. FUNZIONE PER AGGIORNARE IL GIOCATORE DA SOSTITUIRE
+  const updateReplacementPlayer = async (targetId: string, replacementPlayerId: number | null) => {
+    // Aggiornamento locale immediato
+    setTargets((prev) =>
+      prev.map((t) => (t.id === targetId ? { ...t, replacement_player_id: replacementPlayerId } : t))
+    )
+
+    // Salvataggio su Supabase
+    const { error } = await supabase
+      .from('user_targets')
+      .update({ replacement_player_id: replacementPlayerId })
       .eq('id', targetId)
 
     if (error) {
-      console.error(
-        'Errore eliminazione obiettivo:',
-        error
-      )
-      return
+      console.error('Errore aggiornamento sostituzione:', error)
     }
-
-    setTargets((prev) =>
-      prev.filter(
-        (target) => target.id !== targetId
-      )
-    )
   }
 
-  // ============================================================
-  // RUOLI
-  // ============================================================
+  const roles: ('P' | 'D' | 'C' | 'A')[] = ['P', 'D', 'C', 'A']
+  const roleTitles: Record<string, string> = { P: 'Portieri', D: 'Difensori', C: 'Centrocampisti', A: 'Attaccanti' }
 
-  const remaining =
-  budgetMode === 'percentage'
-    ? 100 - getTotal(percentBudget)
-    : maxBudget - getTotal(fixedBudget)
-
-  const roleTitles: Record<string, string> = {
-    P: 'Portieri',
-    D: 'Difensori',
-    C: 'Centrocampisti',
-    A: 'Attaccanti',
-  }
-
-  // ============================================================
-  // LOADING
-  // ============================================================
-
-  if (loading) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-sans">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-
-          <p className="text-xs text-muted font-semibold tracking-wider uppercase">
-            Caricamento obiettivi...
-          </p>
+          <p className="text-xs text-muted font-semibold tracking-wider uppercase">Caricamento obiettivi...</p>
         </div>
       </div>
     )
   }
-
-  if (!user) {
-    return null
-  }
-
-  // ============================================================
-  // PAGINA
-  // ============================================================
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans flex flex-col md:flex-row">
@@ -635,509 +296,149 @@ const toggleMode = (newMode: 'percentage' | 'fixed') => {
         onLogout={handleLogout}
       />
 
-      {/* =========================================================
-          MAIN
-      ========================================================= */}
-
       <main className="flex-1 min-w-0 p-5 md:p-8 xl:p-10 overflow-y-auto">
-
         <div className="max-w-[1500px] mx-auto space-y-6">
 
-          {/* =====================================================
-              HEADER
-          ===================================================== */}
-
+          {/* HEADER CON PULSANTE CANCELLA TUTTI */}
           <header className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
-
             <div>
-
               <div className="flex items-center gap-2 mb-2">
-
                 <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center">
                   <Target className="w-4 h-4 text-accent" />
                 </div>
-
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">
-                  Strategia
-                </span>
-
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Strategia</span>
               </div>
-
-              <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
-                I Miei Obiettivi
-              </h1>
-
-              <p className="mt-1.5 text-sm text-muted">
-                Gestisci i giocatori da tenere d'occhio e pianifica il tuo budget d'asta.
-              </p>
-
+              <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">I Miei Obiettivi</h1>
+              <p className="mt-1.5 text-sm text-muted">Gestisci i giocatori da tenere d'occhio e pianifica il tuo budget d'asta.</p>
             </div>
 
             <div className="flex items-center gap-3">
-
-              <div className="px-4 py-2.5 rounded-xl bg-surface-elevated/70 border border-border/80">
-
-                <div className="flex items-center gap-2">
-
-                  <Target className="w-4 h-4 text-accent" />
-
-                  <span className="text-xs font-bold text-muted">
-                    {targets.length} obiettivi
-                  </span>
-
-                </div>
-
+              <div className="px-4 py-2.5 rounded-xl bg-surface-elevated/70 border border-border/80 flex items-center gap-2">
+                <Target className="w-4 h-4 text-accent" />
+                <span className="text-xs font-bold text-muted">{targets.length} obiettivi</span>
               </div>
+
+              {targets.length > 0 && (
+                <button
+                  type="button"
+                  onClick={removeAllTargets}
+                  disabled={isSubmittingAll}
+                  className="px-4 py-2.5 rounded-xl bg-danger/10 border border-danger/30 text-danger hover:bg-danger/20 text-xs font-bold transition flex items-center gap-2 cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Cancella tutti
+                </button>
+              )}
             </div>
-
           </header>
-
-          {/* =====================================================
-              WARNING BUDGET
-          ===================================================== */}
 
           {showWarning && (
             <div className="bg-danger/10 border border-danger/30 rounded-2xl p-4 flex items-center gap-3">
-
               <AlertTriangle className="w-5 h-5 text-danger shrink-0" />
-
               <div>
-
-                <h3 className="text-sm font-bold text-danger">
-                  Budget superato
-                </h3>
-
-                <p className="text-xs text-danger/70 mt-0.5">
-                  Hai distribuito {totalDistributed} crediti su un massimo di {maxBudget}. Riduci le quote.
-                </p>
-
+                <h3 className="text-sm font-bold text-danger">Budget superato</h3>
+                <p className="text-xs text-danger/70 mt-0.5">Hai distribuito {totalDistributed} crediti su un massimo di {maxBudget}.</p>
               </div>
-
             </div>
           )}
 
-          {/* =====================================================
-              DISTRIBUZIONE BUDGET
-          ===================================================== */}
-
-          <section
-            className={`
-              bg-surface-elevated/80
-              border
-              rounded-2xl
-              shadow-xl
-              overflow-hidden
-              ${
-                showWarning
-                  ? 'border-danger/30'
-                  : 'border-border/80'
-              }
-            `}
-          >
-
-            <div className="p-5 md:p-6">
-
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-
-                <div>
-
-                  <div className="flex items-center gap-2">
-
-                    <Settings className="w-4 h-4 text-accent" />
-
-                    <h2 className="text-sm font-black uppercase tracking-widest text-white">
-                      Distribuzione Budget
-                    </h2>
-
-                  </div>
-
-                  <p className="text-xs text-muted mt-1">
-                    Imposta quanto vuoi destinare a ciascun ruolo.
-                  </p>
-
-                </div>
-
-                <div className="bg-background/70 p-1 rounded-xl border border-border/80 inline-flex items-center">
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      toggleMode('percentage')
-                    }
-                    className={`
-                      flex items-center gap-1.5
-                      px-3 py-1.5
-                      rounded-lg
-                      text-xs font-bold
-                      transition
-                      ${
-                        budgetMode === 'percentage'
-                          ? 'bg-accent text-background'
-                          : 'text-muted hover:text-foreground'
-                      }
-                    `}
-                  >
-                    <Percent className="w-3.5 h-3.5" />
-                    Percentuale
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      toggleMode('fixed')
-                    }
-                    className={`
-                      flex items-center gap-1.5
-                      px-3 py-1.5
-                      rounded-lg
-                      text-xs font-bold
-                      transition
-                      ${
-                        budgetMode === 'fixed'
-                          ? 'bg-accent text-background'
-                          : 'text-muted hover:text-foreground'
-                      }
-                    `}
-                  >
-                    <DollarSign className="w-3.5 h-3.5" />
-                    Crediti Fissi
-                  </button>
-
-                </div>
-
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-
-                {roles.map((roleKey) => (
-
-                  <div
-                    key={roleKey}
-                    className="
-                      bg-background/50
-                      border border-border/60
-                      rounded-xl
-                      p-4
-                      space-y-3
-                    "
-                  >
-
-                    <div className="flex justify-between items-center">
-
-                      <span className="text-xs font-black text-muted">
-                        {roleKey}
-                      </span>
-
-                      <span className="text-[10px] text-accent bg-accent/10 px-2 py-0.5 rounded border border-accent/20 font-bold">
-                        {getEffectiveCredits(roleKey)} cr.
-                      </span>
-
-                    </div>
-
-                    <input
-                      type="number"
-                      min="0"
-                      value={currentActiveBudget[roleKey]}
-onChange={(e) =>
-  updateBudget(roleKey, Number(e.target.value))
-}
-                      className="
-                        w-full
-                        bg-surface
-                        border border-border
-                        rounded-xl
-                        px-3
-                        py-2.5
-                        text-sm
-                        text-white
-                        font-bold
-                        outline-none
-                        focus:border-accent
-                        focus:ring-2
-                        focus:ring-accent/10
-                        transition
-                      "
-                    />
-
-                  </div>
-
-                ))}
-
-              </div>
-
-            </div>
-
-            <div className="px-5 md:px-6 py-3.5 border-t border-border/70 bg-background/20 flex items-center justify-between">
-
-              <span className="text-xs text-muted-2">
-                Budget distribuito
-              </span>
-
-              <span
-                className={`
-                  text-xs font-black
-                  ${
-                    totalDistributed > maxBudget
-                      ? 'text-danger'
-                      : 'text-success'
-                  }
-                `}
-              >
-                {totalDistributed} / {maxBudget} cr.
-              </span>
-
-            </div>
-
-          </section>
-
-          {/* =====================================================
-              OBIETTIVI PER RUOLO
-          ===================================================== */}
-
+          {/* OBIETTIVI PER RUOLO */}
           <div className="space-y-6">
-
             {roles.map((role) => {
-
-              const rolePlayers =
-                targets.filter(
-                  (target) =>
-                    target.player?.role?.toUpperCase() === role
-                )
+              const rolePlayers = targets.filter((target) => target.player?.role?.toUpperCase() === role)
+              // Filtra i giocatori in rosa dello stesso ruolo per la select di sostituzione
+              const availableRoleRoster = userRoster.filter((item) => item.players?.role?.toUpperCase() === role)
 
               return (
-
-                <section
-                  key={role}
-                  className="
-                    bg-surface-elevated/80
-                    border border-border/80
-                    rounded-2xl
-                    shadow-xl
-                    overflow-hidden
-                  "
-                >
-
-                  {/* HEADER RUOLO */}
-
+                <section key={role} className="bg-surface-elevated/80 border border-border/80 rounded-2xl shadow-xl overflow-hidden">
                   <div className="px-5 md:px-6 py-4 border-b border-border/70 bg-background/20 flex items-center justify-between">
-
                     <div className="flex items-center gap-3">
-
                       <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center">
-
-                        <span className="text-xs font-black text-accent">
-                          {role}
-                        </span>
-
+                        <span className="text-xs font-black text-accent">{role}</span>
                       </div>
-
-                      <h2 className="text-sm font-black text-white uppercase tracking-wider">
-                        {roleTitles[role]}
-                      </h2>
-
+                      <h2 className="text-sm font-black text-white uppercase tracking-wider">{roleTitles[role]}</h2>
                     </div>
-
                     <span className="text-[10px] font-bold text-muted bg-surface border border-border px-2.5 py-1 rounded-lg">
                       {rolePlayers.length}
                     </span>
-
                   </div>
-
-                  {/* CONTENUTO */}
 
                   <div className="p-5 md:p-6">
-
                     {rolePlayers.length > 0 ? (
-
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-
                         {rolePlayers.map((item) => {
-
-                          const team = getPlayerTeam(
-                            item.player.team
-                          )
-
-                          const teamColors =
-                            team?.colors?.filter(Boolean) ?? []
+                          const team = getPlayerTeam(item.player.team)
+                          const teamColors = team?.colors?.filter(Boolean) ?? []
 
                           return (
-
-                            <div
-                              key={item.id}
-                              className="
-                                bg-background/50
-                                border border-border/60
-                                rounded-xl
-                                p-4
-                                flex items-center justify-between
-                                gap-4
-                                hover:border-border-strong
-                                hover:bg-background/80
-                                transition
-                              "
-                            >
-
-                              {/* INFO GIOCATORE */}
-
-                              <div className="min-w-0">
-
-                                <h3 className="font-bold text-sm text-white truncate">
-                                  {item.player.name}
-                                </h3>
-
-                                {/* SQUADRA */}
-
-                                <div className="mt-2 flex items-center gap-2.5 min-w-0">
-
-                                  {/* BANDIERINA */}
-
-                                  <div
-                                    className="
-                                      relative
-                                      w-7 h-5
-                                      shrink-0
-                                      rounded-md
-                                      overflow-hidden
-                                      flex
-                                      border-2
-                                      border-border-strong
-                                      bg-surface-elevated
-                                      shadow-lg
-                                    "
-                                    title={
-                                      team?.name ??
-                                      item.player.team
-                                    }
-                                  >
-
-                                    {teamColors.length > 0 ? (
-
-                                      teamColors.map(
-                                        (color, index) => (
-                                          <span
-                                            key={index}
-                                            className="flex-1 h-full"
-                                            style={{
-                                              backgroundColor:
-                                                color,
-                                            }}
-                                          />
-                                        )
-                                      )
-
-                                    ) : (
-
-                                      <span
-                                        className="w-full h-full"                                        
-                                      />
-
-                                    )}
-
-                                    <span className="absolute inset-0 bg-white/5 pointer-events-none" />
-
+                            <div key={item.id} className="bg-background/50 border border-border/60 rounded-xl p-4 flex flex-col justify-between gap-4">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0">
+                                  <h3 className="font-bold text-sm text-white truncate">{item.player.name}</h3>
+                                  <div className="mt-2 flex items-center gap-2.5 min-w-0">
+                                    <div className="relative w-7 h-5 shrink-0 rounded-md overflow-hidden flex border-2 border-border-strong bg-surface-elevated shadow-lg">
+                                      {teamColors.length > 0 ? (
+                                        teamColors.map((color, idx) => (
+                                          <span key={idx} className="flex-1 h-full" style={{ backgroundColor: color }} />
+                                        ))
+                                      ) : (
+                                        <span className="w-full h-full" />
+                                      )}
+                                    </div>
+                                    <span className="text-[11px] uppercase font-black tracking-wider truncate">{team?.alias ?? item.player.team}</span>
                                   </div>
-
-                                  {/* ALIAS */}
-
-                                  <span
-                                    className="
-                                      text-[11px]
-                                      uppercase
-                                      font-black
-                                      tracking-wider
-                                      truncate
-                                    "
-                                  >
-                                    {team?.alias ??
-                                      item.player.team}
-                                  </span>
-
+                                  <p className="text-[10px] text-muted-2 font-semibold mt-1">FVM {item.player.fvm}</p>
                                 </div>
 
-                                {/* NOME UFFICIALE */}
-
-                                <p className="text-[10px] text-muted-2 truncate mt-0.5">
-                                  {team?.name ??
-                                    item.player.team}
-                                </p>
-
-                                {/* FVM */}
-
-                                <p className="text-[10px] text-muted-2 font-semibold mt-1">
-                                  FVM {item.player.fvm}
-                                </p>
-
+                                <button
+                                  type="button"
+                                  onClick={() => removeTarget(item.id)}
+                                  title="Rimuovi obiettivo"
+                                  className="shrink-0 w-9 h-9 rounded-xl inline-flex items-center justify-center border border-border bg-surface/50 text-muted-2 hover:text-danger hover:border-danger/30 hover:bg-danger/10 transition cursor-pointer"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               </div>
 
-                              {/* RIMUOVI */}
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  removeTarget(item.id)
-                                }
-                                title="Rimuovi obiettivo"
-                                className="
-                                  shrink-0
-                                  w-9 h-9
-                                  rounded-xl
-                                  inline-flex
-                                  items-center
-                                  justify-center
-                                  border border-border
-                                  bg-surface/50
-                                  text-muted-2
-                                  hover:text-danger
-                                  hover:border-danger/30
-                                  hover:bg-danger/10
-                                  transition
-                                  cursor-pointer
-                                "
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-
+                              {/* Selezione giocatore in rosa da sostituire */}
+                              <div className="pt-2 border-t border-border/40">
+                                <label className="block text-[10px] font-bold text-muted uppercase tracking-wider mb-1">
+                                  Sostituirebbe in rosa:
+                                </label>
+                                <select
+                                  value={item.replacement_player_id ?? ''}
+                                  onChange={(e) => updateReplacementPlayer(item.id, e.target.value ? Number(e.target.value) : null)}
+                                  className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs text-white font-medium focus:outline-none focus:border-accent"
+                                >
+                                  <option value="">Nessuno / Slot libero</option>
+                                  {availableRoleRoster.map((rosterItem) => (
+                                    <option key={rosterItem.id} value={rosterItem.players?.id}>
+                                      {rosterItem.players?.name} ({rosterItem.price} cr.)
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
                             </div>
-
                           )
                         })}
-
                       </div>
-
                     ) : (
-
                       <div className="py-10 text-center bg-background/30 rounded-xl border border-border">
-
                         <Target className="w-6 h-6 text-muted-2 mx-auto mb-2" />
-
-                        <p className="text-xs text-muted-2 italic">
-                          Nessun giocatore tra gli obiettivi.
-                        </p>
-
-                        <Link
-                          href="/listone"
-                          className="inline-flex items-center mt-3 text-[10px] font-bold uppercase tracking-wider text-accent hover:text-accent-hover transition"
-                        >
+                        <p className="text-xs text-muted-2 italic">Nessun giocatore tra gli obiettivi.</p>
+                        <Link href="/listone" className="inline-flex items-center mt-3 text-[10px] font-bold uppercase tracking-wider text-accent hover:text-accent-hover transition">
                           Vai al Listone
                         </Link>
-
                       </div>
-
                     )}
-
                   </div>
-
                 </section>
-
               )
             })}
-
           </div>
 
         </div>
-
       </main>
-
     </div>
   )
 }
